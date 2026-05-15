@@ -19,6 +19,102 @@ header{background:#1e293b;border-bottom:1px solid #334155;padding:16px 28px;disp
 .badge-mon{background:rgba(34,211,238,.15);border:1px solid #22d3ee;color:#22d3ee}
 button.hbtn{background:transparent;border:1px solid #334155;color:#94a3b8;padding:7px 14px;border-radius:6px;cursor:pointer;font-size:12px;font-family:'Inter',sans-serif}
 button.hbtn:hover{border-color:#f59e0b;color:#f59e0b}
+button.hbtn.active{background:rgba(245,158,11,.15);border-color:#f59e0b;color:#f59e0b}
+
+/* Dashboard */
+#dashView{display:none;position:fixed;inset:0;z-index:50;background:#0f172a;overflow-y:auto;padding:24px 28px}
+#dashView.open{display:block}
+.dash-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}
+.dash-title{font-size:18px;font-weight:700;color:#f1f5f9}
+.dash-sub{font-size:12px;color:#64748b;margin-top:3px}
+.stat-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:24px}
+.stat-card{background:#1e293b;border:1px solid #334155;border-radius:10px;padding:14px 16px}
+.stat-card .sc-n{font-size:28px;font-weight:700;color:#f1f5f9}
+.stat-card .sc-l{font-size:11px;color:#64748b;margin-top:4px;text-transform:uppercase;letter-spacing:.5px}
+.stat-card.red{border-color:rgba(248,113,113,.4);background:rgba(248,113,113,.06)}
+.stat-card.green{border-color:rgba(52,211,153,.4);background:rgba(52,211,153,.06)}
+.stat-card.amber{border-color:rgba(245,158,11,.4);background:rgba(245,158,11,.06)}
+.section-title{font-size:11px;font-weight:600;color:#64748b;letter-spacing:1px;text-transform:uppercase;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.section-title::after{content:'';flex:1;height:1px;background:#1e293b}
+.rag-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin-bottom:28px}
+.rag-card{background:#1e293b;border-radius:10px;padding:14px 16px;border-left:4px solid #334155;position:relative}
+.rag-card.R{border-left-color:#f87171}
+.rag-card.A{border-left-color:#f59e0b}
+.rag-card.G{border-left-color:#34d399}
+.rag-name{font-size:13px;font-weight:600;color:#f1f5f9;margin-bottom:2px}
+.rag-dept{font-size:10px;color:#64748b;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px}
+.rag-badge{position:absolute;top:14px;right:14px;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-size:11px;font-weight:700}
+.rag-badge.R{background:rgba(248,113,113,.2);color:#f87171}
+.rag-badge.A{background:rgba(245,158,11,.2);color:#f59e0b}
+.rag-badge.G{background:rgba(52,211,153,.2);color:#34d399}
+.rag-detail{font-size:11px;color:#64748b;line-height:1.6}
+.rag-detail .blocker-item{color:#f87171}
+.rag-detail .win-item{color:#34d399}
+.history-table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:28px}
+.history-table th{padding:8px 12px;text-align:left;color:#64748b;font-weight:500;border-bottom:1px solid #1e293b;font-size:10px;text-transform:uppercase;letter-spacing:.5px}
+.history-table td{padding:10px 12px;border-bottom:1px solid #1e293b;color:#94a3b8;vertical-align:middle}
+.history-table tr:hover td{background:#1e293b}
+.history-table .week-label{color:#f1f5f9;font-weight:500}
+.rag-pill{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600}
+.rag-pill.R{background:rgba(248,113,113,.15);color:#f87171;border:1px solid rgba(248,113,113,.3)}
+.rag-pill.A{background:rgba(245,158,11,.15);color:#f59e0b;border:1px solid rgba(245,158,11,.3)}
+.rag-pill.G{background:rgba(52,211,153,.15);color:#34d399;border:1px solid rgba(52,211,153,.3)}
+.blocker-list{margin-bottom:28px}
+.blocker-item-row{background:#1e293b;border-radius:8px;padding:12px 16px;margin-bottom:8px;display:flex;align-items:flex-start;gap:12px;border-left:3px solid #f87171}
+.blocker-week{font-size:10px;color:#64748b;white-space:nowrap;margin-top:2px}
+.blocker-text{font-size:12px;color:#e2e8f0;flex:1;line-height:1.5}
+.blocker-owner{font-size:11px;color:#f87171;font-weight:500}
+.no-data{text-align:center;padding:40px;color:#475569;font-size:13px}
+.trend-bar-wrap{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.trend-label{font-size:11px;color:#64748b;min-width:80px;text-align:right}
+.trend-bar-bg{flex:1;background:#1e293b;border-radius:4px;height:8px;overflow:hidden}
+.trend-bar{height:100%;border-radius:4px;transition:.3s}
+.trend-bar.blockers{background:#f87171}
+.trend-bar.wins{background:#34d399}
+.trend-val{font-size:11px;color:#94a3b8;min-width:20px}
+
+/* History & Archive view */
+#historyView{display:none;position:fixed;inset:0;z-index:50;background:#0f172a;overflow-y:auto;padding:24px 28px}
+#historyView.open{display:block}
+.hist-cards{display:flex;flex-direction:column;gap:10px;margin-bottom:28px}
+.hist-card{background:#1e293b;border:1px solid #334155;border-radius:10px;padding:16px 20px;cursor:pointer;transition:.2s}
+.hist-card:hover{border-color:#f59e0b}
+.hist-card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.hist-card-week{font-size:13px;font-weight:600;color:#f1f5f9}
+.hist-card-meta{font-size:11px;color:#64748b}
+.hist-card-tags{display:flex;gap:6px;flex-wrap:wrap}
+.hist-tag{font-size:10px;padding:2px 8px;border-radius:20px;border:1px solid #334155;color:#64748b}
+.hist-tag.fri{border-color:rgba(245,158,11,.4);color:#f59e0b}
+.hist-tag.mon{border-color:rgba(34,211,238,.4);color:#22d3ee}
+.report-viewer{background:#1e293b;border-radius:10px;padding:20px 24px;margin-top:16px}
+.report-viewer-tabs{display:flex;gap:0;border:1px solid #334155;border-radius:6px;overflow:hidden;margin-bottom:16px;width:fit-content}
+.rv-tab{background:transparent;border:none;color:#64748b;padding:6px 14px;font-size:11px;cursor:pointer;font-family:'Inter',sans-serif;transition:.15s}
+.rv-tab.active{background:rgba(245,158,11,.15);color:#f59e0b}
+.rv-content{font-size:12px;line-height:1.8;color:#94a3b8;max-height:400px;overflow-y:auto}
+
+/* Team Templates */
+#templatesView{display:none;position:fixed;inset:0;z-index:50;background:#0f172a;overflow-y:auto;padding:24px 28px}
+#templatesView.open{display:block}
+.member-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;margin-bottom:24px}
+.member-card{background:#1e293b;border:1px solid #334155;border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:10px}
+.member-card-head{display:flex;align-items:center;justify-content:space-between}
+.member-avatar{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#f59e0b,#d97706);display:grid;place-items:center;font-size:12px;font-weight:700;color:#000;flex-shrink:0}
+.member-info{flex:1;margin-left:10px}
+.member-name{font-size:13px;font-weight:600;color:#f1f5f9}
+.member-dept{font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.5px}
+.member-del{background:transparent;border:none;color:#475569;font-size:14px;cursor:pointer;padding:4px}
+.member-del:hover{color:#f87171}
+.update-field{display:flex;flex-direction:column;gap:4px}
+.update-field label{font-size:10px;color:#64748b;letter-spacing:.5px;text-transform:uppercase}
+.update-field textarea{background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;font-family:'Inter',sans-serif;font-size:12px;padding:8px 10px;resize:none;outline:none;min-height:52px;transition:.2s;line-height:1.5}
+.update-field textarea:focus{border-color:#f59e0b}
+.add-member-form{background:#1e293b;border:1px dashed #334155;border-radius:10px;padding:16px;display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
+.add-field{display:flex;flex-direction:column;gap:5px;flex:1;min-width:140px}
+.add-field label{font-size:10px;color:#64748b;letter-spacing:.5px;text-transform:uppercase}
+.add-field input{background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;font-family:'Inter',sans-serif;font-size:12px;padding:8px 10px;outline:none;transition:.2s}
+.add-field input:focus{border-color:#f59e0b}
+.btn-compile{background:#22d3ee;border:none;color:#000;padding:10px 20px;border-radius:6px;font-weight:600;font-size:13px;cursor:pointer;width:100%;margin-top:8px}
+.btn-compile:hover{background:#06b6d4}
 
 /* Config panel */
 #cfgPanel{background:#1e293b;border-bottom:1px solid #334155;overflow:hidden;max-height:0;transition:max-height .3s ease}
@@ -123,6 +219,9 @@ textarea::placeholder{color:#334155}
   </div>
   <div class="header-right">
     <span class="badge badge-fri" id="modeBadge">FRIDAY ROLLUP</span>
+    <button class="hbtn" id="dashBtn"      onclick="toggleDash()">📊 Dashboard</button>
+    <button class="hbtn" id="historyBtn"   onclick="toggleHistory()">🗂 History</button>
+    <button class="hbtn" id="templatesBtn" onclick="toggleTemplates()">👥 Team</button>
     <button class="hbtn" onclick="toggleCfg()">⚙ Config</button>
   </div>
 </header>
@@ -157,7 +256,137 @@ textarea::placeholder{color:#334155}
   </div>
 </div>
 
+<!-- DASHBOARD VIEW -->
+<div id="dashView">
+  <div class="dash-header">
+    <div>
+      <div class="dash-title">📊 Program Status Dashboard</div>
+      <div class="dash-sub" id="dashWeekLabel">No data yet — generate a report first</div>
+    </div>
+    <button class="hbtn" onclick="toggleDash()">✕ Close</button>
+  </div>
+
+  <!-- Stat Cards -->
+  <div class="stat-cards" id="dashStats">
+    <div class="stat-card"><div class="sc-n" id="statMembers">—</div><div class="sc-l">Members</div></div>
+    <div class="stat-card green"><div class="sc-n" id="statGreen">—</div><div class="sc-l">🟢 On Track</div></div>
+    <div class="stat-card amber"><div class="sc-n" id="statAmber">—</div><div class="sc-l">🟡 At Risk</div></div>
+    <div class="stat-card red"><div class="sc-n" id="statRed">—</div><div class="sc-l">🔴 Blocked</div></div>
+    <div class="stat-card"><div class="sc-n" id="statWins">—</div><div class="sc-l">🏆 Wins</div></div>
+  </div>
+
+  <!-- RAG Status -->
+  <div class="section-title">Team RAG Status — This Week</div>
+  <div class="rag-grid" id="ragGrid">
+    <div class="no-data">Generate a report to see team RAG status</div>
+  </div>
+
+  <!-- Blocker Tracker -->
+  <div class="section-title">Active Blockers</div>
+  <div class="blocker-list" id="blockerList">
+    <div class="no-data">No blockers tracked yet</div>
+  </div>
+
+  <!-- Trends -->
+  <div class="section-title">Weekly Trends</div>
+  <div id="trendChart" style="margin-bottom:28px">
+    <div class="no-data">No history yet — trends appear after 2+ weeks</div>
+  </div>
+
+  <!-- History Table -->
+  <div class="section-title">Weekly History</div>
+  <div style="overflow-x:auto">
+    <table class="history-table" id="historyTable">
+      <thead>
+        <tr>
+          <th>Week</th>
+          <th>Type</th>
+          <th>Members</th>
+          <th>Overall RAG</th>
+          <th>Blockers</th>
+          <th>Wins</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="historyBody">
+        <tr><td colspan="7" class="no-data">No history yet</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
 <!-- EMAIL POPUP MODAL -->
+
+<!-- HISTORY & ARCHIVE VIEW -->
+<div id="historyView">
+  <div class="dash-header">
+    <div>
+      <div class="dash-title">🗂 History & Archive</div>
+      <div class="dash-sub">Every report saved automatically — never lose a rollup again</div>
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="hbtn" onclick="clearAllHistory()" style="border-color:#f87171;color:#f87171">🗑 Clear All</button>
+      <button class="hbtn" onclick="toggleHistory()">✕ Close</button>
+    </div>
+  </div>
+
+  <div id="histArchiveList">
+    <div class="no-data">No reports archived yet — generate your first report!</div>
+  </div>
+
+  <!-- Report Viewer -->
+  <div id="reportViewer" style="display:none">
+    <div class="section-title" id="viewerTitle">Viewing Report</div>
+    <div class="report-viewer">
+      <div class="report-viewer-tabs">
+        <button class="rv-tab active" onclick="switchViewer('mgmt')">Management</button>
+        <button class="rv-tab" onclick="switchViewer('client')">Client</button>
+        <button class="rv-tab" onclick="switchViewer('team')">Team</button>
+        <button class="rv-tab" onclick="switchViewer('chat')">Chat</button>
+      </div>
+      <div class="rv-content" id="rvContent"></div>
+    </div>
+  </div>
+</div>
+
+<!-- TEAM TEMPLATES VIEW -->
+<div id="templatesView">
+  <div class="dash-header">
+    <div>
+      <div class="dash-title">👥 Team Member Templates</div>
+      <div class="dash-sub">Fill in each person's update — auto-compiles into the input box</div>
+    </div>
+    <button class="hbtn" onclick="toggleTemplates()">✕ Close</button>
+  </div>
+
+  <!-- Add Member -->
+  <div class="section-title">Add Team Member</div>
+  <div class="add-member-form" style="margin-bottom:24px">
+    <div class="add-field">
+      <label>Full Name</label>
+      <input id="newMemberName" type="text" placeholder="e.g. Raj Kumar"/>
+    </div>
+    <div class="add-field">
+      <label>Department / Role</label>
+      <input id="newMemberDept" type="text" placeholder="e.g. Engineering"/>
+    </div>
+    <button class="btn-save" onclick="addMember()" style="padding:8px 16px;height:fit-content">+ Add</button>
+  </div>
+
+  <!-- Member Update Cards -->
+  <div class="section-title">This Week's Updates</div>
+  <div class="member-cards" id="memberCards">
+    <div class="no-data" style="grid-column:1/-1">No team members yet — add your first member above!</div>
+  </div>
+
+  <!-- Compile Button -->
+  <button class="btn-compile" onclick="compileUpdates()">
+    ⚡ Compile All Updates → Paste into Generator
+  </button>
+  <p style="font-size:11px;color:#475569;text-align:center;margin-top:8px">
+    This will fill the main input box with all updates formatted and ready to generate
+  </p>
+</div>
 <div id="emailModal" style="display:none;position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);align-items:center;justify-content:center">
   <div style="background:#1e293b;border:1px solid #334155;border-radius:12px;width:90%;max-width:460px;overflow:hidden">
     <div style="padding:18px 24px;border-bottom:1px solid #334155;display:flex;align-items:center;justify-content:space-between">
@@ -340,14 +569,39 @@ async function generate() {
   const sender  = cfg.name || 'DN Team';
 
   const system = `You are a professional status report writer for Datanimbus.
-Generate exactly 4 reports from the team updates. Return ONLY a raw JSON object — no markdown, no code blocks, no explanation:
-{"mgmt":"...","client":"...","team":"...","chat":"..."}
+Generate exactly 5 outputs from the team updates. Return ONLY a raw JSON object — no markdown, no code blocks, no explanation:
+{"mgmt":"...","client":"...","team":"...","chat":"...","dashboard":{...}}
 
 Rules:
 - mgmt: Full internal HTML report. Per-person breakdown, department sections, blockers in red, wins in green. Use <h2><h3><ul><li><p><strong>. Add <span class='blocker'>BLOCKER</span> and <span class='win'>WIN</span> tags.
 - client: Professional HTML. Achievements, metrics, next steps only. No internal politics or blockers.
 - team: ${isFri ? 'End-of-week HTML recap. Celebrate wins, list completed work, set next week expectations.' : 'Monday HTML kickoff. Energising, who does what, surface blockers.'}
-- chat: Plain text for Google Chat. Max 180 words. Use *bold* for names. ${isFri ? 'Wins, blockers, highlights.' : 'Week plan, blockers.'}`;
+- chat: Plain text for Google Chat. Max 180 words. Use *bold* for names. ${isFri ? 'Wins, blockers, highlights.' : 'Week plan, blockers.'}
+- dashboard: Structured JSON object with this exact shape:
+{
+  "members": [
+    {
+      "name": "Person Name",
+      "dept": "Department",
+      "rag": "G",
+      "ragReason": "One sentence reason for RAG status",
+      "blockers": ["blocker text if any"],
+      "wins": ["win text if any"],
+      "completed": ["completed item"],
+      "inProgress": ["in progress item"]
+    }
+  ],
+  "summary": {
+    "totalMembers": 0,
+    "greenCount": 0,
+    "amberCount": 0,
+    "redCount": 0,
+    "totalBlockers": 0,
+    "totalWins": 0,
+    "overallRAG": "G"
+  }
+}
+RAG rules: G=no blockers, on track. A=minor risks or delays. R=has active blockers or critical issues.`;
 
   const user = `Week: ${week}\nType: ${isFri ? 'Friday end-of-week rollup' : 'Monday week kickoff'}\nSender: ${sender}\n\nTeam Updates:\n${input}`;
 
@@ -389,9 +643,16 @@ Rules:
       }
     });
     document.getElementById('sendAll').disabled = false;
+
+    // Save dashboard data + full reports to history
+    if (parsed.dashboard) {
+      saveToHistory(parsed.dashboard, week, mode, { mgmt: parsed.mgmt, client: parsed.client, team: parsed.team, chat: parsed.chat });
+      renderDashboard(parsed.dashboard, week);
+    }
+
     renderTab();
-    addLog('All 4 reports generated ✓', 'ok');
-    toast('Reports ready! Check each tab.', 'ok');
+    addLog('All 4 reports + dashboard generated ✓', 'ok');
+    toast('Reports ready! Check each tab or view Dashboard.', 'ok');
 
   } catch(e) {
     document.getElementById('output').innerHTML = `<div class="placeholder">
@@ -561,6 +822,377 @@ function addLog(msg, type='info') {
   el.innerHTML = `<span class="log-t">${now}</span><span class="log-m ${type}">${msg}</span>`;
   document.getElementById('logEntries').prepend(el);
   document.getElementById('log').classList.add('open');
+}
+
+// ── Dashboard ─────────────────────────────────────────────────
+function toggleDash() {
+  const dash = document.getElementById('dashView');
+  const btn  = document.getElementById('dashBtn');
+  const isOpen = !dash.classList.contains('open');
+  closeAllViews();
+  dash.classList.toggle('open', isOpen);
+  btn.classList.toggle('active', isOpen);
+  if (isOpen) renderHistoryTable();
+}
+
+function saveToHistory(dashboard, week, type, fullReports) {
+  try {
+    const history = JSON.parse(localStorage.getItem('dn_history') || '[]');
+    const filtered = history.filter(h => !(h.week === week && h.type === type));
+    filtered.unshift({
+      week, type, dashboard,
+      reports: fullReports || {},
+      savedAt: new Date().toISOString()
+    });
+    localStorage.setItem('dn_history', JSON.stringify(filtered.slice(0, 24)));
+  } catch(e) { console.error('History save failed', e); }
+}
+
+function getHistory() {
+  try { return JSON.parse(localStorage.getItem('dn_history') || '[]'); } catch { return []; }
+}
+
+function renderDashboard(dashboard, week) {
+  const { members = [], summary = {} } = dashboard;
+
+  // Update week label
+  document.getElementById('dashWeekLabel').textContent = `Week of ${week} · ${members.length} members reported`;
+
+  // Stat cards
+  document.getElementById('statMembers').textContent = summary.totalMembers || members.length;
+  document.getElementById('statGreen').textContent   = summary.greenCount   || members.filter(m => m.rag==='G').length;
+  document.getElementById('statAmber').textContent   = summary.amberCount   || members.filter(m => m.rag==='A').length;
+  document.getElementById('statRed').textContent     = summary.redCount     || members.filter(m => m.rag==='R').length;
+  document.getElementById('statWins').textContent    = summary.totalWins    || members.reduce((a,m) => a + (m.wins||[]).length, 0);
+
+  // RAG cards
+  const ragGrid = document.getElementById('ragGrid');
+  if (members.length === 0) {
+    ragGrid.innerHTML = '<div class="no-data">No member data found</div>';
+  } else {
+    ragGrid.innerHTML = members.map(m => `
+      <div class="rag-card ${m.rag}">
+        <div class="rag-badge ${m.rag}">${m.rag}</div>
+        <div class="rag-name">${m.name}</div>
+        <div class="rag-dept">${m.dept || ''}</div>
+        <div class="rag-detail">
+          ${m.ragReason ? `<div style="margin-bottom:6px;color:#94a3b8">${m.ragReason}</div>` : ''}
+          ${(m.blockers||[]).map(b => `<div class="blocker-item">🚧 ${b}</div>`).join('')}
+          ${(m.wins||[]).map(w => `<div class="win-item">🏆 ${w}</div>`).join('')}
+        </div>
+      </div>`).join('');
+  }
+
+  // Blockers
+  const allBlockers = members.flatMap(m => (m.blockers||[]).map(b => ({ name: m.name, dept: m.dept, text: b })));
+  const blockerList = document.getElementById('blockerList');
+  if (allBlockers.length === 0) {
+    blockerList.innerHTML = '<div class="no-data">✅ No active blockers this week!</div>';
+  } else {
+    blockerList.innerHTML = allBlockers.map(b => `
+      <div class="blocker-item-row">
+        <div>
+          <div class="blocker-owner">${b.name} · ${b.dept}</div>
+          <div class="blocker-week">${week}</div>
+        </div>
+        <div class="blocker-text">${b.text}</div>
+      </div>`).join('');
+  }
+
+  // Trends
+  renderTrends();
+  renderHistoryTable();
+}
+
+function renderTrends() {
+  const history = getHistory();
+  if (history.length < 2) {
+    document.getElementById('trendChart').innerHTML = '<div class="no-data">No history yet — trends appear after 2+ weeks</div>';
+    return;
+  }
+
+  const maxBlockers = Math.max(...history.map(h => h.dashboard?.summary?.totalBlockers || 0), 1);
+  const maxWins     = Math.max(...history.map(h => h.dashboard?.summary?.totalWins || 0), 1);
+
+  document.getElementById('trendChart').innerHTML = history.slice(0, 6).reverse().map(h => {
+    const blockers = h.dashboard?.summary?.totalBlockers || 0;
+    const wins     = h.dashboard?.summary?.totalWins     || 0;
+    const rag      = h.dashboard?.summary?.overallRAG    || 'G';
+    return `
+    <div style="margin-bottom:14px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <span class="rag-pill ${rag}">${rag}</span>
+        <span style="font-size:12px;color:#94a3b8">${h.week}</span>
+      </div>
+      <div class="trend-bar-wrap">
+        <span class="trend-label">Blockers</span>
+        <div class="trend-bar-bg"><div class="trend-bar blockers" style="width:${(blockers/maxBlockers)*100}%"></div></div>
+        <span class="trend-val">${blockers}</span>
+      </div>
+      <div class="trend-bar-wrap">
+        <span class="trend-label">Wins</span>
+        <div class="trend-bar-bg"><div class="trend-bar wins" style="width:${(wins/maxWins)*100}%"></div></div>
+        <span class="trend-val">${wins}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderHistoryTable() {
+  const history = getHistory();
+  const tbody   = document.getElementById('historyBody');
+  if (history.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" class="no-data">No history yet</td></tr>';
+    return;
+  }
+  tbody.innerHTML = history.map((h, i) => {
+    const s   = h.dashboard?.summary || {};
+    const rag = s.overallRAG || 'G';
+    return `<tr>
+      <td class="week-label">${h.week}</td>
+      <td><span style="font-size:11px;color:#64748b;text-transform:uppercase">${h.type}</span></td>
+      <td>${s.totalMembers || '—'}</td>
+      <td><span class="rag-pill ${rag}">${{G:'🟢 On Track',A:'🟡 At Risk',R:'🔴 Blocked'}[rag]||rag}</span></td>
+      <td style="color:#f87171">${s.totalBlockers || 0}</td>
+      <td style="color:#34d399">${s.totalWins || 0}</td>
+      <td><button onclick="loadHistoryEntry(${i})" style="background:transparent;border:1px solid #334155;color:#64748b;padding:4px 10px;border-radius:4px;font-size:11px;cursor:pointer">View</button>
+          <button onclick="deleteHistoryEntry(${i})" style="background:transparent;border:none;color:#475569;padding:4px 6px;font-size:11px;cursor:pointer">✕</button></td>
+    </tr>`;
+  }).join('');
+}
+
+function loadHistoryEntry(i) {
+  const h = getHistory()[i];
+  if (!h) return;
+  renderDashboard(h.dashboard, h.week);
+  document.getElementById('dashWeekLabel').textContent = `Week of ${h.week} · ${h.type} (history)`;
+}
+
+function deleteHistoryEntry(i) {
+  const history = getHistory();
+  history.splice(i, 1);
+  localStorage.setItem('dn_history', JSON.stringify(history));
+  renderHistoryTable();
+  toast('Entry deleted', 'info');
+}
+
+// ── History & Archive ─────────────────────────────────────────
+let currentViewerEntry = null;
+let currentViewerTab   = 'mgmt';
+
+function toggleHistory() {
+  const v   = document.getElementById('historyView');
+  const btn = document.getElementById('historyBtn');
+  closeAllViews();
+  const isOpen = !v.classList.contains('open');
+  v.classList.toggle('open', isOpen);
+  btn.classList.toggle('active', isOpen);
+  if (isOpen) renderArchiveList();
+}
+
+function renderArchiveList() {
+  const history = getHistory();
+  const el      = document.getElementById('histArchiveList');
+  document.getElementById('reportViewer').style.display = 'none';
+
+  if (history.length === 0) {
+    el.innerHTML = '<div class="no-data">No reports archived yet — generate your first report!</div>';
+    return;
+  }
+
+  el.innerHTML = '<div class="hist-cards">' + history.map((h, i) => {
+    const s   = h.dashboard?.summary || {};
+    const rag = s.overallRAG || 'G';
+    const ragColor = { G: '#34d399', A: '#f59e0b', R: '#f87171' }[rag];
+    const date = h.savedAt ? new Date(h.savedAt).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '';
+    return `
+    <div class="hist-card" onclick="viewArchiveEntry(${i})">
+      <div class="hist-card-head">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="width:10px;height:10px;border-radius:50%;background:${ragColor};flex-shrink:0"></div>
+          <span class="hist-card-week">${h.week}</span>
+          <span class="hist-tag ${h.type}">${h.type === 'friday' ? '📅 Friday Rollup' : '🚀 Monday Kickoff'}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="hist-card-meta">${date}</span>
+          <button onclick="event.stopPropagation();deleteHistoryEntry(${i})" style="background:transparent;border:none;color:#475569;cursor:pointer;font-size:13px;padding:2px 6px" title="Delete">✕</button>
+        </div>
+      </div>
+      <div class="hist-card-tags" style="margin-top:8px">
+        <span class="hist-tag">${s.totalMembers || 0} members</span>
+        <span class="hist-tag" style="color:#f87171;border-color:rgba(248,113,113,.3)">🚧 ${s.totalBlockers || 0} blockers</span>
+        <span class="hist-tag" style="color:#34d399;border-color:rgba(52,211,153,.3)">🏆 ${s.totalWins || 0} wins</span>
+        ${h.reports?.mgmt ? '<span class="hist-tag" style="color:#22d3ee;border-color:rgba(34,211,238,.3)">📄 Full report saved</span>' : ''}
+      </div>
+    </div>`;
+  }).join('') + '</div>';
+}
+
+function viewArchiveEntry(i) {
+  const h = getHistory()[i];
+  if (!h) return;
+  currentViewerEntry = h;
+  currentViewerTab   = 'mgmt';
+
+  document.getElementById('viewerTitle').textContent = `Viewing: ${h.week} — ${h.type === 'friday' ? 'Friday Rollup' : 'Monday Kickoff'}`;
+  document.getElementById('reportViewer').style.display = 'block';
+  renderViewerContent();
+  document.getElementById('reportViewer').scrollIntoView({ behavior: 'smooth' });
+}
+
+function switchViewer(tab) {
+  currentViewerTab = tab;
+  document.querySelectorAll('.rv-tab').forEach(t => t.classList.toggle('active', t.textContent.toLowerCase() === tab));
+  renderViewerContent();
+}
+
+function renderViewerContent() {
+  const h   = currentViewerEntry;
+  const el  = document.getElementById('rvContent');
+  if (!h) return;
+
+  if (currentViewerTab === 'chat') {
+    el.innerHTML = `<pre style="white-space:pre-wrap;font-family:'Inter',sans-serif">${h.reports?.chat || 'Not saved'}</pre>`;
+  } else {
+    const content = h.reports?.[currentViewerTab];
+    el.innerHTML  = content ? `<div class="report">${md(content)}</div>` : '<div class="no-data">Report content not available for this entry</div>';
+  }
+}
+
+function clearAllHistory() {
+  if (!confirm('Delete all archived reports? This cannot be undone.')) return;
+  localStorage.removeItem('dn_history');
+  renderArchiveList();
+  renderHistoryTable();
+  toast('All history cleared', 'info');
+}
+
+// ── Team Member Templates ─────────────────────────────────────
+function getMembers() {
+  try { return JSON.parse(localStorage.getItem('dn_members') || '[]'); } catch { return []; }
+}
+
+function saveMembers(members) {
+  localStorage.setItem('dn_members', JSON.stringify(members));
+}
+
+function toggleTemplates() {
+  const v   = document.getElementById('templatesView');
+  const btn = document.getElementById('templatesBtn');
+  closeAllViews();
+  const isOpen = !v.classList.contains('open');
+  v.classList.toggle('open', isOpen);
+  btn.classList.toggle('active', isOpen);
+  if (isOpen) renderMemberCards();
+}
+
+function addMember() {
+  const name = document.getElementById('newMemberName').value.trim();
+  const dept = document.getElementById('newMemberDept').value.trim();
+  if (!name) { toast('Please enter a name', 'err'); return; }
+
+  const members = getMembers();
+  if (members.find(m => m.name.toLowerCase() === name.toLowerCase())) {
+    toast('Member already exists', 'err'); return;
+  }
+
+  members.push({ name, dept: dept || 'General' });
+  saveMembers(members);
+  document.getElementById('newMemberName').value = '';
+  document.getElementById('newMemberDept').value = '';
+  renderMemberCards();
+  toast(`${name} added ✓`, 'ok');
+}
+
+function removeMember(name) {
+  const members = getMembers().filter(m => m.name !== name);
+  saveMembers(members);
+  renderMemberCards();
+  toast(`${name} removed`, 'info');
+}
+
+function renderMemberCards() {
+  const members = getMembers();
+  const el      = document.getElementById('memberCards');
+
+  if (members.length === 0) {
+    el.innerHTML = '<div class="no-data" style="grid-column:1/-1">No team members yet — add your first member above!</div>';
+    return;
+  }
+
+  el.innerHTML = members.map(m => {
+    const initials = m.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+    const id       = m.name.replace(/\s+/g, '_');
+    return `
+    <div class="member-card">
+      <div class="member-card-head">
+        <div class="member-avatar">${initials}</div>
+        <div class="member-info">
+          <div class="member-name">${m.name}</div>
+          <div class="member-dept">${m.dept}</div>
+        </div>
+        <button class="member-del" onclick="removeMember('${m.name}')" title="Remove member">✕</button>
+      </div>
+      <div class="update-field">
+        <label>✅ Completed this week</label>
+        <textarea id="u_${id}_completed" placeholder="What did ${m.name.split(' ')[0]} finish?"></textarea>
+      </div>
+      <div class="update-field">
+        <label>🔄 In Progress</label>
+        <textarea id="u_${id}_inprogress" placeholder="What are they currently working on?"></textarea>
+      </div>
+      <div class="update-field">
+        <label>🚧 Blockers / Risks</label>
+        <textarea id="u_${id}_blockers" placeholder="Any blockers? Leave blank if none"></textarea>
+      </div>
+      <div class="update-field">
+        <label>🏆 Wins / Highlights</label>
+        <textarea id="u_${id}_wins" placeholder="Any wins to celebrate?"></textarea>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function compileUpdates() {
+  const members = getMembers();
+  if (members.length === 0) { toast('No team members added yet', 'err'); return; }
+
+  const lines = members.map(m => {
+    const id        = m.name.replace(/\s+/g, '_');
+    const completed  = document.getElementById(`u_${id}_completed`)?.value.trim()  || '';
+    const inprogress = document.getElementById(`u_${id}_inprogress`)?.value.trim() || '';
+    const blockers   = document.getElementById(`u_${id}_blockers`)?.value.trim()   || '';
+    const wins       = document.getElementById(`u_${id}_wins`)?.value.trim()       || '';
+
+    if (!completed && !inprogress && !blockers && !wins) return null;
+
+    let text = `${m.name} (${m.dept}):`;
+    if (completed)  text += `\nCompleted: ${completed}`;
+    if (inprogress) text += `\nIn Progress: ${inprogress}`;
+    if (blockers)   text += `\nBlocker: ${blockers}`;
+    if (wins)       text += `\nWin: ${wins}`;
+    return text;
+  }).filter(Boolean);
+
+  if (lines.length === 0) { toast('Please fill in at least one update', 'err'); return; }
+
+  const compiled = lines.join('\n\n');
+  document.getElementById('input').value = compiled;
+  document.getElementById('chars').textContent = compiled.length.toLocaleString() + ' chars';
+
+  toggleTemplates();
+  addLog(`Compiled ${lines.length} member updates ✓`, 'ok');
+  toast(`${lines.length} updates compiled → ready to generate! ✓`, 'ok');
+}
+
+// ── Close all views helper ────────────────────────────────────
+function closeAllViews() {
+  ['dashView','historyView','templatesView'].forEach(id => {
+    document.getElementById(id).classList.remove('open');
+  });
+  ['dashBtn','historyBtn','templatesBtn'].forEach(id => {
+    document.getElementById(id)?.classList.remove('active');
+  });
 }
 
 // ── Init ──────────────────────────────────────────────────────
