@@ -133,13 +133,9 @@ textarea::placeholder{color:#334155}
     <div class="cfg-title">⚙ Configuration</div>
     <div class="cfg-grid">
       <div class="cfg-field" style="grid-column:1/-1">
-        <label>Cloudflare Worker URL (Claude Proxy)</label>
+        <label>Cloudflare Worker URL</label>
         <input id="cfgProxy" type="text" placeholder="https://statusrollup.anitha.workers.dev"/>
       </div>
-      <div class="cfg-field" style="grid-column:1/-1">
-        <label>GAS Email URL (Gmail Sender)</label>
-        <input id="cfgGas" type="text" placeholder="https://script.google.com/macros/s/XXXX/exec"/>
-      </div> 
       <div class="cfg-field">
         <label>Your Name</label>
         <input id="cfgName" type="text" placeholder="Anitha"/>
@@ -238,7 +234,6 @@ let logN = 0;
 function saveCfg() {
   localStorage.setItem('dn_cfg', JSON.stringify({
     proxy:   document.getElementById('cfgProxy').value.trim(),
-    gas:     document.getElementById('cfgGas').value.trim(),
     name:    document.getElementById('cfgName').value.trim(),
     mgmt:    document.getElementById('cfgMgmt').value.trim(),
     client:  document.getElementById('cfgClient').value.trim(),
@@ -254,7 +249,6 @@ function loadCfg() {
   try {
     const c = JSON.parse(localStorage.getItem('dn_cfg') || '{}');
     if (c.proxy)   document.getElementById('cfgProxy').value   = c.proxy;
-    if (c.gas)     document.getElementById('cfgGas').value     = c.gas;
     if (c.name)    document.getElementById('cfgName').value    = c.name;
     if (c.mgmt)    document.getElementById('cfgMgmt').value    = c.mgmt;
     if (c.client)  document.getElementById('cfgClient').value  = c.client;
@@ -405,8 +399,8 @@ const EMAIL_META = {
 
 async function sendEmail(type) {
   const cfg  = getCfg();
-  const gas  = cfg.gas || '';
-  if (!gas) { toast('Add GAS Email URL in ⚙ Config', 'err'); return; }
+  const proxy = cfg.proxy || '';
+  if (!proxy) { toast('Add Cloudflare Worker URL in ⚙ Config', 'err'); return; }
 
   const toMap = { mgmt: cfg.mgmt, client: cfg.client, team: cfg.team };
   const to    = toMap[type] || '';
@@ -424,7 +418,7 @@ async function sendEmail(type) {
   btn.disabled  = true;
 
   try {
-    const res = await fetch(gas, {
+    const res = await fetch(proxy, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
