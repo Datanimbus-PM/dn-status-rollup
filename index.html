@@ -140,18 +140,6 @@ textarea::placeholder{color:#334155}
         <label>Your Name</label>
         <input id="cfgName" type="text" placeholder="Anitha"/>
       </div>
-      <div class="cfg-field">
-        <label>Management Emails (comma separated)</label>
-        <input id="cfgMgmt" type="text" placeholder="ceo@datanimbus.com"/>
-      </div>
-      <div class="cfg-field">
-        <label>Client Emails</label>
-        <input id="cfgClient" type="text" placeholder="client@company.com"/>
-      </div>
-      <div class="cfg-field">
-        <label>Team Email</label>
-        <input id="cfgTeam" type="text" placeholder="team@datanimbus.com"/>
-      </div>
       <div class="cfg-field" style="grid-column:1/-1">
         <label>Google Chat Webhook URL (optional)</label>
         <input id="cfgWebhook" type="text" placeholder="https://chat.googleapis.com/v1/spaces/XXXX/messages?key=..."/>
@@ -159,12 +147,46 @@ textarea::placeholder{color:#334155}
     </div>
     <div class="cfg-note">
       <strong>Cloudflare URL</strong> → generates reports via Claude<br>
-      <strong>GAS Email URL</strong> → sends emails via your Gmail (paste your /exec URL here)<br>
-      <strong>Google Chat Webhook</strong> → posts chat message to your team space (optional)
+      <strong>Google Chat Webhook</strong> → posts chat message to your team space (optional)<br>
+      <strong>Email addresses</strong> → enter when you click the send button — no need to save them!
     </div>
     <div class="cfg-actions">
       <button class="btn-save" onclick="saveCfg()">💾 Save</button>
       <button class="btn-close" onclick="toggleCfg()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- EMAIL POPUP MODAL -->
+<div id="emailModal" style="display:none;position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);align-items:center;justify-content:center">
+  <div style="background:#1e293b;border:1px solid #334155;border-radius:12px;width:90%;max-width:460px;overflow:hidden">
+    <div style="padding:18px 24px;border-bottom:1px solid #334155;display:flex;align-items:center;justify-content:space-between">
+      <span id="modalTitle" style="font-size:14px;font-weight:600;color:#f1f5f9">Send Email</span>
+      <button onclick="closeEmailModal()" style="background:transparent;border:none;color:#64748b;font-size:20px;cursor:pointer">✕</button>
+    </div>
+    <div style="padding:20px 24px;display:flex;flex-direction:column;gap:14px">
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <label style="font-size:10px;color:#64748b;letter-spacing:.8px;text-transform:uppercase">To (comma-separated emails)</label>
+        <input id="modalEmail" type="text" placeholder="name@company.com, another@company.com"
+          style="background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;
+                 font-family:'Inter',sans-serif;font-size:13px;padding:10px 12px;outline:none;width:100%"
+          onfocus="this.style.borderColor='#f59e0b'" onblur="this.style.borderColor='#334155'"/>
+        <span style="font-size:11px;color:#475569">Add as many recipients as you need</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <label style="font-size:10px;color:#64748b;letter-spacing:.8px;text-transform:uppercase">Subject</label>
+        <input id="modalSubject" type="text"
+          style="background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;
+                 font-family:'Inter',sans-serif;font-size:13px;padding:10px 12px;outline:none;width:100%"
+          onfocus="this.style.borderColor='#f59e0b'" onblur="this.style.borderColor='#334155'"/>
+      </div>
+    </div>
+    <div style="padding:14px 24px;border-top:1px solid #334155;display:flex;gap:10px;justify-content:flex-end">
+      <button onclick="closeEmailModal()" style="background:transparent;border:1px solid #334155;color:#64748b;padding:8px 18px;border-radius:6px;font-size:12px;cursor:pointer">Cancel</button>
+      <button onclick="confirmSendEmail()" id="modalSendBtn"
+        style="background:#f59e0b;border:none;color:#000;padding:8px 20px;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer">
+        📧 Send Now
+      </button>
     </div>
   </div>
 </div>
@@ -235,9 +257,6 @@ function saveCfg() {
   localStorage.setItem('dn_cfg', JSON.stringify({
     proxy:   document.getElementById('cfgProxy').value.trim(),
     name:    document.getElementById('cfgName').value.trim(),
-    mgmt:    document.getElementById('cfgMgmt').value.trim(),
-    client:  document.getElementById('cfgClient').value.trim(),
-    team:    document.getElementById('cfgTeam').value.trim(),
     webhook: document.getElementById('cfgWebhook').value.trim(),
   }));
   toast('Config saved ✓', 'ok');
@@ -250,9 +269,6 @@ function loadCfg() {
     const c = JSON.parse(localStorage.getItem('dn_cfg') || '{}');
     if (c.proxy)   document.getElementById('cfgProxy').value   = c.proxy;
     if (c.name)    document.getElementById('cfgName').value    = c.name;
-    if (c.mgmt)    document.getElementById('cfgMgmt').value    = c.mgmt;
-    if (c.client)  document.getElementById('cfgClient').value  = c.client;
-    if (c.team)    document.getElementById('cfgTeam').value    = c.team;
     if (c.webhook) document.getElementById('cfgWebhook').value = c.webhook;
     return c;
   } catch { return {}; }
@@ -390,32 +406,49 @@ Rules:
   }
 }
 
-// ── Send email via GAS Gmail ──────────────────────────────────
+// ── Email modal ───────────────────────────────────────────────
 const EMAIL_META = {
   mgmt:   { label: 'Management', subFri: 'Weekly Status Report',   subMon: 'Week Kickoff — Management Update' },
   client: { label: 'Client',     subFri: 'Weekly Progress Update', subMon: 'Week Ahead — Project Update' },
   team:   { label: 'Team',       subFri: '🎉 End-of-Week Rollup', subMon: '🚀 Week Kickoff' },
 };
 
-async function sendEmail(type) {
-  const cfg  = getCfg();
-  const proxy = cfg.proxy || '';
-  if (!proxy) { toast('Add Cloudflare Worker URL in ⚙ Config', 'err'); return; }
+let currentEmailType = null;
 
-  const toMap = { mgmt: cfg.mgmt, client: cfg.client, team: cfg.team };
-  const to    = toMap[type] || '';
-  if (!to) { toast('Add ' + type + ' email address in ⚙ Config', 'err'); return; }
-
-  const content = reports[type];
-  if (!content) { toast('Generate the report first', 'err'); return; }
-
+function sendEmail(type) {
+  if (!reports[type]) { toast('Generate the report first', 'err'); return; }
+  currentEmailType = type;
   const meta    = EMAIL_META[type];
   const isFri   = mode === 'friday';
   const subject = `[DN ${getWeek()}] ${isFri ? meta.subFri : meta.subMon}`;
+  document.getElementById('modalTitle').textContent   = `Send ${meta.label} Email`;
+  document.getElementById('modalSubject').value       = subject;
+  document.getElementById('modalEmail').value         = '';
+  document.getElementById('emailModal').style.display = 'flex';
+  setTimeout(() => document.getElementById('modalEmail').focus(), 100);
+}
 
-  const btn = document.getElementById('s-' + type);
-  btn.innerHTML = '<span class="spin" style="border-top-color:#22d3ee"></span>';
-  btn.disabled  = true;
+function closeEmailModal() {
+  document.getElementById('emailModal').style.display = 'none';
+  currentEmailType = null;
+}
+
+async function confirmSendEmail() {
+  const to      = document.getElementById('modalEmail').value.trim();
+  const subject = document.getElementById('modalSubject').value.trim();
+  if (!to) { toast('Please enter at least one email address', 'err'); return; }
+
+  const cfg   = getCfg();
+  const proxy = cfg.proxy || '';
+  if (!proxy) { toast('Add Cloudflare Worker URL in ⚙ Config', 'err'); return; }
+
+  const type    = currentEmailType;
+  const content = reports[type];
+  const meta    = EMAIL_META[type];
+
+  const sendBtn = document.getElementById('modalSendBtn');
+  sendBtn.innerHTML = '<span class="spin"></span> Sending...';
+  sendBtn.disabled  = true;
 
   try {
     const res = await fetch(proxy, {
@@ -433,16 +466,19 @@ async function sendEmail(type) {
     const data = await res.json();
     if (data.error) throw new Error(data.error);
 
+    closeEmailModal();
+    const btn = document.getElementById('s-' + type);
     btn.innerHTML  = '✓ Sent';
     btn.className += ' sent';
     addLog('Email → ' + meta.label + ' (' + to + ') ✓', 'ok');
-    toast('Email sent to ' + meta.label + ' ✓', 'ok');
+    toast('Email sent to ' + to + ' ✓', 'ok');
 
   } catch(e) {
-    btn.disabled  = false;
-    btn.innerHTML = '📧 ' + meta.label;
     addLog('Email → ' + meta.label + ' FAILED: ' + e.message, 'err');
     toast('Email failed: ' + e.message, 'err');
+  } finally {
+    sendBtn.innerHTML = '📧 Send Now';
+    sendBtn.disabled  = false;
   }
 }
 
@@ -479,18 +515,7 @@ async function sendChat() {
 }
 
 async function sendAll() {
-  document.getElementById('sendAll').disabled = true;
-  document.getElementById('sendAll').innerHTML = '<span class="spin" style="border-top-color:#22d3ee"></span> Sending...';
-  await sendEmail('mgmt');
-  await new Promise(r => setTimeout(r, 500));
-  await sendEmail('client');
-  await new Promise(r => setTimeout(r, 500));
-  await sendEmail('team');
-  await new Promise(r => setTimeout(r, 500));
-  await sendChat();
-  document.getElementById('sendAll').innerHTML = '✅ All Sent!';
-  addLog('Send All complete ✓', 'ok');
-  toast('All 4 sends complete! 🎉', 'ok');
+  sendEmail('mgmt');
 }
 
 // ── Helpers ───────────────────────────────────────────────────
