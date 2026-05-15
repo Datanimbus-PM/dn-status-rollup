@@ -983,8 +983,8 @@ let currentViewerTab   = 'mgmt';
 function toggleHistory() {
   const v   = document.getElementById('historyView');
   const btn = document.getElementById('historyBtn');
-  closeAllViews();
   const isOpen = !v.classList.contains('open');
+  closeAllViews();
   v.classList.toggle('open', isOpen);
   btn.classList.toggle('active', isOpen);
   if (isOpen) renderArchiveList();
@@ -1079,8 +1079,8 @@ function saveMembers(members) {
 function toggleTemplates() {
   const v   = document.getElementById('templatesView');
   const btn = document.getElementById('templatesBtn');
-  closeAllViews();
   const isOpen = !v.classList.contains('open');
+  closeAllViews();
   v.classList.toggle('open', isOpen);
   btn.classList.toggle('active', isOpen);
   if (isOpen) renderMemberCards();
