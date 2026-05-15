@@ -185,7 +185,7 @@ textarea::placeholder{color:#334155}
       <button onclick="closeEmailModal()" style="background:transparent;border:1px solid #334155;color:#64748b;padding:8px 18px;border-radius:6px;font-size:12px;cursor:pointer">Cancel</button>
       <button onclick="confirmSendEmail()" id="modalSendBtn"
         style="background:#f59e0b;border:none;color:#000;padding:8px 20px;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer">
-        📧 Send Now
+        ✉️ Open in Gmail
       </button>
     </div>
   </div>
@@ -433,53 +433,45 @@ function closeEmailModal() {
   currentEmailType = null;
 }
 
-async function confirmSendEmail() {
+function confirmSendEmail() {
   const to      = document.getElementById('modalEmail').value.trim();
   const subject = document.getElementById('modalSubject').value.trim();
   if (!to) { toast('Please enter at least one email address', 'err'); return; }
-
-  const cfg   = getCfg();
-  const proxy = cfg.proxy || '';
-  if (!proxy) { toast('Add Cloudflare Worker URL in ⚙ Config', 'err'); return; }
 
   const type    = currentEmailType;
   const content = reports[type];
   const meta    = EMAIL_META[type];
 
-  const sendBtn = document.getElementById('modalSendBtn');
-  sendBtn.innerHTML = '<span class="spin"></span> Sending...';
-  sendBtn.disabled  = true;
+  // Strip HTML tags for Gmail body (Gmail compose accepts plain text + some HTML)
+  const plainBody = content
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n\n')
+    .replace(/<\/h[1-6]>/gi, '\n\n')
+    .replace(/<\/li>/gi, '\n')
+    .replace(/<li>/gi, '• ')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
 
-  try {
-    const res = await fetch(proxy, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action:     'send_email',
-        to:         to,
-        subject:    subject,
-        html:       content,
-        senderName: cfg.name || 'DN Status Rollup',
-      })
-    });
+  // Build Gmail compose URL
+  const gmailUrl = 'https://mail.google.com/mail/?view=cm&fs=1' +
+    '&to=' + encodeURIComponent(to) +
+    '&su=' + encodeURIComponent(subject) +
+    '&body=' + encodeURIComponent(plainBody);
 
-    const data = await res.json();
-    if (data.error) throw new Error(data.error);
+  // Open Gmail compose in new tab
+  window.open(gmailUrl, '_blank');
 
-    closeEmailModal();
-    const btn = document.getElementById('s-' + type);
-    btn.innerHTML  = '✓ Sent';
-    btn.className += ' sent';
-    addLog('Email → ' + meta.label + ' (' + to + ') ✓', 'ok');
-    toast('Email sent to ' + to + ' ✓', 'ok');
-
-  } catch(e) {
-    addLog('Email → ' + meta.label + ' FAILED: ' + e.message, 'err');
-    toast('Email failed: ' + e.message, 'err');
-  } finally {
-    sendBtn.innerHTML = '📧 Send Now';
-    sendBtn.disabled  = false;
-  }
+  closeEmailModal();
+  const btn = document.getElementById('s-' + type);
+  btn.innerHTML  = '✓ Opened';
+  btn.className += ' sent';
+  addLog('Gmail compose opened → ' + meta.label + ' (' + to + ')', 'ok');
+  toast('Gmail compose opened — just click Send! ✓', 'ok');
 }
 
 // ── Send Google Chat webhook ───────────────────────────────────
