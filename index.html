@@ -235,14 +235,32 @@ textarea::placeholder{color:#334155}
         <label>Your Name</label>
         <input id="cfgName" type="text" placeholder="e.g. Anitha"/>
       </div>
-      <div class="cfg-field">
-        <label>Google Chat Webhook URL (optional)</label>
-        <input id="cfgWebhook" type="text" placeholder="https://chat.googleapis.com/v1/spaces/..."/>
+    </div>
+
+    <!-- Webhooks section -->
+    <div style="margin-top:16px">
+      <div style="font-size:10px;color:#64748b;letter-spacing:.8px;text-transform:uppercase;margin-bottom:10px">
+        Google Chat Webhooks (up to 3 spaces)
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <input id="cfgWebhook1" type="text" placeholder="Webhook URL 1"
+          style="background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;
+                 font-family:'Inter',sans-serif;font-size:12px;padding:8px 10px;outline:none;width:100%"
+          onfocus="this.style.borderColor='#f59e0b'" onblur="this.style.borderColor='#334155'"/>
+        <input id="cfgWebhook2" type="text" placeholder="Webhook URL 2 (optional)"
+          style="background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;
+                 font-family:'Inter',sans-serif;font-size:12px;padding:8px 10px;outline:none;width:100%"
+          onfocus="this.style.borderColor='#f59e0b'" onblur="this.style.borderColor='#334155'"/>
+        <input id="cfgWebhook3" type="text" placeholder="Webhook URL 3 (optional)"
+          style="background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;
+                 font-family:'Inter',sans-serif;font-size:12px;padding:8px 10px;outline:none;width:100%"
+          onfocus="this.style.borderColor='#f59e0b'" onblur="this.style.borderColor='#334155'"/>
       </div>
     </div>
-    <div class="cfg-note">
+
+    <div class="cfg-note" style="margin-top:12px">
       <strong>Your Name</strong> → shown as sender on all reports<br>
-      <strong>Google Chat Webhook</strong> → your team's space webhook to post the chat message
+      <strong>Webhooks</strong> → add one per Google Chat space — all will receive the message when you click Send Chat
     </div>
     <div class="cfg-actions">
       <button class="btn-save" onclick="saveCfg()">💾 Save</button>
@@ -378,8 +396,13 @@ textarea::placeholder{color:#334155}
   <button class="btn-compile" onclick="compileUpdates()">
     ⚡ Compile All Updates → Paste into Generator
   </button>
+  <button onclick="clearWeeklyUpdates()"
+    style="background:transparent;border:1px solid #334155;color:#64748b;padding:10px;
+           border-radius:6px;font-size:12px;cursor:pointer;width:100%;margin-top:8px">
+    🗑 Clear This Week's Updates
+  </button>
   <p style="font-size:11px;color:#475569;text-align:center;margin-top:8px">
-    This will fill the main input box with all updates formatted and ready to generate
+    Updates auto-save as you type — they'll still be here when you come back
   </p>
 </div>
 <div id="emailModal" style="display:none;position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);align-items:center;justify-content:center">
@@ -450,6 +473,7 @@ textarea::placeholder{color:#334155}
       </div>
     </div>
     <div class="send-bar">
+      <span style="font-size:11px;color:#64748b;font-weight:500;letter-spacing:.5px;text-transform:uppercase;white-space:nowrap">Send to:</span>
       <button class="sbtn" id="s-mgmt"   onclick="sendEmail('mgmt')"   disabled>📧 Mgmt</button>
       <button class="sbtn" id="s-client" onclick="sendEmail('client')" disabled>📧 Client</button>
       <button class="sbtn" id="s-team"   onclick="sendEmail('team')"   disabled>📧 Team</button>
@@ -479,11 +503,13 @@ let logN = 0;
 // ── HARDCODED CONFIG (admin only) ─────────────────────────────
 const PROXY_URL = 'https://statusrollup.anitha.workers.dev';
 
-// ── Config (user-editable: name + webhook only) ───────────────
+// ── Config ────────────────────────────────────────────────────
 function saveCfg() {
   localStorage.setItem('dn_cfg', JSON.stringify({
-    name:    document.getElementById('cfgName').value.trim(),
-    webhook: document.getElementById('cfgWebhook').value.trim(),
+    name:     document.getElementById('cfgName').value.trim(),
+    webhook1: document.getElementById('cfgWebhook1').value.trim(),
+    webhook2: document.getElementById('cfgWebhook2').value.trim(),
+    webhook3: document.getElementById('cfgWebhook3').value.trim(),
   }));
   toast('Settings saved ✓', 'ok');
   addLog('Settings saved', 'info');
@@ -493,8 +519,10 @@ function saveCfg() {
 function loadCfg() {
   try {
     const c = JSON.parse(localStorage.getItem('dn_cfg') || '{}');
-    if (c.name)    document.getElementById('cfgName').value    = c.name;
-    if (c.webhook) document.getElementById('cfgWebhook').value = c.webhook;
+    if (c.name)     document.getElementById('cfgName').value     = c.name;
+    if (c.webhook1) document.getElementById('cfgWebhook1').value = c.webhook1;
+    if (c.webhook2) document.getElementById('cfgWebhook2').value = c.webhook2;
+    if (c.webhook3) document.getElementById('cfgWebhook3').value = c.webhook3;
     return c;
   } catch { return {}; }
 }
@@ -502,9 +530,10 @@ function loadCfg() {
 function getCfg() {
   try {
     const c = JSON.parse(localStorage.getItem('dn_cfg') || '{}');
-    c.proxy = PROXY_URL; // always use hardcoded URL
+    c.proxy    = PROXY_URL;
+    c.webhooks = [c.webhook1, c.webhook2, c.webhook3].filter(Boolean);
     return c;
-  } catch { return { proxy: PROXY_URL }; }
+  } catch { return { proxy: PROXY_URL, webhooks: [] }; }
 }
 
 function toggleCfg() {
@@ -735,36 +764,38 @@ function confirmSendEmail() {
   toast('Gmail compose opened — just click Send! ✓', 'ok');
 }
 
-// ── Send Google Chat webhook ───────────────────────────────────
+// ── Send Google Chat — posts to all configured webhooks ────────
 async function sendChat() {
-  const cfg     = getCfg();
-  const webhook = cfg.webhook || '';
-  const content = reports.chat;
+  const cfg      = getCfg();
+  const webhooks = cfg.webhooks || [];
+  const content  = reports.chat;
 
-  if (!content) { toast('Generate the report first', 'err'); return; }
-  if (!webhook) { toast('Add Google Chat Webhook URL in ⚙ Config', 'err'); return; }
+  if (!content)        { toast('Generate the report first', 'err'); return; }
+  if (!webhooks.length){ toast('Add at least one Google Chat webhook in ⚙ Config', 'err'); return; }
 
   const btn = document.getElementById('s-chat');
   btn.innerHTML = '<span class="spin" style="border-top-color:#22d3ee"></span>';
   btn.disabled  = true;
 
-  try {
-    await fetch(webhook, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: content }),
-      mode: 'no-cors'
-    });
-    btn.innerHTML  = '✓ Sent';
-    btn.className += ' sent';
-    addLog('Google Chat message sent ✓', 'ok');
-    toast('Chat message sent ✓', 'ok');
-  } catch(e) {
-    btn.disabled  = false;
-    btn.innerHTML = '💬 Chat';
-    addLog('Chat FAILED: ' + e.message, 'err');
-    toast('Chat failed: ' + e.message, 'err');
+  let successCount = 0;
+  for (const url of webhooks) {
+    try {
+      await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: content }),
+        mode: 'no-cors'
+      });
+      successCount++;
+      addLog(`Chat → webhook ${successCount} sent ✓`, 'ok');
+    } catch(e) {
+      addLog(`Chat → webhook failed: ${e.message}`, 'err');
+    }
   }
+
+  btn.innerHTML  = `✓ Sent to ${successCount}`;
+  btn.className += ' sent';
+  toast(`Chat sent to ${successCount} space${successCount > 1 ? 's' : ''} ✓`, 'ok');
 }
 
 async function sendAll() {
@@ -1111,8 +1142,24 @@ function removeMember(name) {
   toast(`${name} removed`, 'info');
 }
 
+function getUpdates() {
+  try { return JSON.parse(localStorage.getItem('dn_updates') || '{}'); } catch { return {}; }
+}
+
+function saveUpdate(id, field, value) {
+  const updates = getUpdates();
+  if (!updates[id]) updates[id] = {};
+  updates[id][field] = value;
+  localStorage.setItem('dn_updates', JSON.stringify(updates));
+}
+
+function clearUpdates() {
+  localStorage.removeItem('dn_updates');
+}
+
 function renderMemberCards() {
   const members = getMembers();
+  const updates = getUpdates();
   const el      = document.getElementById('memberCards');
 
   if (members.length === 0) {
@@ -1123,6 +1170,7 @@ function renderMemberCards() {
   el.innerHTML = members.map(m => {
     const initials = m.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
     const id       = m.name.replace(/\s+/g, '_');
+    const u        = updates[id] || {};
     return `
     <div class="member-card">
       <div class="member-card-head">
@@ -1135,19 +1183,27 @@ function renderMemberCards() {
       </div>
       <div class="update-field">
         <label>✅ Completed this week</label>
-        <textarea id="u_${id}_completed" placeholder="What did ${m.name.split(' ')[0]} finish?"></textarea>
+        <textarea id="u_${id}_completed"
+          oninput="saveUpdate('${id}','completed',this.value)"
+          placeholder="What did ${m.name.split(' ')[0]} finish?">${u.completed || ''}</textarea>
       </div>
       <div class="update-field">
         <label>🔄 In Progress</label>
-        <textarea id="u_${id}_inprogress" placeholder="What are they currently working on?"></textarea>
+        <textarea id="u_${id}_inprogress"
+          oninput="saveUpdate('${id}','inprogress',this.value)"
+          placeholder="What are they currently working on?">${u.inprogress || ''}</textarea>
       </div>
       <div class="update-field">
         <label>🚧 Blockers / Risks</label>
-        <textarea id="u_${id}_blockers" placeholder="Any blockers? Leave blank if none"></textarea>
+        <textarea id="u_${id}_blockers"
+          oninput="saveUpdate('${id}','blockers',this.value)"
+          placeholder="Any blockers? Leave blank if none">${u.blockers || ''}</textarea>
       </div>
       <div class="update-field">
         <label>🏆 Wins / Highlights</label>
-        <textarea id="u_${id}_wins" placeholder="Any wins to celebrate?"></textarea>
+        <textarea id="u_${id}_wins"
+          oninput="saveUpdate('${id}','wins',this.value)"
+          placeholder="Any wins to celebrate?">${u.wins || ''}</textarea>
       </div>
     </div>`;
   }).join('');
@@ -1157,12 +1213,14 @@ function compileUpdates() {
   const members = getMembers();
   if (members.length === 0) { toast('No team members added yet', 'err'); return; }
 
+  const updates = getUpdates();
   const lines = members.map(m => {
     const id        = m.name.replace(/\s+/g, '_');
-    const completed  = document.getElementById(`u_${id}_completed`)?.value.trim()  || '';
-    const inprogress = document.getElementById(`u_${id}_inprogress`)?.value.trim() || '';
-    const blockers   = document.getElementById(`u_${id}_blockers`)?.value.trim()   || '';
-    const wins       = document.getElementById(`u_${id}_wins`)?.value.trim()       || '';
+    const u         = updates[id] || {};
+    const completed  = u.completed  || '';
+    const inprogress = u.inprogress || '';
+    const blockers   = u.blockers   || '';
+    const wins       = u.wins       || '';
 
     if (!completed && !inprogress && !blockers && !wins) return null;
 
@@ -1183,6 +1241,13 @@ function compileUpdates() {
   toggleTemplates();
   addLog(`Compiled ${lines.length} member updates ✓`, 'ok');
   toast(`${lines.length} updates compiled → ready to generate! ✓`, 'ok');
+}
+
+function clearWeeklyUpdates() {
+  if (!confirm('Clear all update fields for this week? Member names stay saved.')) return;
+  clearUpdates();
+  renderMemberCards();
+  toast('Weekly updates cleared ✓', 'info');
 }
 
 // ── Close all views helper ────────────────────────────────────
