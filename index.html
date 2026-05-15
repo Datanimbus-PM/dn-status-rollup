@@ -229,25 +229,20 @@ textarea::placeholder{color:#334155}
 <!-- CONFIG -->
 <div id="cfgPanel">
   <div class="cfg-inner">
-    <div class="cfg-title">⚙ Configuration</div>
+    <div class="cfg-title">⚙ Settings</div>
     <div class="cfg-grid">
-      <div class="cfg-field" style="grid-column:1/-1">
-        <label>Cloudflare Worker URL</label>
-        <input id="cfgProxy" type="text" placeholder="https://statusrollup.anitha.workers.dev"/>
-      </div>
       <div class="cfg-field">
         <label>Your Name</label>
-        <input id="cfgName" type="text" placeholder="Anitha"/>
+        <input id="cfgName" type="text" placeholder="e.g. Anitha"/>
       </div>
-      <div class="cfg-field" style="grid-column:1/-1">
+      <div class="cfg-field">
         <label>Google Chat Webhook URL (optional)</label>
-        <input id="cfgWebhook" type="text" placeholder="https://chat.googleapis.com/v1/spaces/XXXX/messages?key=..."/>
+        <input id="cfgWebhook" type="text" placeholder="https://chat.googleapis.com/v1/spaces/..."/>
       </div>
     </div>
     <div class="cfg-note">
-      <strong>Cloudflare URL</strong> → generates reports via Claude<br>
-      <strong>Google Chat Webhook</strong> → posts chat message to your team space (optional)<br>
-      <strong>Email addresses</strong> → enter when you click the send button — no need to save them!
+      <strong>Your Name</strong> → shown as sender on all reports<br>
+      <strong>Google Chat Webhook</strong> → your team's space webhook to post the chat message
     </div>
     <div class="cfg-actions">
       <button class="btn-save" onclick="saveCfg()">💾 Save</button>
@@ -481,22 +476,23 @@ let tab  = 'mgmt';
 let reports = {mgmt:null, client:null, team:null, chat:null};
 let logN = 0;
 
-// ── Config ────────────────────────────────────────────────────
+// ── HARDCODED CONFIG (admin only) ─────────────────────────────
+const PROXY_URL = 'https://statusrollup.anitha.workers.dev';
+
+// ── Config (user-editable: name + webhook only) ───────────────
 function saveCfg() {
   localStorage.setItem('dn_cfg', JSON.stringify({
-    proxy:   document.getElementById('cfgProxy').value.trim(),
     name:    document.getElementById('cfgName').value.trim(),
     webhook: document.getElementById('cfgWebhook').value.trim(),
   }));
-  toast('Config saved ✓', 'ok');
-  addLog('Config saved', 'info');
+  toast('Settings saved ✓', 'ok');
+  addLog('Settings saved', 'info');
   toggleCfg();
 }
 
 function loadCfg() {
   try {
     const c = JSON.parse(localStorage.getItem('dn_cfg') || '{}');
-    if (c.proxy)   document.getElementById('cfgProxy').value   = c.proxy;
     if (c.name)    document.getElementById('cfgName').value    = c.name;
     if (c.webhook) document.getElementById('cfgWebhook').value = c.webhook;
     return c;
@@ -504,7 +500,11 @@ function loadCfg() {
 }
 
 function getCfg() {
-  try { return JSON.parse(localStorage.getItem('dn_cfg') || '{}'); } catch { return {}; }
+  try {
+    const c = JSON.parse(localStorage.getItem('dn_cfg') || '{}');
+    c.proxy = PROXY_URL; // always use hardcoded URL
+    return c;
+  } catch { return { proxy: PROXY_URL }; }
 }
 
 function toggleCfg() {
