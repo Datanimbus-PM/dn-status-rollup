@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>DN Program Status Rollup</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0f172a;color:#e2e8f0;font-family:'Inter',sans-serif;min-height:100vh}
+header{background:#1e293b;border-bottom:1px solid #334155;padding:16px 28px;display:flex;align-items:center;justify-content:space-between}
+.logo{display:flex;align-items:center;gap:12px}
+.logo-box{width:36px;height:36px;background:#f59e0b;border-radius:8px;display:grid;place-items:center;font-weight:700;font-size:14px;color:#000}
+.logo-title{font-size:16px;font-weight:700;color:#f1f5f9}
+.logo-sub{font-size:11px;color:#64748b;margin-top:2px;text-transform:uppercase;letter-spacing:1px}
+.header-right{display:flex;gap:10px;align-items:center}
+.badge{padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600;letter-spacing:.5px}
+.badge-fri{background:rgba(245,158,11,.15);border:1px solid #f59e0b;color:#f59e0b}
+.badge-mon{background:rgba(34,211,238,.15);border:1px solid #22d3ee;color:#22d3ee}
+button.hbtn{background:transparent;border:1px solid #334155;color:#94a3b8;padding:7px 14px;border-radius:6px;cursor:pointer;font-size:12px;font-family:'Inter',sans-serif}
+button.hbtn:hover{border-color:#f59e0b;color:#f59e0b}
+
+/* Config panel */
+#cfgPanel{background:#1e293b;border-bottom:1px solid #334155;overflow:hidden;max-height:0;transition:max-height .3s ease}
+#cfgPanel.open{max-height:500px}
+.cfg-inner{padding:24px 28px}
+.cfg-title{font-size:11px;color:#f59e0b;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:16px}
+.cfg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.cfg-field{display:flex;flex-direction:column;gap:5px}
+.cfg-field label{font-size:10px;color:#64748b;letter-spacing:.8px;text-transform:uppercase}
+.cfg-field input{background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;font-family:'Inter',sans-serif;font-size:12px;padding:8px 11px;outline:none;transition:.2s}
+.cfg-field input:focus{border-color:#f59e0b}
+.cfg-actions{margin-top:16px;display:flex;gap:10px}
+.btn-save{background:#f59e0b;border:none;color:#000;padding:8px 20px;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer}
+.btn-close{background:transparent;border:1px solid #334155;color:#64748b;padding:8px 20px;border-radius:6px;font-size:12px;cursor:pointer}
+.cfg-note{margin-top:14px;font-size:11px;color:#64748b;line-height:1.7;padding:10px 14px;background:rgba(245,158,11,.05);border-left:2px solid #f59e0b;border-radius:0 4px 4px 0}
+
+/* Main layout */
+main{display:grid;grid-template-columns:1fr 1fr;height:calc(100vh - 65px)}
+@media(max-width:800px){main{grid-template-columns:1fr;height:auto}}
+
+/* Left panel */
+.left{border-right:1px solid #334155;display:flex;flex-direction:column}
+.panel-head{padding:14px 20px;border-bottom:1px solid #334155;display:flex;align-items:center;justify-content:space-between}
+.panel-head span{font-size:12px;font-weight:600;color:#94a3b8;letter-spacing:.5px;text-transform:uppercase}
+.mode-toggle{display:flex;border:1px solid #334155;border-radius:6px;overflow:hidden}
+.mode-toggle button{background:transparent;border:none;color:#64748b;padding:5px 14px;font-size:11px;font-family:'Inter',sans-serif;cursor:pointer;transition:.15s}
+.mode-toggle button.active-fri{background:rgba(245,158,11,.15);color:#f59e0b}
+.mode-toggle button.active-mon{background:rgba(34,211,238,.15);color:#22d3ee}
+.input-wrap{flex:1;display:flex;flex-direction:column;padding:16px 20px;gap:10px}
+.input-label{font-size:10px;color:#64748b;letter-spacing:.8px;text-transform:uppercase}
+textarea{background:#1e293b;border:1px solid #334155;border-radius:8px;color:#e2e8f0;font-family:'Inter',sans-serif;font-size:13px;line-height:1.7;padding:14px;resize:none;flex:1;min-height:300px;outline:none;transition:.2s}
+textarea:focus{border-color:#f59e0b}
+textarea::placeholder{color:#334155}
+.action-bar{padding:14px 20px;border-top:1px solid #334155;display:flex;gap:12px;align-items:center}
+#genBtn{flex:1;background:#f59e0b;border:none;border-radius:8px;color:#000;font-weight:700;font-size:14px;padding:12px;cursor:pointer;transition:.2s;font-family:'Inter',sans-serif}
+#genBtn:hover:not(:disabled){background:#d97706}
+#genBtn:disabled{opacity:.5;cursor:not-allowed}
+.chars{font-size:11px;color:#475569}
+
+/* Right panel */
+.right{display:flex;flex-direction:column}
+.tabs{display:flex;border-bottom:1px solid #334155;background:#1e293b}
+.tab{flex:1;background:transparent;border:none;border-bottom:2px solid transparent;color:#64748b;font-family:'Inter',sans-serif;font-size:11px;padding:12px 6px;cursor:pointer;transition:.15s;display:flex;align-items:center;justify-content:center;gap:5px}
+.tab .dot{width:5px;height:5px;border-radius:50%;background:#334155}
+.tab.active{color:#f1f5f9;border-bottom-color:#f59e0b}
+.tab.ready .dot{background:#34d399}
+.tab.active .dot{background:#f59e0b}
+.output{flex:1;overflow-y:auto;padding:20px}
+.placeholder{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:12px;color:#475569;text-align:center}
+.placeholder-icon{font-size:36px}
+.placeholder p{font-size:13px;line-height:1.6;max-width:260px}
+.report{font-size:13px;line-height:1.8;color:#cbd5e1}
+.report h2{font-size:14px;font-weight:600;color:#f1f5f9;margin:18px 0 8px;padding-bottom:6px;border-bottom:1px solid #1e293b}
+.report h2:first-child{margin-top:0}
+.report h3{font-size:12px;font-weight:600;color:#f59e0b;margin:12px 0 5px;text-transform:uppercase;letter-spacing:.5px}
+.report p{margin-bottom:8px}
+.report ul{padding-left:18px;margin-bottom:8px}
+.report li{margin-bottom:3px}
+.report strong{color:#f1f5f9}
+.report .blocker{background:rgba(248,113,113,.12);color:#f87171;border:1px solid rgba(248,113,113,.3);padding:1px 7px;border-radius:4px;font-size:11px}
+.report .win{background:rgba(52,211,153,.12);color:#34d399;border:1px solid rgba(52,211,153,.3);padding:1px 7px;border-radius:4px;font-size:11px}
+.send-bar{padding:12px 20px;border-top:1px solid #334155;background:#1e293b;display:flex;gap:8px;flex-wrap:wrap}
+.sbtn{background:transparent;border:1px solid #334155;border-radius:6px;color:#64748b;font-family:'Inter',sans-serif;font-size:11px;padding:6px 12px;cursor:pointer;transition:.2s}
+.sbtn:hover:not(:disabled){border-color:#22d3ee;color:#22d3ee}
+.sbtn:disabled{opacity:.4;cursor:not-allowed}
+.sbtn.sent{border-color:#34d399;color:#34d399}
+#sendAll{margin-left:auto;background:rgba(34,211,238,.08);border-color:#22d3ee;color:#22d3ee}
+#sendAll:hover:not(:disabled){background:rgba(34,211,238,.18)}
+
+/* Log */
+#log{background:#1e293b;border-top:1px solid #334155;max-height:0;overflow:hidden;transition:max-height .25s}
+#log.open{max-height:160px}
+.log-head{padding:8px 20px;display:flex;justify-content:space-between;cursor:pointer}
+.log-head span{font-size:10px;color:#475569;text-transform:uppercase;letter-spacing:.8px}
+.log-entries{padding:0 20px 10px;overflow-y:auto;max-height:110px;display:flex;flex-direction:column;gap:3px}
+.log-row{display:flex;gap:10px;font-size:11px}
+.log-t{color:#475569;min-width:56px}
+.log-m{color:#94a3b8}
+.log-m.ok{color:#34d399}
+.log-m.err{color:#f87171}
+.log-m.info{color:#22d3ee}
+
+/* Toast */
+#toast{position:fixed;bottom:20px;right:20px;z-index:999;padding:10px 18px;border-radius:8px;font-size:12px;font-family:'Inter',sans-serif;opacity:0;transform:translateY(60px);transition:.3s;max-width:300px;pointer-events:none}
+#toast.show{opacity:1;transform:translateY(0)}
+#toast.ok{background:#0d2e1e;border:1px solid #34d399;color:#34d399}
+#toast.err{background:#2e0d0d;border:1px solid #f87171;color:#f87171}
+#toast.info{background:#0d1e2e;border:1px solid #22d3ee;color:#22d3ee}
+.spin{display:inline-block;width:13px;height:13px;border:2px solid rgba(0,0,0,.3);border-top-color:#000;border-radius:50%;animation:sp .6s linear infinite;vertical-align:middle;margin-right:6px}
+@keyframes sp{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-box">DN</div>
+    <div>
+      <div class="logo-title">Program Status Rollup</div>
+      <div class="logo-sub">Datanimbus · Automated Reporting</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <span class="badge badge-fri" id="modeBadge">FRIDAY ROLLUP</span>
+    <button class="hbtn" onclick="toggleCfg()">⚙ Config</button>
+  </div>
+</header>
+
+<!-- CONFIG -->
+<div id="cfgPanel">
+  <div class="cfg-inner">
+    <div class="cfg-title">⚙ Configuration</div>
+    <div class="cfg-grid">
+      <div class="cfg-field" style="grid-column:1/-1">
+        <label>Cloudflare Worker URL (Claude Proxy)</label>
+        <input id="cfgProxy" type="text" placeholder="https://statusrollup.anitha.workers.dev"/>
+      </div>
+      <div class="cfg-field" style="grid-column:1/-1">
+        <label>GAS Email URL (Gmail Sender)</label>
+        <input id="cfgGas" type="text" placeholder="https://script.google.com/macros/s/XXXX/exec"/>
+      </div>
+      <div class="cfg-field">
+        <label>Your Name</label>
+        <input id="cfgName" type="text" placeholder="Anitha"/>
+      </div>
+      <div class="cfg-field">
+        <label>Management Emails (comma separated)</label>
+        <input id="cfgMgmt" type="text" placeholder="ceo@datanimbus.com"/>
+      </div>
+      <div class="cfg-field">
+        <label>Client Emails</label>
+        <input id="cfgClient" type="text" placeholder="client@company.com"/>
+      </div>
+      <div class="cfg-field">
+        <label>Team Email</label>
+        <input id="cfgTeam" type="text" placeholder="team@datanimbus.com"/>
+      </div>
+      <div class="cfg-field" style="grid-column:1/-1">
+        <label>Google Chat Webhook URL (optional)</label>
+        <input id="cfgWebhook" type="text" placeholder="https://chat.googleapis.com/v1/spaces/XXXX/messages?key=..."/>
+      </div>
+    </div>
+    <div class="cfg-note">
+      <strong>Cloudflare URL</strong> → generates reports via Claude<br>
+      <strong>GAS Email URL</strong> → sends emails via your Gmail (paste your /exec URL here)<br>
+      <strong>Google Chat Webhook</strong> → posts chat message to your team space (optional)
+    </div>
+    <div class="cfg-actions">
+      <button class="btn-save" onclick="saveCfg()">💾 Save</button>
+      <button class="btn-close" onclick="toggleCfg()">Close</button>
+    </div>
+  </div>
+</div>
+
+<main>
+  <!-- LEFT -->
+  <div class="left">
+    <div class="panel-head">
+      <span>Team Updates Input</span>
+      <div class="mode-toggle">
+        <button id="btnFri" class="active-fri" onclick="setMode('friday')">FRIDAY</button>
+        <button id="btnMon" onclick="setMode('monday')">MONDAY</button>
+      </div>
+    </div>
+    <div class="input-wrap">
+      <span class="input-label">Paste raw team updates below</span>
+      <textarea id="input" placeholder="Example:&#10;&#10;Anitha (PM): Completed client onboarding deck. Q3 roadmap updated. Win: Client approved Phase 2. No blockers.&#10;&#10;Dev Team: Shipped 3 API endpoints. 92% test coverage. Blocker: Need staging server access from DevOps.&#10;&#10;QA Team: Regression suite complete - 96% pass rate. 4 edge cases still under investigation."></textarea>
+    </div>
+    <div class="action-bar">
+      <button id="genBtn" onclick="generate()">⚡ Generate All Reports</button>
+      <span class="chars" id="chars">0 chars</span>
+    </div>
+  </div>
+
+  <!-- RIGHT -->
+  <div class="right">
+    <div class="tabs">
+      <button class="tab active" id="tab-mgmt"   onclick="switchTab('mgmt')">  <span class="dot"></span> Management</button>
+      <button class="tab"        id="tab-client" onclick="switchTab('client')"><span class="dot"></span> Client</button>
+      <button class="tab"        id="tab-team"   onclick="switchTab('team')">  <span class="dot"></span> Team</button>
+      <button class="tab"        id="tab-chat"   onclick="switchTab('chat')">  <span class="dot"></span> Chat</button>
+    </div>
+    <div class="output" id="output">
+      <div class="placeholder">
+        <div class="placeholder-icon">📊</div>
+        <p>Paste your team updates and click <strong>Generate All Reports</strong></p>
+      </div>
+    </div>
+    <div class="send-bar">
+      <button class="sbtn" id="s-mgmt"   onclick="sendEmail('mgmt')"   disabled>📧 Mgmt</button>
+      <button class="sbtn" id="s-client" onclick="sendEmail('client')" disabled>📧 Client</button>
+      <button class="sbtn" id="s-team"   onclick="sendEmail('team')"   disabled>📧 Team</button>
+      <button class="sbtn" id="s-chat"   onclick="sendChat()"          disabled>💬 Chat</button>
+      <button class="sbtn" id="sendAll"  onclick="sendAll()"           disabled>🚀 Send All</button>
+    </div>
+  </div>
+</main>
+
+<div id="log">
+  <div class="log-head" onclick="document.getElementById('log').classList.toggle('open')">
+    <span>Activity Log</span>
+    <span id="logCount">0 events</span>
+  </div>
+  <div class="log-entries" id="logEntries"></div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ── State ─────────────────────────────────────────────────────
+let mode = 'friday';
+let tab  = 'mgmt';
+let reports = {mgmt:null, client:null, team:null, chat:null};
+let logN = 0;
+
+// ── Config ────────────────────────────────────────────────────
+function saveCfg() {
+  localStorage.setItem('dn_cfg', JSON.stringify({
+    proxy:   document.getElementById('cfgProxy').value.trim(),
+    gas:     document.getElementById('cfgGas').value.trim(),
+    name:    document.getElementById('cfgName').value.trim(),
+    mgmt:    document.getElementById('cfgMgmt').value.trim(),
+    client:  document.getElementById('cfgClient').value.trim(),
+    team:    document.getElementById('cfgTeam').value.trim(),
+    webhook: document.getElementById('cfgWebhook').value.trim(),
+  }));
+  toast('Config saved ✓', 'ok');
+  addLog('Config saved', 'info');
+  toggleCfg();
+}
+
+function loadCfg() {
+  try {
+    const c = JSON.parse(localStorage.getItem('dn_cfg') || '{}');
+    if (c.proxy)   document.getElementById('cfgProxy').value   = c.proxy;
+    if (c.gas)     document.getElementById('cfgGas').value     = c.gas;
+    if (c.name)    document.getElementById('cfgName').value    = c.name;
+    if (c.mgmt)    document.getElementById('cfgMgmt').value    = c.mgmt;
+    if (c.client)  document.getElementById('cfgClient').value  = c.client;
+    if (c.team)    document.getElementById('cfgTeam').value    = c.team;
+    if (c.webhook) document.getElementById('cfgWebhook').value = c.webhook;
+    return c;
+  } catch { return {}; }
+}
+
+function getCfg() {
+  try { return JSON.parse(localStorage.getItem('dn_cfg') || '{}'); } catch { return {}; }
+}
+
+function toggleCfg() {
+  document.getElementById('cfgPanel').classList.toggle('open');
+}
+
+// ── Mode ──────────────────────────────────────────────────────
+function setMode(m) {
+  mode = m;
+  document.getElementById('btnFri').className = m==='friday' ? 'active-fri' : '';
+  document.getElementById('btnMon').className = m==='monday' ? 'active-mon' : '';
+  document.getElementById('modeBadge').textContent = m==='friday' ? 'FRIDAY ROLLUP' : 'MONDAY KICKOFF';
+  document.getElementById('modeBadge').className = 'badge ' + (m==='friday' ? 'badge-fri' : 'badge-mon');
+  resetReports();
+}
+
+// ── Tab ───────────────────────────────────────────────────────
+function switchTab(t) {
+  tab = t;
+  ['mgmt','client','team','chat'].forEach(x => {
+    const el = document.getElementById('tab-'+x);
+    el.classList.toggle('active', x===t);
+  });
+  renderTab();
+}
+
+function renderTab() {
+  const out = document.getElementById('output');
+  const r   = reports[tab];
+  if (!r) {
+    out.innerHTML = `<div class="placeholder">
+      <div class="placeholder-icon">${{mgmt:'📊',client:'🤝',team:'👥',chat:'💬'}[tab]}</div>
+      <p>Generate the report first to see the ${tab} output here.</p>
+    </div>`;
+  } else {
+    out.innerHTML = `<div class="report">${md(r)}</div>`;
+  }
+}
+
+// ── Generate ──────────────────────────────────────────────────
+async function generate() {
+  const input = document.getElementById('input').value.trim();
+  if (!input) { toast('Paste team updates first', 'err'); return; }
+
+  const cfg = getCfg();
+  const proxy = cfg.proxy || '';
+  if (!proxy) {
+    toast('Add your Cloudflare Worker URL in ⚙ Config first', 'err');
+    return;
+  }
+
+  const btn = document.getElementById('genBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin"></span>Generating...';
+  document.getElementById('output').innerHTML = `<div class="placeholder">
+    <div style="font-size:32px;animation:sp 1.2s linear infinite;display:inline-block">⚡</div>
+    <p style="margin-top:12px">Claude is generating all 4 reports...</p>
+  </div>`;
+
+  const week    = getWeek();
+  const isFri   = mode === 'friday';
+  const sender  = cfg.name || 'DN Team';
+
+  const system = `You are a professional status report writer for Datanimbus.
+Generate exactly 4 reports from the team updates. Return ONLY a raw JSON object — no markdown, no code blocks, no explanation:
+{"mgmt":"...","client":"...","team":"...","chat":"..."}
+
+Rules:
+- mgmt: Full internal HTML report. Per-person breakdown, department sections, blockers in red, wins in green. Use <h2><h3><ul><li><p><strong>. Add <span class='blocker'>BLOCKER</span> and <span class='win'>WIN</span> tags.
+- client: Professional HTML. Achievements, metrics, next steps only. No internal politics or blockers.
+- team: ${isFri ? 'End-of-week HTML recap. Celebrate wins, list completed work, set next week expectations.' : 'Monday HTML kickoff. Energising, who does what, surface blockers.'}
+- chat: Plain text for Google Chat. Max 180 words. Use *bold* for names. ${isFri ? 'Wins, blockers, highlights.' : 'Week plan, blockers.'}`;
+
+  const user = `Week: ${week}\nType: ${isFri ? 'Friday end-of-week rollup' : 'Monday week kickoff'}\nSender: ${sender}\n\nTeam Updates:\n${input}`;
+
+  try {
+    const res = await fetch(proxy, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 4000,
+        system: system,
+        messages: [{ role: 'user', content: user }]
+      })
+    });
+
+    if (!res.ok) {
+      const e = await res.text();
+      throw new Error('API error ' + res.status + ': ' + e.slice(0, 200));
+    }
+
+    const data = await res.json();
+
+    if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
+
+    const raw = data.content?.[0]?.text || '';
+    let parsed;
+    try {
+      const clean = raw.replace(/```json|```/g,'').trim();
+      parsed = JSON.parse(clean);
+    } catch {
+      throw new Error('Could not parse response. Raw: ' + raw.slice(0,200));
+    }
+
+    reports = parsed;
+    ['mgmt','client','team','chat'].forEach(t => {
+      if (parsed[t]) {
+        document.getElementById('tab-'+t).classList.add('ready');
+        document.getElementById('s-'+t).disabled = false;
+      }
+    });
+    document.getElementById('sendAll').disabled = false;
+    renderTab();
+    addLog('All 4 reports generated ✓', 'ok');
+    toast('Reports ready! Check each tab.', 'ok');
+
+  } catch(e) {
+    document.getElementById('output').innerHTML = `<div class="placeholder">
+      <div style="font-size:28px">❌</div>
+      <p style="color:#f87171;margin-top:8px">${e.message}</p>
+    </div>`;
+    addLog('Error: ' + e.message, 'err');
+    toast('Error: ' + e.message, 'err');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '⚡ Generate All Reports';
+  }
+}
+
+// ── Send email via GAS Gmail ──────────────────────────────────
+const EMAIL_META = {
+  mgmt:   { label: 'Management', subFri: 'Weekly Status Report',   subMon: 'Week Kickoff — Management Update' },
+  client: { label: 'Client',     subFri: 'Weekly Progress Update', subMon: 'Week Ahead — Project Update' },
+  team:   { label: 'Team',       subFri: '🎉 End-of-Week Rollup', subMon: '🚀 Week Kickoff' },
+};
+
+async function sendEmail(type) {
+  const cfg  = getCfg();
+  const gas  = cfg.gas || '';
+  if (!gas) { toast('Add GAS Email URL in ⚙ Config', 'err'); return; }
+
+  const toMap = { mgmt: cfg.mgmt, client: cfg.client, team: cfg.team };
+  const to    = toMap[type] || '';
+  if (!to) { toast('Add ' + type + ' email address in ⚙ Config', 'err'); return; }
+
+  const content = reports[type];
+  if (!content) { toast('Generate the report first', 'err'); return; }
+
+  const meta    = EMAIL_META[type];
+  const isFri   = mode === 'friday';
+  const subject = `[DN ${getWeek()}] ${isFri ? meta.subFri : meta.subMon}`;
+
+  const btn = document.getElementById('s-' + type);
+  btn.innerHTML = '<span class="spin" style="border-top-color:#22d3ee"></span>';
+  btn.disabled  = true;
+
+  try {
+    const res = await fetch(gas, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action:     'send_email',
+        to:         to,
+        subject:    subject,
+        html:       content,
+        senderName: cfg.name || 'DN Status Rollup',
+      })
+    });
+
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    btn.innerHTML  = '✓ Sent';
+    btn.className += ' sent';
+    addLog('Email → ' + meta.label + ' (' + to + ') ✓', 'ok');
+    toast('Email sent to ' + meta.label + ' ✓', 'ok');
+
+  } catch(e) {
+    btn.disabled  = false;
+    btn.innerHTML = '📧 ' + meta.label;
+    addLog('Email → ' + meta.label + ' FAILED: ' + e.message, 'err');
+    toast('Email failed: ' + e.message, 'err');
+  }
+}
+
+// ── Send Google Chat webhook ───────────────────────────────────
+async function sendChat() {
+  const cfg     = getCfg();
+  const webhook = cfg.webhook || '';
+  const content = reports.chat;
+
+  if (!content) { toast('Generate the report first', 'err'); return; }
+  if (!webhook) { toast('Add Google Chat Webhook URL in ⚙ Config', 'err'); return; }
+
+  const btn = document.getElementById('s-chat');
+  btn.innerHTML = '<span class="spin" style="border-top-color:#22d3ee"></span>';
+  btn.disabled  = true;
+
+  try {
+    await fetch(webhook, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: content }),
+      mode: 'no-cors'
+    });
+    btn.innerHTML  = '✓ Sent';
+    btn.className += ' sent';
+    addLog('Google Chat message sent ✓', 'ok');
+    toast('Chat message sent ✓', 'ok');
+  } catch(e) {
+    btn.disabled  = false;
+    btn.innerHTML = '💬 Chat';
+    addLog('Chat FAILED: ' + e.message, 'err');
+    toast('Chat failed: ' + e.message, 'err');
+  }
+}
+
+async function sendAll() {
+  document.getElementById('sendAll').disabled = true;
+  document.getElementById('sendAll').innerHTML = '<span class="spin" style="border-top-color:#22d3ee"></span> Sending...';
+  await sendEmail('mgmt');
+  await new Promise(r => setTimeout(r, 500));
+  await sendEmail('client');
+  await new Promise(r => setTimeout(r, 500));
+  await sendEmail('team');
+  await new Promise(r => setTimeout(r, 500));
+  await sendChat();
+  document.getElementById('sendAll').innerHTML = '✅ All Sent!';
+  addLog('Send All complete ✓', 'ok');
+  toast('All 4 sends complete! 🎉', 'ok');
+}
+
+// ── Helpers ───────────────────────────────────────────────────
+function resetReports() {
+  reports = {mgmt:null,client:null,team:null,chat:null};
+  ['mgmt','client','team','chat'].forEach(t => {
+    document.getElementById('tab-'+t).classList.remove('ready','active');
+    document.getElementById('s-'+t).disabled = true;
+  });
+  document.getElementById('tab-mgmt').classList.add('active');
+  document.getElementById('sendAll').disabled = true;
+  tab = 'mgmt';
+  renderTab();
+}
+
+function getWeek() {
+  const n = new Date(), d = n.getDay();
+  const mon = new Date(n); mon.setDate(n.getDate()-((d+6)%7));
+  const fri = new Date(mon); fri.setDate(mon.getDate()+4);
+  const f = x => x.toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+  return `${f(mon)} – ${f(fri)}, ${fri.getFullYear()}`;
+}
+
+function md(text) {
+  return text
+    .replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')
+    .replace(/^### (.*)/gm,'<h3>$1</h3>')
+    .replace(/^## (.*)/gm,'<h2>$1</h2>')
+    .replace(/^# (.*)/gm,'<h2>$1</h2>')
+    .replace(/^- (.*)/gm,'<li>$1</li>')
+    .replace(/(<li>.*?<\/li>)/gs,'<ul>$1</ul>')
+    .replace(/\n\n/g,'</p><p>')
+    || text;
+}
+
+let toastTimer;
+function toast(msg, type='info') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'show ' + type;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.className='', 3500);
+}
+
+function addLog(msg, type='info') {
+  logN++;
+  document.getElementById('logCount').textContent = logN + ' event' + (logN>1?'s':'');
+  const now = new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  const el = document.createElement('div');
+  el.className = 'log-row';
+  el.innerHTML = `<span class="log-t">${now}</span><span class="log-m ${type}">${msg}</span>`;
+  document.getElementById('logEntries').prepend(el);
+  document.getElementById('log').classList.add('open');
+}
+
+// ── Init ──────────────────────────────────────────────────────
+document.getElementById('input').addEventListener('input', function() {
+  document.getElementById('chars').textContent = this.value.length.toLocaleString() + ' chars';
+});
+
+loadCfg();
+renderTab();
+addLog('DN Status Rollup ready', 'info');
+</script>
+</body>
+</html>
