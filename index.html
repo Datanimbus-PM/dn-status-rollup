@@ -22,49 +22,37 @@ button.hbtn:hover{border-color:#f59e0b;color:#f59e0b}
 button.hbtn.active{background:rgba(245,158,11,.15);border-color:#f59e0b;color:#f59e0b}
 
 /* ── Onboarding Wizard ─────────────────────── */
-#onboarding{position:fixed;inset:0;z-index:200;background:#0f172a;display:flex;align-items:center;justify-content:center;padding:20px}
+#onboarding{position:fixed;inset:0;z-index:200;background:#0f172a;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto}
 #onboarding.done{display:none}
-.ob-box{background:#1e293b;border:1px solid #334155;border-radius:16px;width:100%;max-width:560px;overflow:hidden}
-.ob-header{background:linear-gradient(135deg,#0f172a,#1e3a5f);padding:28px 32px;text-align:center}
+.ob-box{background:#1e293b;border:1px solid #334155;border-radius:16px;width:100%;max-width:580px;overflow:hidden;margin:auto}
+.ob-header{background:linear-gradient(135deg,#0f172a,#1e3a5f);padding:24px 32px;text-align:center}
 .ob-logo{width:48px;height:48px;background:#f59e0b;border-radius:10px;display:grid;place-items:center;font-weight:800;font-size:18px;color:#000;margin:0 auto 12px}
 .ob-title{font-size:20px;font-weight:700;color:#f1f5f9;margin-bottom:4px}
 .ob-sub{font-size:13px;color:#64748b}
-.ob-steps{display:flex;gap:0;border-bottom:1px solid #334155}
-.ob-step{flex:1;padding:10px 6px;text-align:center;font-size:10px;color:#475569;border-bottom:2px solid transparent;transition:.2s;cursor:default}
-.ob-step.active{color:#f59e0b;border-bottom-color:#f59e0b;font-weight:600}
-.ob-step.done{color:#34d399;border-bottom-color:#34d399}
-.ob-body{padding:24px 28px}
-.ob-step-content{display:none}
-.ob-step-content.active{display:block}
-.ob-field{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}
-.ob-field label{font-size:11px;color:#64748b;letter-spacing:.5px;text-transform:uppercase;display:flex;align-items:center;gap:6px}
-.ob-field label span{color:#f87171;font-size:9px}
-.ob-field input,.ob-field textarea{background:#0f172a;border:1px solid #334155;border-radius:8px;color:#e2e8f0;font-family:'Inter',sans-serif;font-size:13px;padding:10px 12px;outline:none;transition:.2s;width:100%}
-.ob-field input:focus,.ob-field textarea:focus{border-color:#f59e0b;box-shadow:0 0 0 3px rgba(245,158,11,.08)}
-.ob-field .ob-hint{font-size:11px;color:#475569;line-height:1.6}
-.ob-footer{padding:16px 28px;border-top:1px solid #334155;display:flex;align-items:center;justify-content:space-between}
-.ob-progress{font-size:11px;color:#475569}
-.ob-progress strong{color:#f59e0b}
-.ob-nav{display:flex;gap:10px}
-.ob-btn-next{background:#f59e0b;border:none;color:#000;padding:10px 24px;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer;font-family:'Inter',sans-serif}
-.ob-btn-next:hover{background:#d97706}
-.ob-btn-back{background:transparent;border:1px solid #334155;color:#64748b;padding:10px 18px;border-radius:8px;font-size:13px;cursor:pointer;font-family:'Inter',sans-serif}
-.ob-btn-back:hover{border-color:#f59e0b;color:#f59e0b}
-.ob-member-list{display:flex;flex-direction:column;gap:8px;margin-bottom:12px;max-height:200px;overflow-y:auto}
-.ob-member-row{display:flex;align-items:center;gap:8px;background:#0f172a;border-radius:6px;padding:8px 12px}
-.ob-member-avatar{width:28px;height:28px;border-radius:50%;background:#f59e0b;display:grid;place-items:center;font-size:11px;font-weight:700;color:#000;flex-shrink:0}
-.ob-member-info{flex:1;font-size:12px;color:#e2e8f0}
+.ob-body{padding:24px 28px;display:flex;flex-direction:column;gap:20px}
+.ob-section{display:flex;flex-direction:column;gap:8px}
+.ob-section-title{font-size:10px;font-weight:600;color:#f59e0b;letter-spacing:1px;text-transform:uppercase;padding-bottom:6px;border-bottom:1px solid #334155}
+.ob-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.ob-field{display:flex;flex-direction:column;gap:5px}
+.ob-field label{font-size:10px;color:#64748b;letter-spacing:.5px;text-transform:uppercase}
+.ob-field input{background:#0f172a;border:1px solid #334155;border-radius:8px;color:#e2e8f0;font-family:'Inter',sans-serif;font-size:12px;padding:9px 11px;outline:none;transition:.2s;width:100%}
+.ob-field input:focus{border-color:#f59e0b}
+.ob-hint{font-size:11px;color:#475569;line-height:1.6}
+.ob-footer{padding:16px 28px;border-top:1px solid #334155;display:flex;justify-content:flex-end;gap:10px}
+.ob-btn-go{background:#f59e0b;border:none;color:#000;padding:11px 32px;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer;font-family:'Inter',sans-serif}
+.ob-btn-go:hover{background:#d97706}
+.ob-member-list{display:flex;flex-direction:column;gap:6px;max-height:150px;overflow-y:auto}
+.ob-member-row{display:flex;align-items:center;gap:8px;background:#0f172a;border-radius:6px;padding:7px 10px}
+.ob-member-avatar{width:26px;height:26px;border-radius:50%;background:#f59e0b;display:grid;place-items:center;font-size:10px;font-weight:700;color:#000;flex-shrink:0}
+.ob-member-name{flex:1;font-size:12px;color:#e2e8f0}
 .ob-member-dept{font-size:10px;color:#64748b}
-.ob-member-del{background:transparent;border:none;color:#475569;cursor:pointer;font-size:14px;padding:0 4px}
+.ob-member-del{background:transparent;border:none;color:#475569;cursor:pointer;font-size:13px}
 .ob-member-del:hover{color:#f87171}
 .ob-add-row{display:flex;gap:8px}
-.ob-add-row input{background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;font-family:'Inter',sans-serif;font-size:12px;padding:8px 10px;outline:none;flex:1}
+.ob-add-row input{background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;font-family:'Inter',sans-serif;font-size:12px;padding:7px 10px;outline:none;flex:1}
 .ob-add-row input:focus{border-color:#f59e0b}
-.ob-add-btn{background:rgba(245,158,11,.15);border:1px solid #f59e0b;color:#f59e0b;padding:8px 14px;border-radius:6px;font-size:12px;cursor:pointer;white-space:nowrap}
-.ob-success{text-align:center;padding:20px 0}
-.ob-success .ob-tick{font-size:48px;margin-bottom:12px}
-.ob-success h3{font-size:18px;font-weight:700;color:#f1f5f9;margin-bottom:8px}
-.ob-success p{font-size:13px;color:#64748b;line-height:1.6;max-width:340px;margin:0 auto}
+.ob-add-btn{background:rgba(245,158,11,.15);border:1px solid #f59e0b;color:#f59e0b;padding:7px 14px;border-radius:6px;font-size:12px;cursor:pointer;white-space:nowrap}
+.ob-required{color:#f87171;font-size:9px;margin-left:4px}
 
 /* Dashboard */
 #dashView{display:none;position:fixed;inset:0;z-index:50;background:#0f172a;overflow-y:auto;padding:24px 28px}
@@ -265,6 +253,7 @@ textarea::placeholder{color:#334155}
 .output.editing-mode [contenteditable]:focus{background:rgba(245,158,11,.04);outline:1px solid rgba(245,158,11,.2)}
 .saved-dot{width:6px;height:6px;border-radius:50%;background:#34d399;display:inline-block;margin-right:4px;opacity:0;transition:.3s}
 .saved-dot.show{opacity:1}
+@keyframes pulse-red{0%,100%{box-shadow:0 0 0 2px rgba(248,113,113,.3)}50%{box-shadow:0 0 0 5px rgba(248,113,113,.1)}}
 </style>
 </head>
 <body>
@@ -275,117 +264,88 @@ textarea::placeholder{color:#334155}
     <div class="ob-header">
       <div class="ob-logo">DN</div>
       <div class="ob-title">Welcome to DN Status Rollup</div>
-      <div class="ob-sub">Quick setup — takes less than 5 minutes</div>
-    </div>
-    <div class="ob-steps">
-      <div class="ob-step active" id="os1">1 · Your Details</div>
-      <div class="ob-step" id="os2">2 · Chat Spaces</div>
-      <div class="ob-step" id="os3">3 · Webhooks</div>
-      <div class="ob-step" id="os4">4 · Your Team</div>
-      <div class="ob-step" id="os5">5 · Ready!</div>
+      <div class="ob-sub">Fill in your details once — takes less than 3 minutes</div>
     </div>
     <div class="ob-body">
 
-      <!-- Step 1: Name -->
-      <div class="ob-step-content active" id="osc1">
-        <div class="ob-field">
-          <label>Your Full Name <span>required</span></label>
-          <input id="ob-name" type="text" placeholder="e.g. Anitha Kumar"/>
-          <div class="ob-hint">This will appear as the sender name on all reports and emails.</div>
-        </div>
-        <div class="ob-field">
-          <label>Your Role / Title</label>
-          <input id="ob-role" type="text" placeholder="e.g. Program Manager"/>
-        </div>
-        <div class="ob-field">
-          <label>Project Name</label>
-          <input id="ob-project" type="text" placeholder="e.g. Project Alpha / UPP"/>
-          <div class="ob-hint">Used in email subject lines and report headers.</div>
-        </div>
-      </div>
-
-      <!-- Step 2: Chat Space IDs -->
-      <div class="ob-step-content" id="osc2">
-        <div class="ob-field">
-          <label>Google Chat Space IDs</label>
-          <div class="ob-hint" style="margin-bottom:12px">
-            Open each Chat Space → look at the URL:<br>
-            <code style="background:#0f172a;padding:2px 6px;border-radius:4px;font-size:11px">chat.google.com/room/<strong>SPACE_ID</strong>/...</code><br>
-            Copy the ID and paste below. Add up to 4 spaces.
+      <!-- Your Details -->
+      <div class="ob-section">
+        <div class="ob-section-title">👤 Your Details</div>
+        <div class="ob-row">
+          <div class="ob-field">
+            <label>Your Name <span class="ob-required">required</span></label>
+            <input id="ob-name" type="text" placeholder="e.g. Anitha Kumar"/>
           </div>
-          <input id="ob-space1" type="text" placeholder="Space ID 1 (e.g. AAQAsAvqA-4)" style="margin-bottom:8px"/>
-          <input id="ob-space2" type="text" placeholder="Space ID 2 (optional)" style="margin-bottom:8px"/>
-          <input id="ob-space3" type="text" placeholder="Space ID 3 (optional)" style="margin-bottom:8px"/>
-          <input id="ob-space4" type="text" placeholder="Space ID 4 (optional)"/>
-        </div>
-      </div>
-
-      <!-- Step 3: Webhooks -->
-      <div class="ob-step-content" id="osc3">
-        <div class="ob-field">
-          <label>Google Chat Webhook URLs</label>
-          <div class="ob-hint" style="margin-bottom:12px">
-            In each Chat Space → click Space name → Apps & integrations → Webhooks → Add webhook → copy URL.
-            Add up to 3 spaces to post reports to.
-          </div>
-          <input id="ob-wh1" type="text" placeholder="Webhook URL 1" style="margin-bottom:8px"/>
-          <input id="ob-wh2" type="text" placeholder="Webhook URL 2 (optional)" style="margin-bottom:8px"/>
-          <input id="ob-wh3" type="text" placeholder="Webhook URL 3 (optional)"/>
-        </div>
-      </div>
-
-      <!-- Step 4: Team Members -->
-      <div class="ob-step-content" id="osc4">
-        <div class="ob-field">
-          <label>Add Your Team Members</label>
-          <div class="ob-hint" style="margin-bottom:12px">
-            Add the people whose updates you collect. You can always add more later in the 👥 Team section.
-          </div>
-          <div class="ob-member-list" id="ob-member-list">
-            <div style="font-size:11px;color:#475569;text-align:center;padding:12px">No members added yet</div>
-          </div>
-          <div class="ob-add-row">
-            <input id="ob-new-name" type="text" placeholder="Full name"/>
-            <input id="ob-new-dept" type="text" placeholder="Department"/>
-            <button class="ob-add-btn" onclick="obAddMember()">+ Add</button>
+          <div class="ob-field">
+            <label>Project Name</label>
+            <input id="ob-project" type="text" placeholder="e.g. UPP / Project Alpha"/>
           </div>
         </div>
       </div>
 
-      <!-- Step 5: Done -->
-      <div class="ob-step-content" id="osc5">
-        <div class="ob-success">
-          <div class="ob-tick">🎉</div>
-          <h3>You're all set!</h3>
-          <p>Your tool is configured and ready to use. Here's what to do every Friday:</p>
-          <div style="text-align:left;margin-top:16px;display:flex;flex-direction:column;gap:10px">
-            <div style="display:flex;gap:10px;align-items:flex-start;font-size:12px;color:#94a3b8">
-              <span style="color:#f59e0b;font-weight:700;flex-shrink:0">1.</span>
-              Click <strong style="color:#f1f5f9">👥 Team</strong> → <strong style="color:#22d3ee">📥 Load from Chat</strong> to pull your team's updates automatically
-            </div>
-            <div style="display:flex;gap:10px;align-items:flex-start;font-size:12px;color:#94a3b8">
-              <span style="color:#f59e0b;font-weight:700;flex-shrink:0">2.</span>
-              Click <strong style="color:#f59e0b">⚡ Compile</strong> then <strong style="color:#f59e0b">⚡ Generate All Reports</strong>
-            </div>
-            <div style="display:flex;gap:10px;align-items:flex-start;font-size:12px;color:#94a3b8">
-              <span style="color:#f59e0b;font-weight:700;flex-shrink:0">3.</span>
-              Review each tab — Management, Client, Team, Chat
-            </div>
-            <div style="display:flex;gap:10px;align-items:flex-start;font-size:12px;color:#94a3b8">
-              <span style="color:#f59e0b;font-weight:700;flex-shrink:0">4.</span>
-              Click <strong style="color:#f1f5f9">🚀 Send All</strong> — done in under a minute!
-            </div>
+      <!-- Chat Space IDs -->
+      <div class="ob-section">
+        <div class="ob-section-title">💬 Google Chat Space IDs</div>
+        <div class="ob-hint">Open each Chat Space → look at URL → copy the ID after <code style="background:#0f172a;padding:1px 5px;border-radius:3px">/room/</code>. Add up to 4 spaces.</div>
+        <div class="ob-row">
+          <div class="ob-field">
+            <label>Space ID 1</label>
+            <input id="ob-space1" type="text" placeholder="e.g. AAQAsAvqA-4"/>
           </div>
+          <div class="ob-field">
+            <label>Space ID 2 (optional)</label>
+            <input id="ob-space2" type="text" placeholder="e.g. gUVzysAAAAE"/>
+          </div>
+        </div>
+        <div class="ob-row">
+          <div class="ob-field">
+            <label>Space ID 3 (optional)</label>
+            <input id="ob-space3" type="text" placeholder="Space ID 3"/>
+          </div>
+          <div class="ob-field">
+            <label>Space ID 4 (optional)</label>
+            <input id="ob-space4" type="text" placeholder="Space ID 4"/>
+          </div>
+        </div>
+      </div>
+
+      <!-- Webhooks -->
+      <div class="ob-section">
+        <div class="ob-section-title">🔔 Google Chat Webhooks (for posting reports)</div>
+        <div class="ob-hint">Space → Apps & integrations → Webhooks → Add webhook → copy URL.</div>
+        <div class="ob-field">
+          <label>Webhook URL 1</label>
+          <input id="ob-wh1" type="text" placeholder="https://chat.googleapis.com/v1/spaces/..."/>
+        </div>
+        <div class="ob-row">
+          <div class="ob-field">
+            <label>Webhook URL 2 (optional)</label>
+            <input id="ob-wh2" type="text" placeholder="Webhook URL 2"/>
+          </div>
+          <div class="ob-field">
+            <label>Webhook URL 3 (optional)</label>
+            <input id="ob-wh3" type="text" placeholder="Webhook URL 3"/>
+          </div>
+        </div>
+      </div>
+
+      <!-- Team Members -->
+      <div class="ob-section">
+        <div class="ob-section-title">👥 Your Team Members</div>
+        <div class="ob-hint">Add the people whose updates you collect. You can add more later.</div>
+        <div class="ob-member-list" id="ob-member-list">
+          <div style="font-size:11px;color:#475569;text-align:center;padding:10px">No members added yet</div>
+        </div>
+        <div class="ob-add-row" style="margin-top:8px">
+          <input id="ob-new-name" type="text" placeholder="Full name" onkeydown="if(event.key==='Enter')obAddMember()"/>
+          <input id="ob-new-dept" type="text" placeholder="Department" onkeydown="if(event.key==='Enter')obAddMember()"/>
+          <button class="ob-add-btn" onclick="obAddMember()">+ Add</button>
         </div>
       </div>
 
     </div>
     <div class="ob-footer">
-      <div class="ob-progress">Step <strong id="ob-step-num">1</strong> of 4</div>
-      <div class="ob-nav">
-        <button class="ob-btn-back" id="ob-back" onclick="obBack()" style="display:none">← Back</button>
-        <button class="ob-btn-next" id="ob-next" onclick="obNext()">Next →</button>
-      </div>
+      <button class="ob-btn-go" onclick="obFinish()">✨ Start using the tool →</button>
     </div>
   </div>
 </div>
@@ -482,37 +442,46 @@ textarea::placeholder{color:#334155}
       <div class="dash-title">📊 Program Status Dashboard</div>
       <div class="dash-sub" id="dashWeekLabel">No data yet — generate a report first</div>
     </div>
-    <button class="hbtn" onclick="toggleDash()">✕ Close</button>
+    <div style="display:flex;gap:10px;align-items:center">
+      <select id="dashWeekFilter" onchange="renderDashFromHistory()"
+        style="background:#1e293b;border:1px solid #334155;color:#94a3b8;padding:6px 12px;
+               border-radius:6px;font-family:'Inter',sans-serif;font-size:12px;outline:none">
+        <option value="all">All weeks</option>
+      </select>
+      <button class="hbtn" onclick="toggleDash()">✕ Close</button>
+    </div>
   </div>
 
-  <!-- Stat Cards -->
-  <div class="stat-cards" id="dashStats">
-    <div class="stat-card"><div class="sc-n" id="statMembers">—</div><div class="sc-l">Members</div></div>
+  <!-- Overall Stats — across all history -->
+  <div class="section-title">Overall Programme Health</div>
+  <div class="stat-cards" id="dashStats" style="margin-bottom:24px">
+    <div class="stat-card"><div class="sc-n" id="statWeeks">—</div><div class="sc-l">Weeks tracked</div></div>
     <div class="stat-card green"><div class="sc-n" id="statGreen">—</div><div class="sc-l">🟢 On Track</div></div>
     <div class="stat-card amber"><div class="sc-n" id="statAmber">—</div><div class="sc-l">🟡 At Risk</div></div>
     <div class="stat-card red"><div class="sc-n" id="statRed">—</div><div class="sc-l">🔴 Blocked</div></div>
-    <div class="stat-card"><div class="sc-n" id="statWins">—</div><div class="sc-l">🏆 Wins</div></div>
+    <div class="stat-card"><div class="sc-n" id="statActive">—</div><div class="sc-l">🚧 Open blockers</div></div>
+    <div class="stat-card"><div class="sc-n" id="statWins">—</div><div class="sc-l">🏆 Total wins</div></div>
   </div>
 
-  <!-- RAG Status -->
-  <div class="section-title">Team RAG Status — This Week</div>
-  <div class="rag-grid" id="ragGrid">
+  <!-- Active Blockers — PERSISTENT, stays until resolved -->
+  <div class="section-title" style="color:#f87171">🚧 Active Blockers — Stays until resolved</div>
+  <div class="blocker-list" id="blockerList" style="margin-bottom:28px">
+    <div class="no-data">No active blockers</div>
+  </div>
+
+  <!-- RAG Status per week -->
+  <div class="section-title" id="ragTitle">Team RAG Status</div>
+  <div class="rag-grid" id="ragGrid" style="margin-bottom:28px">
     <div class="no-data">Generate a report to see team RAG status</div>
   </div>
 
-  <!-- Blocker Tracker -->
-  <div class="section-title">Active Blockers</div>
-  <div class="blocker-list" id="blockerList">
-    <div class="no-data">No blockers tracked yet</div>
-  </div>
-
-  <!-- Trends -->
-  <div class="section-title">Weekly Trends</div>
+  <!-- Weekly Trends -->
+  <div class="section-title">Weekly Trends — Blockers vs Wins</div>
   <div id="trendChart" style="margin-bottom:28px">
     <div class="no-data">No history yet — trends appear after 2+ weeks</div>
   </div>
 
-  <!-- History Table -->
+  <!-- Weekly History Table -->
   <div class="section-title">Weekly History</div>
   <div style="overflow-x:auto">
     <table class="history-table" id="historyTable">
@@ -692,6 +661,8 @@ textarea::placeholder{color:#334155}
     </div>
   </div>
 </div>
+<!-- EMAIL MODAL -->
+<div id="emailModal" style="display:none;position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);align-items:center;justify-content:center">
   <div style="background:#1e293b;border:1px solid #334155;border-radius:12px;width:90%;max-width:460px;overflow:hidden">
     <div style="padding:18px 24px;border-bottom:1px solid #334155;display:flex;align-items:center;justify-content:space-between">
       <span id="modalTitle" style="font-size:14px;font-weight:600;color:#f1f5f9">Send Email</span>
@@ -735,7 +706,15 @@ textarea::placeholder{color:#334155}
       </div>
     </div>
     <div class="input-wrap">
-      <span class="input-label">Paste raw team updates below</span>
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <span class="input-label">Paste raw team updates below</span>
+        <button onclick="loadFromChat()" id="loadChatBtn"
+          style="background:rgba(34,211,238,.1);border:1px solid rgba(34,211,238,.3);color:#22d3ee;
+                 font-family:'Inter',sans-serif;font-size:11px;padding:5px 12px;border-radius:6px;
+                 cursor:pointer;white-space:nowrap;font-weight:500">
+          📥 Load from Chat
+        </button>
+      </div>
       <textarea id="input" placeholder="Example:&#10;&#10;Anitha (PM): Completed client onboarding deck. Q3 roadmap updated. Win: Client approved Phase 2. No blockers.&#10;&#10;Dev Team: Shipped 3 API endpoints. 92% test coverage. Blocker: Need staging server access from DevOps.&#10;&#10;QA Team: Regression suite complete - 96% pass rate. 4 edge cases still under investigation."></textarea>
     </div>
     <div class="action-bar">
@@ -1337,7 +1316,10 @@ function toggleDash() {
   closeAllViews();
   dash.classList.toggle('open', isOpen);
   btn.classList.toggle('active', isOpen);
-  if (isOpen) renderHistoryTable();
+  if (isOpen) {
+    populateWeekFilter();
+    renderDashFromHistory();
+  }
 }
 
 function saveToHistory(dashboard, week, type, fullReports) {
@@ -1350,6 +1332,9 @@ function saveToHistory(dashboard, week, type, fullReports) {
       savedAt: new Date().toISOString()
     });
     localStorage.setItem('dn_history', JSON.stringify(filtered.slice(0, 24)));
+
+    // Also update blocker tracker with this week's blockers
+    syncBlockersFromHistory(dashboard, week);
   } catch(e) { console.error('History save failed', e); }
 }
 
@@ -1357,56 +1342,241 @@ function getHistory() {
   try { return JSON.parse(localStorage.getItem('dn_history') || '[]'); } catch { return []; }
 }
 
-function renderDashboard(dashboard, week) {
-  const { members = [], summary = {} } = dashboard;
+// ── Sync blockers from latest report into persistent tracker ──
+function syncBlockersFromHistory(dashboard, week) {
+  const members  = dashboard?.members || [];
+  const existing = getTrackedBlockers();
 
-  // Update week label
-  document.getElementById('dashWeekLabel').textContent = `Week of ${week} · ${members.length} members reported`;
+  // Add new blockers
+  members.forEach(m => {
+    (m.blockers || []).forEach(text => {
+      const already = existing.find(b => b.name === m.name && b.text === text && !b.resolved);
+      if (!already) {
+        existing.unshift({
+          id:         Date.now() + Math.random(),
+          name:       m.name,
+          dept:       m.dept || '',
+          text:       text,
+          week:       week,
+          addedWeek:  week,
+          resolved:   false,
+          resolvedAt: null,
+        });
+      }
+    });
+  });
 
-  // Stat cards
-  document.getElementById('statMembers').textContent = summary.totalMembers || members.length;
-  document.getElementById('statGreen').textContent   = summary.greenCount   || members.filter(m => m.rag==='G').length;
-  document.getElementById('statAmber').textContent   = summary.amberCount   || members.filter(m => m.rag==='A').length;
-  document.getElementById('statRed').textContent     = summary.redCount     || members.filter(m => m.rag==='R').length;
-  document.getElementById('statWins').textContent    = summary.totalWins    || members.reduce((a,m) => a + (m.wins||[]).length, 0);
+  // Auto-resolve: person has no blockers this week
+  existing.forEach(b => {
+    if (b.resolved) return;
+    const member = members.find(m => m.name === b.name);
+    if (member && !(member.blockers || []).includes(b.text)) {
+      // Only auto-resolve if the member reported this week
+      b.resolved   = true;
+      b.resolvedAt = week;
+    }
+  });
 
-  // RAG cards
-  const ragGrid = document.getElementById('ragGrid');
-  if (members.length === 0) {
-    ragGrid.innerHTML = '<div class="no-data">No member data found</div>';
-  } else {
-    ragGrid.innerHTML = members.map(m => `
-      <div class="rag-card ${m.rag}">
-        <div class="rag-badge ${m.rag}">${m.rag}</div>
-        <div class="rag-name">${m.name}</div>
-        <div class="rag-dept">${m.dept || ''}</div>
-        <div class="rag-detail">
-          ${m.ragReason ? `<div style="margin-bottom:6px;color:#94a3b8">${m.ragReason}</div>` : ''}
-          ${(m.blockers||[]).map(b => `<div class="blocker-item">🚧 ${b}</div>`).join('')}
-          ${(m.wins||[]).map(w => `<div class="win-item">🏆 ${w}</div>`).join('')}
-        </div>
-      </div>`).join('');
+  saveTrackedBlockers(existing);
+}
+
+// ── Populate week filter dropdown ─────────────────────────────
+function populateWeekFilter() {
+  const history = getHistory();
+  const sel     = document.getElementById('dashWeekFilter');
+  const current = sel.value;
+  sel.innerHTML = '<option value="all">All weeks</option>';
+  history.forEach(h => {
+    const opt = document.createElement('option');
+    opt.value = h.week;
+    opt.textContent = h.week + (h.type === 'friday' ? ' (Fri)' : ' (Mon)');
+    sel.appendChild(opt);
+  });
+  if (current) sel.value = current;
+}
+
+// ── Main dashboard renderer — uses history ────────────────────
+function renderDashFromHistory() {
+  const history   = getHistory();
+  const filter    = document.getElementById('dashWeekFilter')?.value || 'all';
+  const filtered  = filter === 'all' ? history : history.filter(h => h.week === filter);
+
+  if (history.length === 0) {
+    document.getElementById('dashWeekLabel').textContent = 'No data yet — generate a report first';
+    return;
   }
 
-  // Blockers
-  const allBlockers = members.flatMap(m => (m.blockers||[]).map(b => ({ name: m.name, dept: m.dept, text: b })));
-  const blockerList = document.getElementById('blockerList');
-  if (allBlockers.length === 0) {
-    blockerList.innerHTML = '<div class="no-data">✅ No active blockers this week!</div>';
-  } else {
-    blockerList.innerHTML = allBlockers.map(b => `
-      <div class="blocker-item-row">
-        <div>
-          <div class="blocker-owner">${b.name} · ${b.dept}</div>
-          <div class="blocker-week">${week}</div>
-        </div>
-        <div class="blocker-text">${b.text}</div>
-      </div>`).join('');
-  }
+  // Week label
+  const latest = history[0];
+  document.getElementById('dashWeekLabel').textContent =
+    filter === 'all'
+      ? `All time · ${history.length} week${history.length > 1 ? 's' : ''} tracked · Latest: ${latest.week}`
+      : `Showing: ${filter}`;
+
+  // Aggregate stats across filtered weeks
+  let totalGreen = 0, totalAmber = 0, totalRed = 0, totalWins = 0;
+  filtered.forEach(h => {
+    const s = h.dashboard?.summary || {};
+    totalGreen += s.greenCount  || 0;
+    totalAmber += s.amberCount  || 0;
+    totalRed   += s.redCount    || 0;
+    totalWins  += s.totalWins   || 0;
+  });
+
+  const activeBlockers = getTrackedBlockers().filter(b => !b.resolved);
+
+  document.getElementById('statWeeks').textContent  = history.length;
+  document.getElementById('statGreen').textContent  = totalGreen;
+  document.getElementById('statAmber').textContent  = totalAmber;
+  document.getElementById('statRed').textContent    = totalRed;
+  document.getElementById('statActive').textContent = activeBlockers.length;
+  document.getElementById('statWins').textContent   = totalWins;
+
+  // RAG grid — show latest week or filtered week
+  const ragSource = filtered[0];
+  document.getElementById('ragTitle').textContent =
+    ragSource ? `Team RAG Status — ${ragSource.week}` : 'Team RAG Status';
+  renderRAGGrid(ragSource?.dashboard?.members || []);
+
+  // Always show ALL active blockers regardless of filter
+  renderBlockerTracker();
 
   // Trends
   renderTrends();
   renderHistoryTable();
+}
+
+// Called after generating new report
+function renderDashboard(dashboard, week) {
+  populateWeekFilter();
+  renderDashFromHistory();
+}
+
+// ── RAG Grid ──────────────────────────────────────────────────
+function renderRAGGrid(members) {
+  const ragGrid = document.getElementById('ragGrid');
+  if (!members.length) {
+    ragGrid.innerHTML = '<div class="no-data">No RAG data for this week</div>';
+    return;
+  }
+  const sorted = [...members].sort((a,b) => ({R:0,A:1,G:2}[a.rag]||2) - ({R:0,A:1,G:2}[b.rag]||2));
+  ragGrid.innerHTML = sorted.map(m => {
+    const isRed   = m.rag === 'R';
+    const isAmber = m.rag === 'A';
+    return `
+    <div class="rag-card ${m.rag}" style="${isRed ? 'animation:pulse-red 2s infinite' : ''}">
+      <div class="rag-badge ${m.rag}">${m.rag}</div>
+      ${isRed   ? '<div style="font-size:9px;color:#f87171;font-weight:600;letter-spacing:.5px;margin-bottom:4px;text-transform:uppercase">⚠️ Needs Attention</div>' : ''}
+      ${isAmber ? '<div style="font-size:9px;color:#f59e0b;font-weight:600;letter-spacing:.5px;margin-bottom:4px;text-transform:uppercase">⚡ At Risk</div>' : ''}
+      <div class="rag-name">${m.name}</div>
+      <div class="rag-dept">${m.dept || ''}</div>
+      <div class="rag-detail">
+        ${m.ragReason ? `<div style="margin-bottom:6px;color:#94a3b8;font-size:11px">${m.ragReason}</div>` : ''}
+        ${(m.blockers||[]).map(b => `<div class="blocker-item">🚧 ${b}</div>`).join('')}
+        ${(m.wins||[]).map(w => `<div class="win-item">🏆 ${w}</div>`).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── Persistent Blocker Tracker ────────────────────────────────
+function getTrackedBlockers() {
+  try { return JSON.parse(localStorage.getItem('dn_blockers') || '[]'); } catch { return []; }
+}
+
+function saveTrackedBlockers(blockers) {
+  localStorage.setItem('dn_blockers', JSON.stringify(blockers));
+}
+
+function renderBlockerTracker() {
+  const all      = getTrackedBlockers();
+  const active   = all.filter(b => !b.resolved);
+  const resolved = all.filter(b => b.resolved).slice(0, 5);
+  const el       = document.getElementById('blockerList');
+
+  let html = '';
+
+  if (active.length === 0) {
+    html += '<div class="no-data" style="color:#34d399;padding:16px">✅ No active blockers — all clear!</div>';
+  } else {
+    // Sort: oldest first so carried-over ones are most visible
+    const sorted = [...active].sort((a,b) => new Date(a.savedAt||0) - new Date(b.savedAt||0));
+    html += sorted.map(b => {
+      const isOld    = b.addedWeek && b.addedWeek !== getWeek();
+      const weeksBg  = isOld ? 'background:rgba(248,113,113,.08)' : '';
+      return `
+      <div class="blocker-item-row" style="border-left-color:#f87171;${weeksBg};align-items:center">
+        <div style="flex-shrink:0;min-width:140px">
+          <div class="blocker-owner">${b.name}</div>
+          <div class="blocker-week" style="color:#64748b">${b.dept}</div>
+          <div style="font-size:10px;color:#f59e0b;margin-top:3px">Since: ${b.addedWeek || b.week}</div>
+          ${isOld ? `<div style="font-size:10px;color:#f87171;margin-top:2px;font-weight:600">⚠️ Carried over</div>` : '<div style="font-size:10px;color:#94a3b8;margin-top:2px">New this week</div>'}
+        </div>
+        <div class="blocker-text" style="flex:1;padding:0 12px">${b.text}</div>
+        <button onclick="resolveBlocker('${b.id}')"
+          style="background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.3);color:#34d399;
+                 padding:6px 14px;border-radius:6px;font-size:11px;cursor:pointer;white-space:nowrap;
+                 font-weight:600;flex-shrink:0">
+          ✓ Mark Resolved
+        </button>
+      </div>`;
+    }).join('');
+  }
+
+  if (resolved.length) {
+    html += `<div style="margin-top:20px;font-size:10px;color:#34d399;letter-spacing:.5px;
+             text-transform:uppercase;margin-bottom:8px;display:flex;align-items:center;gap:8px">
+             ✓ Recently Resolved
+             <span style="flex:1;height:1px;background:#1e293b;display:inline-block"></span></div>`;
+    html += resolved.map(b => `
+      <div style="display:flex;align-items:center;gap:12px;padding:8px 14px;border-radius:8px;
+                  background:rgba(52,211,153,.04);border:1px solid rgba(52,211,153,.12);
+                  margin-bottom:6px;opacity:.65">
+        <div style="flex:1;display:flex;align-items:center;gap:8px">
+          <span style="font-size:12px;font-weight:500;color:#34d399">${b.name}</span>
+          <span style="font-size:11px;color:#475569">${b.text}</span>
+        </div>
+        <div style="font-size:10px;color:#34d399;white-space:nowrap">✓ ${b.resolvedAt || 'Resolved'}</div>
+        <button onclick="unresolveBlocker('${b.id}')"
+          style="background:transparent;border:1px solid #334155;color:#475569;
+                 padding:3px 8px;border-radius:4px;font-size:10px;cursor:pointer">
+          Reopen
+        </button>
+      </div>`).join('');
+  }
+
+  el.innerHTML = html;
+
+  // Update active blocker count in stat card
+  const statEl = document.getElementById('statActive');
+  if (statEl) statEl.textContent = active.length;
+}
+
+function resolveBlocker(id) {
+  const blockers = getTrackedBlockers();
+  const b        = blockers.find(b => String(b.id) === String(id));
+  if (b) {
+    b.resolved   = true;
+    b.resolvedAt = getWeek();
+    saveTrackedBlockers(blockers);
+    renderBlockerTracker();
+    renderDashFromHistory();
+    toast(`Blocker resolved ✓ — ${b.name}`, 'ok');
+    addLog(`Blocker resolved: ${b.name} — ${b.text.slice(0,40)}`, 'ok');
+  }
+}
+
+function unresolveBlocker(id) {
+  const blockers = getTrackedBlockers();
+  const b        = blockers.find(b => String(b.id) === String(id));
+  if (b) {
+    b.resolved   = false;
+    b.resolvedAt = null;
+    saveTrackedBlockers(blockers);
+    renderBlockerTracker();
+    renderDashFromHistory();
+    toast('Blocker reopened', 'info');
+  }
 }
 
 function renderTrends() {
@@ -1734,8 +1904,9 @@ async function loadFromChat() {
     return;
   }
 
-  const btn = document.querySelector('[onclick="loadFromChat()"]');
-  btn.innerHTML = '<span class="spin"></span> Loading...';
+  const btn = document.getElementById('loadChatBtn');
+  const orig = btn.innerHTML;
+  btn.innerHTML = '<span class="spin" style="border-top-color:#22d3ee"></span> Loading...';
   btn.disabled  = true;
 
   try {
@@ -1777,7 +1948,7 @@ async function loadFromChat() {
     addLog('Chat load failed: ' + e.message, 'err');
     toast('Failed to load from Chat: ' + e.message, 'err');
   } finally {
-    btn.innerHTML = '📥 Load Now';
+    btn.innerHTML = '📥 Load from Chat';
     btn.disabled  = false;
   }
 }
@@ -1791,67 +1962,17 @@ function closeAllViews() {
 }
 
 // ── Onboarding Wizard ─────────────────────────────────────────
-let obCurrentStep = 1;
-const OB_TOTAL    = 4;
-let obMembers     = [];
+let obMembers = [];
 
 function obCheckFirstTime() {
   const done = localStorage.getItem('dn_onboarding_done');
-  if (done) {
-    document.getElementById('onboarding').classList.add('done');
-  }
-}
-
-function obNext() {
-  if (obCurrentStep === 1) {
-    const name = document.getElementById('ob-name').value.trim();
-    if (!name) { obShake('ob-name'); return; }
-  }
-
-  if (obCurrentStep === OB_TOTAL) {
-    obFinish();
-    return;
-  }
-
-  if (obCurrentStep === 5) return;
-
-  obCurrentStep++;
-  obRender();
-}
-
-function obBack() {
-  if (obCurrentStep <= 1) return;
-  obCurrentStep--;
-  obRender();
-}
-
-function obRender() {
-  // Update step indicators
-  for (let i = 1; i <= 5; i++) {
-    const el = document.getElementById('os' + i);
-    el.className = 'ob-step';
-    if (i < obCurrentStep) el.classList.add('done');
-    if (i === obCurrentStep) el.classList.add('active');
-  }
-
-  // Show/hide content
-  for (let i = 1; i <= 5; i++) {
-    const el = document.getElementById('osc' + i);
-    el.classList.toggle('active', i === obCurrentStep);
-  }
-
-  // Update footer
-  document.getElementById('ob-step-num').textContent = Math.min(obCurrentStep, OB_TOTAL);
-  document.getElementById('ob-back').style.display   = obCurrentStep > 1 ? 'block' : 'none';
-  document.getElementById('ob-next').textContent     = obCurrentStep === OB_TOTAL ? '🚀 Let\'s go!' : 'Next →';
-  document.querySelector('.ob-progress').style.display = obCurrentStep === 5 ? 'none' : 'block';
+  if (done) document.getElementById('onboarding').classList.add('done');
 }
 
 function obAddMember() {
   const name = document.getElementById('ob-new-name').value.trim();
   const dept = document.getElementById('ob-new-dept').value.trim();
   if (!name) return;
-
   obMembers.push({ name, dept: dept || 'General' });
   document.getElementById('ob-new-name').value = '';
   document.getElementById('ob-new-dept').value = '';
@@ -1866,14 +1987,14 @@ function obRemoveMember(i) {
 function obRenderMembers() {
   const el = document.getElementById('ob-member-list');
   if (!obMembers.length) {
-    el.innerHTML = '<div style="font-size:11px;color:#475569;text-align:center;padding:12px">No members added yet</div>';
+    el.innerHTML = '<div style="font-size:11px;color:#475569;text-align:center;padding:10px">No members added yet</div>';
     return;
   }
   el.innerHTML = obMembers.map((m, i) => `
     <div class="ob-member-row">
       <div class="ob-member-avatar">${m.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2)}</div>
-      <div class="ob-member-info">
-        <div>${m.name}</div>
+      <div style="flex:1">
+        <div class="ob-member-name">${m.name}</div>
         <div class="ob-member-dept">${m.dept}</div>
       </div>
       <button class="ob-member-del" onclick="obRemoveMember(${i})">✕</button>
@@ -1881,9 +2002,17 @@ function obRenderMembers() {
 }
 
 function obFinish() {
-  // Save all config
-  const cfg = {
-    name:     document.getElementById('ob-name').value.trim(),
+  const name = document.getElementById('ob-name').value.trim();
+  if (!name) {
+    document.getElementById('ob-name').style.borderColor = '#f87171';
+    document.getElementById('ob-name').focus();
+    toast('Please enter your name to continue', 'err');
+    return;
+  }
+
+  // Save config
+  localStorage.setItem('dn_cfg', JSON.stringify({
+    name:     name,
     webhook1: document.getElementById('ob-wh1').value.trim(),
     webhook2: document.getElementById('ob-wh2').value.trim(),
     webhook3: document.getElementById('ob-wh3').value.trim(),
@@ -1891,37 +2020,18 @@ function obFinish() {
     space2:   document.getElementById('ob-space2').value.trim(),
     space3:   document.getElementById('ob-space3').value.trim(),
     space4:   document.getElementById('ob-space4').value.trim(),
-  };
-  localStorage.setItem('dn_cfg', JSON.stringify(cfg));
+  }));
 
   // Save team members
   if (obMembers.length) saveMembers(obMembers);
 
-  // Mark onboarding done
+  // Mark done and close
   localStorage.setItem('dn_onboarding_done', 'true');
-
-  // Show success step
-  obCurrentStep = 5;
-  obRender();
-  document.getElementById('ob-next').textContent = '✨ Open the tool';
-  document.getElementById('ob-next').onclick = () => {
-    document.getElementById('onboarding').classList.add('done');
-    loadCfg();
-    renderMemberCards();
-    addLog('Onboarding complete — welcome! 🎉', 'ok');
-    toast('Welcome! You\'re all set 🎉', 'ok');
-  };
-}
-
-function obShake(id) {
-  const el = document.getElementById(id);
-  el.style.borderColor = '#f87171';
-  el.style.animation   = 'shake .3s ease';
-  setTimeout(() => {
-    el.style.animation   = '';
-    el.style.borderColor = '';
-  }, 400);
-  toast('Please enter your name to continue', 'err');
+  document.getElementById('onboarding').classList.add('done');
+  loadCfg();
+  renderMemberCards();
+  addLog('Setup complete — welcome! 🎉', 'ok');
+  toast('Welcome! You\'re all set 🎉', 'ok');
 }
 
 // ── Init ──────────────────────────────────────────────────────
