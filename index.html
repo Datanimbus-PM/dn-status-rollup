@@ -21,6 +21,51 @@ button.hbtn{background:transparent;border:1px solid #334155;color:#94a3b8;paddin
 button.hbtn:hover{border-color:#f59e0b;color:#f59e0b}
 button.hbtn.active{background:rgba(245,158,11,.15);border-color:#f59e0b;color:#f59e0b}
 
+/* ── Onboarding Wizard ─────────────────────── */
+#onboarding{position:fixed;inset:0;z-index:200;background:#0f172a;display:flex;align-items:center;justify-content:center;padding:20px}
+#onboarding.done{display:none}
+.ob-box{background:#1e293b;border:1px solid #334155;border-radius:16px;width:100%;max-width:560px;overflow:hidden}
+.ob-header{background:linear-gradient(135deg,#0f172a,#1e3a5f);padding:28px 32px;text-align:center}
+.ob-logo{width:48px;height:48px;background:#f59e0b;border-radius:10px;display:grid;place-items:center;font-weight:800;font-size:18px;color:#000;margin:0 auto 12px}
+.ob-title{font-size:20px;font-weight:700;color:#f1f5f9;margin-bottom:4px}
+.ob-sub{font-size:13px;color:#64748b}
+.ob-steps{display:flex;gap:0;border-bottom:1px solid #334155}
+.ob-step{flex:1;padding:10px 6px;text-align:center;font-size:10px;color:#475569;border-bottom:2px solid transparent;transition:.2s;cursor:default}
+.ob-step.active{color:#f59e0b;border-bottom-color:#f59e0b;font-weight:600}
+.ob-step.done{color:#34d399;border-bottom-color:#34d399}
+.ob-body{padding:24px 28px}
+.ob-step-content{display:none}
+.ob-step-content.active{display:block}
+.ob-field{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}
+.ob-field label{font-size:11px;color:#64748b;letter-spacing:.5px;text-transform:uppercase;display:flex;align-items:center;gap:6px}
+.ob-field label span{color:#f87171;font-size:9px}
+.ob-field input,.ob-field textarea{background:#0f172a;border:1px solid #334155;border-radius:8px;color:#e2e8f0;font-family:'Inter',sans-serif;font-size:13px;padding:10px 12px;outline:none;transition:.2s;width:100%}
+.ob-field input:focus,.ob-field textarea:focus{border-color:#f59e0b;box-shadow:0 0 0 3px rgba(245,158,11,.08)}
+.ob-field .ob-hint{font-size:11px;color:#475569;line-height:1.6}
+.ob-footer{padding:16px 28px;border-top:1px solid #334155;display:flex;align-items:center;justify-content:space-between}
+.ob-progress{font-size:11px;color:#475569}
+.ob-progress strong{color:#f59e0b}
+.ob-nav{display:flex;gap:10px}
+.ob-btn-next{background:#f59e0b;border:none;color:#000;padding:10px 24px;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer;font-family:'Inter',sans-serif}
+.ob-btn-next:hover{background:#d97706}
+.ob-btn-back{background:transparent;border:1px solid #334155;color:#64748b;padding:10px 18px;border-radius:8px;font-size:13px;cursor:pointer;font-family:'Inter',sans-serif}
+.ob-btn-back:hover{border-color:#f59e0b;color:#f59e0b}
+.ob-member-list{display:flex;flex-direction:column;gap:8px;margin-bottom:12px;max-height:200px;overflow-y:auto}
+.ob-member-row{display:flex;align-items:center;gap:8px;background:#0f172a;border-radius:6px;padding:8px 12px}
+.ob-member-avatar{width:28px;height:28px;border-radius:50%;background:#f59e0b;display:grid;place-items:center;font-size:11px;font-weight:700;color:#000;flex-shrink:0}
+.ob-member-info{flex:1;font-size:12px;color:#e2e8f0}
+.ob-member-dept{font-size:10px;color:#64748b}
+.ob-member-del{background:transparent;border:none;color:#475569;cursor:pointer;font-size:14px;padding:0 4px}
+.ob-member-del:hover{color:#f87171}
+.ob-add-row{display:flex;gap:8px}
+.ob-add-row input{background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;font-family:'Inter',sans-serif;font-size:12px;padding:8px 10px;outline:none;flex:1}
+.ob-add-row input:focus{border-color:#f59e0b}
+.ob-add-btn{background:rgba(245,158,11,.15);border:1px solid #f59e0b;color:#f59e0b;padding:8px 14px;border-radius:6px;font-size:12px;cursor:pointer;white-space:nowrap}
+.ob-success{text-align:center;padding:20px 0}
+.ob-success .ob-tick{font-size:48px;margin-bottom:12px}
+.ob-success h3{font-size:18px;font-weight:700;color:#f1f5f9;margin-bottom:8px}
+.ob-success p{font-size:13px;color:#64748b;line-height:1.6;max-width:340px;margin:0 auto}
+
 /* Dashboard */
 #dashView{display:none;position:fixed;inset:0;z-index:50;background:#0f172a;overflow-y:auto;padding:24px 28px}
 #dashView.open{display:block}
@@ -224,6 +269,127 @@ textarea::placeholder{color:#334155}
 </head>
 <body>
 
+<!-- ── ONBOARDING WIZARD ──────────────────────── -->
+<div id="onboarding">
+  <div class="ob-box">
+    <div class="ob-header">
+      <div class="ob-logo">DN</div>
+      <div class="ob-title">Welcome to DN Status Rollup</div>
+      <div class="ob-sub">Quick setup — takes less than 5 minutes</div>
+    </div>
+    <div class="ob-steps">
+      <div class="ob-step active" id="os1">1 · Your Details</div>
+      <div class="ob-step" id="os2">2 · Chat Spaces</div>
+      <div class="ob-step" id="os3">3 · Webhooks</div>
+      <div class="ob-step" id="os4">4 · Your Team</div>
+      <div class="ob-step" id="os5">5 · Ready!</div>
+    </div>
+    <div class="ob-body">
+
+      <!-- Step 1: Name -->
+      <div class="ob-step-content active" id="osc1">
+        <div class="ob-field">
+          <label>Your Full Name <span>required</span></label>
+          <input id="ob-name" type="text" placeholder="e.g. Anitha Kumar"/>
+          <div class="ob-hint">This will appear as the sender name on all reports and emails.</div>
+        </div>
+        <div class="ob-field">
+          <label>Your Role / Title</label>
+          <input id="ob-role" type="text" placeholder="e.g. Program Manager"/>
+        </div>
+        <div class="ob-field">
+          <label>Project Name</label>
+          <input id="ob-project" type="text" placeholder="e.g. Project Alpha / UPP"/>
+          <div class="ob-hint">Used in email subject lines and report headers.</div>
+        </div>
+      </div>
+
+      <!-- Step 2: Chat Space IDs -->
+      <div class="ob-step-content" id="osc2">
+        <div class="ob-field">
+          <label>Google Chat Space IDs</label>
+          <div class="ob-hint" style="margin-bottom:12px">
+            Open each Chat Space → look at the URL:<br>
+            <code style="background:#0f172a;padding:2px 6px;border-radius:4px;font-size:11px">chat.google.com/room/<strong>SPACE_ID</strong>/...</code><br>
+            Copy the ID and paste below. Add up to 4 spaces.
+          </div>
+          <input id="ob-space1" type="text" placeholder="Space ID 1 (e.g. AAQAsAvqA-4)" style="margin-bottom:8px"/>
+          <input id="ob-space2" type="text" placeholder="Space ID 2 (optional)" style="margin-bottom:8px"/>
+          <input id="ob-space3" type="text" placeholder="Space ID 3 (optional)" style="margin-bottom:8px"/>
+          <input id="ob-space4" type="text" placeholder="Space ID 4 (optional)"/>
+        </div>
+      </div>
+
+      <!-- Step 3: Webhooks -->
+      <div class="ob-step-content" id="osc3">
+        <div class="ob-field">
+          <label>Google Chat Webhook URLs</label>
+          <div class="ob-hint" style="margin-bottom:12px">
+            In each Chat Space → click Space name → Apps & integrations → Webhooks → Add webhook → copy URL.
+            Add up to 3 spaces to post reports to.
+          </div>
+          <input id="ob-wh1" type="text" placeholder="Webhook URL 1" style="margin-bottom:8px"/>
+          <input id="ob-wh2" type="text" placeholder="Webhook URL 2 (optional)" style="margin-bottom:8px"/>
+          <input id="ob-wh3" type="text" placeholder="Webhook URL 3 (optional)"/>
+        </div>
+      </div>
+
+      <!-- Step 4: Team Members -->
+      <div class="ob-step-content" id="osc4">
+        <div class="ob-field">
+          <label>Add Your Team Members</label>
+          <div class="ob-hint" style="margin-bottom:12px">
+            Add the people whose updates you collect. You can always add more later in the 👥 Team section.
+          </div>
+          <div class="ob-member-list" id="ob-member-list">
+            <div style="font-size:11px;color:#475569;text-align:center;padding:12px">No members added yet</div>
+          </div>
+          <div class="ob-add-row">
+            <input id="ob-new-name" type="text" placeholder="Full name"/>
+            <input id="ob-new-dept" type="text" placeholder="Department"/>
+            <button class="ob-add-btn" onclick="obAddMember()">+ Add</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 5: Done -->
+      <div class="ob-step-content" id="osc5">
+        <div class="ob-success">
+          <div class="ob-tick">🎉</div>
+          <h3>You're all set!</h3>
+          <p>Your tool is configured and ready to use. Here's what to do every Friday:</p>
+          <div style="text-align:left;margin-top:16px;display:flex;flex-direction:column;gap:10px">
+            <div style="display:flex;gap:10px;align-items:flex-start;font-size:12px;color:#94a3b8">
+              <span style="color:#f59e0b;font-weight:700;flex-shrink:0">1.</span>
+              Click <strong style="color:#f1f5f9">👥 Team</strong> → <strong style="color:#22d3ee">📥 Load from Chat</strong> to pull your team's updates automatically
+            </div>
+            <div style="display:flex;gap:10px;align-items:flex-start;font-size:12px;color:#94a3b8">
+              <span style="color:#f59e0b;font-weight:700;flex-shrink:0">2.</span>
+              Click <strong style="color:#f59e0b">⚡ Compile</strong> then <strong style="color:#f59e0b">⚡ Generate All Reports</strong>
+            </div>
+            <div style="display:flex;gap:10px;align-items:flex-start;font-size:12px;color:#94a3b8">
+              <span style="color:#f59e0b;font-weight:700;flex-shrink:0">3.</span>
+              Review each tab — Management, Client, Team, Chat
+            </div>
+            <div style="display:flex;gap:10px;align-items:flex-start;font-size:12px;color:#94a3b8">
+              <span style="color:#f59e0b;font-weight:700;flex-shrink:0">4.</span>
+              Click <strong style="color:#f1f5f9">🚀 Send All</strong> — done in under a minute!
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+    <div class="ob-footer">
+      <div class="ob-progress">Step <strong id="ob-step-num">1</strong> of 4</div>
+      <div class="ob-nav">
+        <button class="ob-btn-back" id="ob-back" onclick="obBack()" style="display:none">← Back</button>
+        <button class="ob-btn-next" id="ob-next" onclick="obNext()">Next →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <header>
   <div class="logo">
     <div class="logo-box">DN</div>
@@ -254,6 +420,31 @@ textarea::placeholder{color:#334155}
 
     <!-- Webhooks section -->
     <div style="margin-top:16px">
+      <div style="font-size:10px;color:#64748b;letter-spacing:.8px;text-transform:uppercase;margin-bottom:10px">
+        Google Chat Space IDs (for pulling updates)
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px">
+        <input id="cfgSpace1" type="text" placeholder="Space ID 1 (e.g. AAQAsAvqA-4)"
+          style="background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;
+                 font-family:'Inter',sans-serif;font-size:12px;padding:8px 10px;outline:none;width:100%"
+          onfocus="this.style.borderColor='#f59e0b'" onblur="this.style.borderColor='#334155'"/>
+        <input id="cfgSpace2" type="text" placeholder="Space ID 2 (optional)"
+          style="background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;
+                 font-family:'Inter',sans-serif;font-size:12px;padding:8px 10px;outline:none;width:100%"
+          onfocus="this.style.borderColor='#f59e0b'" onblur="this.style.borderColor='#334155'"/>
+        <input id="cfgSpace3" type="text" placeholder="Space ID 3 (optional)"
+          style="background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;
+                 font-family:'Inter',sans-serif;font-size:12px;padding:8px 10px;outline:none;width:100%"
+          onfocus="this.style.borderColor='#f59e0b'" onblur="this.style.borderColor='#334155'"/>
+        <input id="cfgSpace4" type="text" placeholder="Space ID 4 (optional)"
+          style="background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;
+                 font-family:'Inter',sans-serif;font-size:12px;padding:8px 10px;outline:none;width:100%"
+          onfocus="this.style.borderColor='#f59e0b'" onblur="this.style.borderColor='#334155'"/>
+      </div>
+    </div>
+
+    <!-- Webhooks section -->
+    <div style="margin-top:4px">
       <div style="font-size:10px;color:#64748b;letter-spacing:.8px;text-transform:uppercase;margin-bottom:10px">
         Google Chat Webhooks (up to 3 spaces)
       </div>
@@ -387,6 +578,19 @@ textarea::placeholder{color:#334155}
     <button class="hbtn" onclick="toggleTemplates()">✕ Close</button>
   </div>
 
+  <!-- Load from Chat button -->
+  <div style="background:rgba(34,211,238,.06);border:1px solid rgba(34,211,238,.2);border-radius:8px;padding:14px 16px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between">
+    <div>
+      <div style="font-size:13px;font-weight:600;color:#22d3ee;margin-bottom:3px">📥 Load from Google Chat</div>
+      <div style="font-size:11px;color:#475569">Auto-populate updates from your Chat spaces — runs every Friday at 3PM</div>
+    </div>
+    <button onclick="loadFromChat()"
+      style="background:#22d3ee;border:none;color:#000;padding:9px 18px;border-radius:6px;
+             font-weight:600;font-size:12px;cursor:pointer;white-space:nowrap;flex-shrink:0">
+      📥 Load Now
+    </button>
+  </div>
+
   <!-- Add Member -->
   <div class="section-title">Add Team Member</div>
   <div class="add-member-form" style="margin-bottom:24px">
@@ -420,7 +624,74 @@ textarea::placeholder{color:#334155}
     Updates auto-save as you type — they'll still be here when you come back
   </p>
 </div>
-<div id="emailModal" style="display:none;position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);align-items:center;justify-content:center">
+<!-- SEND ALL MODAL -->
+<div id="sendAllModal" style="display:none;position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);align-items:center;justify-content:center">
+  <div style="background:#1e293b;border:1px solid #334155;border-radius:12px;width:90%;max-width:520px;overflow:hidden">
+    <div style="padding:18px 24px;border-bottom:1px solid #334155;display:flex;align-items:center;justify-content:space-between">
+      <div>
+        <div style="font-size:14px;font-weight:600;color:#f1f5f9">🚀 Send All</div>
+        <div style="font-size:11px;color:#64748b;margin-top:3px">Fill in recipients — all 3 emails + chat will be sent</div>
+      </div>
+      <button onclick="closeSendAllModal()" style="background:transparent;border:none;color:#64748b;font-size:20px;cursor:pointer">✕</button>
+    </div>
+    <div style="padding:20px 24px;display:flex;flex-direction:column;gap:16px">
+
+      <!-- Management -->
+      <div style="background:#0f172a;border-radius:8px;padding:14px 16px;border:1px solid #334155">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+          <div style="width:8px;height:8px;border-radius:50%;background:#f59e0b"></div>
+          <span style="font-size:11px;font-weight:600;color:#f59e0b;text-transform:uppercase;letter-spacing:.5px">📧 Management</span>
+        </div>
+        <input id="saEmail1" type="text" placeholder="ceo@company.com, vp@company.com"
+          style="background:#1e293b;border:1px solid #334155;border-radius:6px;color:#e2e8f0;
+                 font-family:'Inter',sans-serif;font-size:12px;padding:8px 11px;outline:none;width:100%"
+          onfocus="this.style.borderColor='#f59e0b'" onblur="this.style.borderColor='#334155'"/>
+      </div>
+
+      <!-- Client -->
+      <div style="background:#0f172a;border-radius:8px;padding:14px 16px;border:1px solid #334155">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+          <div style="width:8px;height:8px;border-radius:50%;background:#22d3ee"></div>
+          <span style="font-size:11px;font-weight:600;color:#22d3ee;text-transform:uppercase;letter-spacing:.5px">📧 Client</span>
+        </div>
+        <input id="saEmail2" type="text" placeholder="client@company.com"
+          style="background:#1e293b;border:1px solid #334155;border-radius:6px;color:#e2e8f0;
+                 font-family:'Inter',sans-serif;font-size:12px;padding:8px 11px;outline:none;width:100%"
+          onfocus="this.style.borderColor='#22d3ee'" onblur="this.style.borderColor='#334155'"/>
+      </div>
+
+      <!-- Team -->
+      <div style="background:#0f172a;border-radius:8px;padding:14px 16px;border:1px solid #334155">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+          <div style="width:8px;height:8px;border-radius:50%;background:#34d399"></div>
+          <span style="font-size:11px;font-weight:600;color:#34d399;text-transform:uppercase;letter-spacing:.5px">📧 Team</span>
+        </div>
+        <input id="saEmail3" type="text" placeholder="team@datanimbus.com"
+          style="background:#1e293b;border:1px solid #334155;border-radius:6px;color:#e2e8f0;
+                 font-family:'Inter',sans-serif;font-size:12px;padding:8px 11px;outline:none;width:100%"
+          onfocus="this.style.borderColor='#34d399'" onblur="this.style.borderColor='#334155'"/>
+      </div>
+
+      <!-- Chat -->
+      <div style="background:#0f172a;border-radius:8px;padding:12px 16px;border:1px solid #334155;display:flex;align-items:center;justify-content:space-between">
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="width:8px;height:8px;border-radius:50%;background:#a78bfa"></div>
+          <span style="font-size:11px;font-weight:600;color:#a78bfa;text-transform:uppercase;letter-spacing:.5px">💬 Google Chat</span>
+        </div>
+        <span style="font-size:11px;color:#475569">Sends to all configured webhooks</span>
+      </div>
+
+    </div>
+    <div style="padding:14px 24px;border-top:1px solid #334155;display:flex;gap:10px;justify-content:flex-end">
+      <button onclick="closeSendAllModal()" style="background:transparent;border:1px solid #334155;color:#64748b;padding:9px 18px;border-radius:6px;font-size:12px;cursor:pointer">Cancel</button>
+      <button onclick="confirmSendAll()" id="sendAllConfirmBtn"
+        style="background:linear-gradient(135deg,#f59e0b,#d97706);border:none;color:#000;
+               padding:9px 24px;border-radius:6px;font-weight:700;font-size:13px;cursor:pointer">
+        🚀 Open All in Gmail + Send Chat
+      </button>
+    </div>
+  </div>
+</div>
   <div style="background:#1e293b;border:1px solid #334155;border-radius:12px;width:90%;max-width:460px;overflow:hidden">
     <div style="padding:18px 24px;border-bottom:1px solid #334155;display:flex;align-items:center;justify-content:space-between">
       <span id="modalTitle" style="font-size:14px;font-weight:600;color:#f1f5f9">Send Email</span>
@@ -524,6 +795,7 @@ let logN = 0;
 
 // ── HARDCODED CONFIG (admin only) ─────────────────────────────
 const PROXY_URL = 'https://statusrollup.anitha.workers.dev';
+const CHAT_READER_URL = 'https://script.google.com/a/macros/datanimbus.com/s/AKfycbwBGAZqr8O8Op0Ak4-sf0YdCwxfsXgwRBTPyD-JulMt_ez3QD5ucg06_uYsP7x7X333lg/exec';
 
 // ── Config ────────────────────────────────────────────────────
 function saveCfg() {
@@ -532,6 +804,10 @@ function saveCfg() {
     webhook1: document.getElementById('cfgWebhook1').value.trim(),
     webhook2: document.getElementById('cfgWebhook2').value.trim(),
     webhook3: document.getElementById('cfgWebhook3').value.trim(),
+    space1:   document.getElementById('cfgSpace1').value.trim(),
+    space2:   document.getElementById('cfgSpace2').value.trim(),
+    space3:   document.getElementById('cfgSpace3').value.trim(),
+    space4:   document.getElementById('cfgSpace4').value.trim(),
   }));
   toast('Settings saved ✓', 'ok');
   addLog('Settings saved', 'info');
@@ -545,6 +821,10 @@ function loadCfg() {
     if (c.webhook1) document.getElementById('cfgWebhook1').value = c.webhook1;
     if (c.webhook2) document.getElementById('cfgWebhook2').value = c.webhook2;
     if (c.webhook3) document.getElementById('cfgWebhook3').value = c.webhook3;
+    if (c.space1)   document.getElementById('cfgSpace1').value   = c.space1;
+    if (c.space2)   document.getElementById('cfgSpace2').value   = c.space2;
+    if (c.space3)   document.getElementById('cfgSpace3').value   = c.space3;
+    if (c.space4)   document.getElementById('cfgSpace4').value   = c.space4;
     return c;
   } catch { return {}; }
 }
@@ -554,8 +834,9 @@ function getCfg() {
     const c = JSON.parse(localStorage.getItem('dn_cfg') || '{}');
     c.proxy    = PROXY_URL;
     c.webhooks = [c.webhook1, c.webhook2, c.webhook3].filter(Boolean);
+    c.spaces   = [c.space1, c.space2, c.space3, c.space4].filter(Boolean);
     return c;
-  } catch { return { proxy: PROXY_URL, webhooks: [] }; }
+  } catch { return { proxy: PROXY_URL, webhooks: [], spaces: [] }; }
 }
 
 function toggleCfg() {
@@ -920,7 +1201,79 @@ async function sendChat() {
 }
 
 async function sendAll() {
-  sendEmail('mgmt');
+  if (!reports.mgmt && !reports.client && !reports.team) {
+    toast('Generate the reports first', 'err'); return;
+  }
+  // Pre-fill from localStorage if available
+  const saved = JSON.parse(localStorage.getItem('dn_send_all_emails') || '{}');
+  document.getElementById('saEmail1').value = saved.mgmt   || '';
+  document.getElementById('saEmail2').value = saved.client || '';
+  document.getElementById('saEmail3').value = saved.team   || '';
+  document.getElementById('sendAllModal').style.display = 'flex';
+  setTimeout(() => document.getElementById('saEmail1').focus(), 100);
+}
+
+function closeSendAllModal() {
+  document.getElementById('sendAllModal').style.display = 'none';
+}
+
+function confirmSendAll() {
+  const mgmtTo   = document.getElementById('saEmail1').value.trim();
+  const clientTo = document.getElementById('saEmail2').value.trim();
+  const teamTo   = document.getElementById('saEmail3').value.trim();
+
+  if (!mgmtTo && !clientTo && !teamTo) {
+    toast('Please fill in at least one email address', 'err'); return;
+  }
+
+  // Save emails for next time
+  localStorage.setItem('dn_send_all_emails', JSON.stringify({
+    mgmt: mgmtTo, client: clientTo, team: teamTo
+  }));
+
+  const cfg    = getCfg();
+  const isFri  = mode === 'friday';
+  const week   = getWeek();
+
+  // Open Gmail for each filled recipient
+  const sends = [
+    { type: 'mgmt',   to: mgmtTo,   meta: EMAIL_META.mgmt },
+    { type: 'client', to: clientTo, meta: EMAIL_META.client },
+    { type: 'team',   to: teamTo,   meta: EMAIL_META.team },
+  ];
+
+  let opened = 0;
+  sends.forEach(({ type, to, meta }) => {
+    if (!to) return;
+    const content  = getEditedReport(type);
+    if (!content) return;
+    const subject  = `[DN ${week}] ${isFri ? meta.subFri : meta.subMon}`;
+    const plainBody = content
+      .replace(/<br\s*\/?>/gi, '\n').replace(/<\/p>/gi, '\n\n')
+      .replace(/<\/h[1-6]>/gi, '\n\n').replace(/<\/li>/gi, '\n')
+      .replace(/<li>/gi, '• ').replace(/<[^>]+>/g, '')
+      .replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>')
+      .replace(/&nbsp;/g,' ').replace(/\n{3,}/g,'\n\n').trim();
+
+    const gmailUrl = 'https://mail.google.com/mail/?view=cm&fs=1' +
+      '&to=' + encodeURIComponent(to) +
+      '&su=' + encodeURIComponent(subject) +
+      '&body=' + encodeURIComponent(plainBody);
+
+    setTimeout(() => window.open(gmailUrl, '_blank'), opened * 600);
+    const btn = document.getElementById('s-' + type);
+    btn.innerHTML  = '✓ Opened';
+    btn.className += ' sent';
+    addLog(`Gmail → ${meta.label} (${to}) opened ✓`, 'ok');
+    opened++;
+  });
+
+  // Send chat
+  sendChat();
+
+  closeSendAllModal();
+  toast(`${opened} Gmail window${opened > 1 ? 's' : ''} opening + Chat sent 🎉`, 'ok');
+  addLog('Send All complete ✓', 'ok');
 }
 
 // ── Helpers ───────────────────────────────────────────────────
@@ -1371,7 +1724,63 @@ function clearWeeklyUpdates() {
   toast('Weekly updates cleared ✓', 'info');
 }
 
-// ── Close all views helper ────────────────────────────────────
+// ── Load from Google Chat ─────────────────────────────────────
+async function loadFromChat() {
+  const cfg    = getCfg();
+  const spaces = cfg.spaces || [];
+
+  if (!spaces.length) {
+    toast('Add your Chat Space IDs in ⚙ Config first', 'err');
+    return;
+  }
+
+  const btn = document.querySelector('[onclick="loadFromChat()"]');
+  btn.innerHTML = '<span class="spin"></span> Loading...';
+  btn.disabled  = true;
+
+  try {
+    // Pass user's space IDs to GAS as query params
+    const params = spaces.map((s,i) => `space${i+1}=${encodeURIComponent(s)}`).join('&');
+    const res    = await fetch(`${CHAT_READER_URL}?${params}`);
+    const data   = await res.json();
+
+    if (!data || !data.length) {
+      toast('No structured data found — make sure team has posted updates this week', 'err');
+      return;
+    }
+
+    const existingMembers = getMembers();
+    const updates = getUpdates();
+
+    data.forEach(person => {
+      if (!person.name) return;
+      if (!existingMembers.find(m => m.name.toLowerCase() === person.name.toLowerCase())) {
+        existingMembers.push({ name: person.name, dept: person.dept || 'General' });
+      }
+      const id = person.name.replace(/\s+/g, '_');
+      updates[id] = {
+        completed:  person.completed  || '',
+        inprogress: person.inProgress || '',
+        blockers:   person.blockers   || '',
+        wins:       person.wins       || '',
+      };
+    });
+
+    saveMembers(existingMembers);
+    localStorage.setItem('dn_updates', JSON.stringify(updates));
+    renderMemberCards();
+
+    addLog(`Loaded ${data.length} member updates from Google Chat ✓`, 'ok');
+    toast(`${data.length} updates loaded from Chat ✓`, 'ok');
+
+  } catch(e) {
+    addLog('Chat load failed: ' + e.message, 'err');
+    toast('Failed to load from Chat: ' + e.message, 'err');
+  } finally {
+    btn.innerHTML = '📥 Load Now';
+    btn.disabled  = false;
+  }
+}
 function closeAllViews() {
   ['dashView','historyView','templatesView'].forEach(id => {
     document.getElementById(id).classList.remove('open');
@@ -1381,11 +1790,151 @@ function closeAllViews() {
   });
 }
 
+// ── Onboarding Wizard ─────────────────────────────────────────
+let obCurrentStep = 1;
+const OB_TOTAL    = 4;
+let obMembers     = [];
+
+function obCheckFirstTime() {
+  const done = localStorage.getItem('dn_onboarding_done');
+  if (done) {
+    document.getElementById('onboarding').classList.add('done');
+  }
+}
+
+function obNext() {
+  if (obCurrentStep === 1) {
+    const name = document.getElementById('ob-name').value.trim();
+    if (!name) { obShake('ob-name'); return; }
+  }
+
+  if (obCurrentStep === OB_TOTAL) {
+    obFinish();
+    return;
+  }
+
+  if (obCurrentStep === 5) return;
+
+  obCurrentStep++;
+  obRender();
+}
+
+function obBack() {
+  if (obCurrentStep <= 1) return;
+  obCurrentStep--;
+  obRender();
+}
+
+function obRender() {
+  // Update step indicators
+  for (let i = 1; i <= 5; i++) {
+    const el = document.getElementById('os' + i);
+    el.className = 'ob-step';
+    if (i < obCurrentStep) el.classList.add('done');
+    if (i === obCurrentStep) el.classList.add('active');
+  }
+
+  // Show/hide content
+  for (let i = 1; i <= 5; i++) {
+    const el = document.getElementById('osc' + i);
+    el.classList.toggle('active', i === obCurrentStep);
+  }
+
+  // Update footer
+  document.getElementById('ob-step-num').textContent = Math.min(obCurrentStep, OB_TOTAL);
+  document.getElementById('ob-back').style.display   = obCurrentStep > 1 ? 'block' : 'none';
+  document.getElementById('ob-next').textContent     = obCurrentStep === OB_TOTAL ? '🚀 Let\'s go!' : 'Next →';
+  document.querySelector('.ob-progress').style.display = obCurrentStep === 5 ? 'none' : 'block';
+}
+
+function obAddMember() {
+  const name = document.getElementById('ob-new-name').value.trim();
+  const dept = document.getElementById('ob-new-dept').value.trim();
+  if (!name) return;
+
+  obMembers.push({ name, dept: dept || 'General' });
+  document.getElementById('ob-new-name').value = '';
+  document.getElementById('ob-new-dept').value = '';
+  obRenderMembers();
+}
+
+function obRemoveMember(i) {
+  obMembers.splice(i, 1);
+  obRenderMembers();
+}
+
+function obRenderMembers() {
+  const el = document.getElementById('ob-member-list');
+  if (!obMembers.length) {
+    el.innerHTML = '<div style="font-size:11px;color:#475569;text-align:center;padding:12px">No members added yet</div>';
+    return;
+  }
+  el.innerHTML = obMembers.map((m, i) => `
+    <div class="ob-member-row">
+      <div class="ob-member-avatar">${m.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2)}</div>
+      <div class="ob-member-info">
+        <div>${m.name}</div>
+        <div class="ob-member-dept">${m.dept}</div>
+      </div>
+      <button class="ob-member-del" onclick="obRemoveMember(${i})">✕</button>
+    </div>`).join('');
+}
+
+function obFinish() {
+  // Save all config
+  const cfg = {
+    name:     document.getElementById('ob-name').value.trim(),
+    webhook1: document.getElementById('ob-wh1').value.trim(),
+    webhook2: document.getElementById('ob-wh2').value.trim(),
+    webhook3: document.getElementById('ob-wh3').value.trim(),
+    space1:   document.getElementById('ob-space1').value.trim(),
+    space2:   document.getElementById('ob-space2').value.trim(),
+    space3:   document.getElementById('ob-space3').value.trim(),
+    space4:   document.getElementById('ob-space4').value.trim(),
+  };
+  localStorage.setItem('dn_cfg', JSON.stringify(cfg));
+
+  // Save team members
+  if (obMembers.length) saveMembers(obMembers);
+
+  // Mark onboarding done
+  localStorage.setItem('dn_onboarding_done', 'true');
+
+  // Show success step
+  obCurrentStep = 5;
+  obRender();
+  document.getElementById('ob-next').textContent = '✨ Open the tool';
+  document.getElementById('ob-next').onclick = () => {
+    document.getElementById('onboarding').classList.add('done');
+    loadCfg();
+    renderMemberCards();
+    addLog('Onboarding complete — welcome! 🎉', 'ok');
+    toast('Welcome! You\'re all set 🎉', 'ok');
+  };
+}
+
+function obShake(id) {
+  const el = document.getElementById(id);
+  el.style.borderColor = '#f87171';
+  el.style.animation   = 'shake .3s ease';
+  setTimeout(() => {
+    el.style.animation   = '';
+    el.style.borderColor = '';
+  }, 400);
+  toast('Please enter your name to continue', 'err');
+}
+
 // ── Init ──────────────────────────────────────────────────────
 document.getElementById('input').addEventListener('input', function() {
   document.getElementById('chars').textContent = this.value.length.toLocaleString() + ' chars';
 });
 
+// Add shake animation
+const style = document.createElement('style');
+style.textContent = '@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}';
+document.head.appendChild(style);
+
+obCheckFirstTime();
 loadCfg();
 renderTab();
 addLog('DN Status Rollup ready', 'info');
