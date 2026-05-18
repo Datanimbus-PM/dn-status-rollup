@@ -205,6 +205,21 @@ textarea::placeholder{color:#334155}
 #toast.info{background:#0d1e2e;border:1px solid #22d3ee;color:#22d3ee}
 .spin{display:inline-block;width:13px;height:13px;border:2px solid rgba(0,0,0,.3);border-top-color:#000;border-radius:50%;animation:sp .6s linear infinite;vertical-align:middle;margin-right:6px}
 @keyframes sp{to{transform:rotate(360deg)}}
+
+/* Editable report */
+.edit-bar{padding:6px 20px;background:rgba(245,158,11,.06);border-bottom:1px solid rgba(245,158,11,.15);display:flex;align-items:center;justify-content:space-between;font-size:11px}
+.edit-hint{color:#64748b}
+.edit-hint.editing{color:#f59e0b}
+.edit-actions{display:flex;gap:6px}
+.edit-btn{background:transparent;border:1px solid #334155;border-radius:5px;color:#64748b;font-family:'Inter',sans-serif;font-size:11px;padding:4px 10px;cursor:pointer;transition:.15s}
+.edit-btn:hover{border-color:#f59e0b;color:#f59e0b}
+.edit-btn.active{background:rgba(245,158,11,.15);border-color:#f59e0b;color:#f59e0b}
+.edit-btn.reset{border-color:rgba(248,113,113,.3);color:#f87171}
+.edit-btn.reset:hover{background:rgba(248,113,113,.08)}
+.output.editing-mode [contenteditable]{outline:none;border-radius:6px}
+.output.editing-mode [contenteditable]:focus{background:rgba(245,158,11,.04);outline:1px solid rgba(245,158,11,.2)}
+.saved-dot{width:6px;height:6px;border-radius:50%;background:#34d399;display:inline-block;margin-right:4px;opacity:0;transition:.3s}
+.saved-dot.show{opacity:1}
 </style>
 </head>
 <body>
@@ -466,6 +481,13 @@ textarea::placeholder{color:#334155}
       <button class="tab"        id="tab-team"   onclick="switchTab('team')">  <span class="dot"></span> Team</button>
       <button class="tab"        id="tab-chat"   onclick="switchTab('chat')">  <span class="dot"></span> Chat</button>
     </div>
+    <div class="edit-bar" id="editBar" style="display:none">
+      <span class="edit-hint" id="editHint"><span class="saved-dot" id="savedDot"></span>Click anywhere in the report to edit</span>
+      <div class="edit-actions">
+        <button class="edit-btn reset" id="resetBtn" onclick="resetReport()" style="display:none">↩ Reset to original</button>
+        <button class="edit-btn active" id="editToggle" onclick="toggleEditMode()">✏️ Edit mode: ON</button>
+      </div>
+    </div>
     <div class="output" id="output">
       <div class="placeholder">
         <div class="placeholder-icon">📊</div>
@@ -551,6 +573,8 @@ function setMode(m) {
 }
 
 // ── Tab ───────────────────────────────────────────────────────
+let editMode = true; // edit mode on by default
+
 function switchTab(t) {
   tab = t;
   ['mgmt','client','team','chat'].forEach(x => {
@@ -562,15 +586,103 @@ function switchTab(t) {
 
 function renderTab() {
   const out = document.getElementById('output');
-  const r   = reports[tab];
+  const r   = getEditedReport(tab); // use edited version if exists
+  const editBar = document.getElementById('editBar');
+
   if (!r) {
+    editBar.style.display = 'none';
     out.innerHTML = `<div class="placeholder">
       <div class="placeholder-icon">${{mgmt:'📊',client:'🤝',team:'👥',chat:'💬'}[tab]}</div>
       <p>Generate the report first to see the ${tab} output here.</p>
     </div>`;
-  } else {
-    out.innerHTML = `<div class="report">${md(r)}</div>`;
+    return;
   }
+
+  editBar.style.display = 'flex';
+  updateEditBar();
+
+  if (tab === 'chat') {
+    // Chat is plain text — use a textarea for editing
+    out.innerHTML = `<div class="report">
+      <textarea id="chatEditArea"
+        oninput="saveEditedReport('chat', this.value)"
+        style="width:100%;min-height:260px;background:transparent;border:none;
+               color:#94a3b8;font-family:'Inter',sans-serif;font-size:13px;
+               line-height:1.8;resize:none;outline:none;padding:0"
+        ${editMode ? '' : 'readonly'}>${r}</textarea>
+    </div>`;
+  } else {
+    out.className = editMode ? 'output editing-mode' : 'output';
+    out.innerHTML = `<div class="report" id="reportContent"
+      contenteditable="${editMode}"
+      oninput="onReportEdit()"
+      style="outline:none">${md(r)}</div>`;
+  }
+
+  // Show reset button if edits exist
+  const hasEdits = !!getStoredEdits()[tab];
+  document.getElementById('resetBtn').style.display = hasEdits ? 'inline-block' : 'none';
+}
+
+function updateEditBar() {
+  const toggle = document.getElementById('editToggle');
+  const hint   = document.getElementById('editHint');
+  toggle.textContent = editMode ? '✏️ Edit mode: ON' : '👁 Edit mode: OFF';
+  toggle.className   = editMode ? 'edit-btn active' : 'edit-btn';
+  hint.textContent   = editMode ? 'Click anywhere in the report to edit' : 'Edit mode is off — turn on to edit';
+  hint.className     = editMode ? 'edit-hint editing' : 'edit-hint';
+}
+
+function toggleEditMode() {
+  editMode = !editMode;
+  renderTab();
+}
+
+let editSaveTimer;
+function onReportEdit() {
+  const content = document.getElementById('reportContent')?.innerHTML || '';
+  // Strip md() wrapping — save raw HTML
+  saveEditedReport(tab, content);
+  // Show saved dot
+  clearTimeout(editSaveTimer);
+  const dot = document.getElementById('savedDot');
+  dot.classList.add('show');
+  editSaveTimer = setTimeout(() => dot.classList.remove('show'), 1500);
+  document.getElementById('resetBtn').style.display = 'inline-block';
+}
+
+// ── Edited reports storage ─────────────────────────────────────
+function getStoredEdits() {
+  try { return JSON.parse(localStorage.getItem('dn_edits') || '{}'); } catch { return {}; }
+}
+
+function saveEditedReport(type, content) {
+  const edits = getStoredEdits();
+  edits[type] = content;
+  localStorage.setItem('dn_edits', JSON.stringify(edits));
+  // Keep reports object in sync
+  reports[type] = content;
+}
+
+function getEditedReport(type) {
+  const edits = getStoredEdits();
+  // Use edited version if exists, else use generated
+  return edits[type] || reports[type] || null;
+}
+
+function resetReport() {
+  if (!confirm('Reset this report to the original generated version? Your edits will be lost.')) return;
+  const edits = getStoredEdits();
+  delete edits[tab];
+  localStorage.setItem('dn_edits', JSON.stringify(edits));
+  // Restore original
+  reports[tab] = reports['_orig_'+tab] || reports[tab];
+  renderTab();
+  toast('Report reset to original ✓', 'info');
+}
+
+function clearAllEdits() {
+  localStorage.removeItem('dn_edits');
 }
 
 // ── Generate ──────────────────────────────────────────────────
@@ -665,6 +777,15 @@ RAG rules: G=no blockers, on track. A=minor risks or delays. R=has active blocke
     }
 
     reports = parsed;
+
+    // Save originals so reset always works
+    ['mgmt','client','team','chat'].forEach(t => {
+      if (parsed[t]) reports['_orig_'+t] = parsed[t];
+    });
+
+    // Clear previous edits when new report generated
+    clearAllEdits();
+
     ['mgmt','client','team','chat'].forEach(t => {
       if (parsed[t]) {
         document.getElementById('tab-'+t).classList.add('ready');
@@ -729,7 +850,7 @@ function confirmSendEmail() {
   if (!to) { toast('Please enter at least one email address', 'err'); return; }
 
   const type    = currentEmailType;
-  const content = reports[type];
+  const content = getEditedReport(type); // use edited version if exists
   const meta    = EMAIL_META[type];
 
   // Strip HTML tags for Gmail body (Gmail compose accepts plain text + some HTML)
@@ -768,7 +889,7 @@ function confirmSendEmail() {
 async function sendChat() {
   const cfg      = getCfg();
   const webhooks = cfg.webhooks || [];
-  const content  = reports.chat;
+  const content  = getEditedReport('chat'); // use edited version if exists
 
   if (!content)        { toast('Generate the report first', 'err'); return; }
   if (!webhooks.length){ toast('Add at least one Google Chat webhook in ⚙ Config', 'err'); return; }
