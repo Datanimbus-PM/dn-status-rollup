@@ -1910,10 +1910,13 @@ async function loadFromChat() {
   btn.disabled  = true;
 
   try {
-    // Pass user's space IDs to GAS as query params
-    const params = spaces.map((s,i) => `space${i+1}=${encodeURIComponent(s)}`).join('&');
-    const res    = await fetch(`${CHAT_READER_URL}?${params}`);
-    const data   = await res.json();
+    // Route through Cloudflare Worker to avoid CORS
+    const res  = await fetch(PROXY_URL, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ action: 'chat_reader', spaces })
+    });
+    const data = await res.json();
 
     if (!data || !data.length) {
       toast('No structured data found — make sure team has posted updates this week', 'err');
