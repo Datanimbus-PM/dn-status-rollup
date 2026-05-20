@@ -2,354 +2,344 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>DN Program Status Rollup</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+
+<!-- Firebase SDK -->
+<script type="module">
+import { initializeApp }                                          from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged }
+                                                                  from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import { getFirestore, doc, getDoc, setDoc, collection, query,
+         orderBy, getDocs, deleteDoc }                            from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+const firebaseConfig = {
+  apiKey:            "AIzaSyAi5AU31irqPJE6vsvC9utYlnQAvqNDC6c",
+  authDomain:        "dn-status-rollup.firebaseapp.com",
+  projectId:         "dn-status-rollup",
+  storageBucket:     "dn-status-rollup.firebasestorage.app",
+  messagingSenderId: "288633064041",
+  appId:             "1:288633064041:web:0a9f84da8bee7ae32ff0f8"
+};
+
+const fbApp  = initializeApp(firebaseConfig);
+const auth   = getAuth(fbApp);
+const db     = getFirestore(fbApp);
+const gprov  = new GoogleAuthProvider();
+gprov.setCustomParameters({ hd: 'datanimbus.com' });
+
+// Auth state listener
+onAuthStateChanged(auth, user => {
+  if (user) {
+    if (!user.email.endsWith('@datanimbus.com')) {
+      signOut(auth);
+      document.getElementById('authErr').textContent = 'Access restricted to @datanimbus.com accounts.';
+      document.getElementById('authErr').style.display = 'block';
+      return;
+    }
+    window._user = user;
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    document.getElementById('uAvatar').textContent = (user.displayName||'U').split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2);
+    document.getElementById('uName').textContent   = user.displayName || user.email;
+    document.getElementById('uEmail').textContent  = user.email;
+    document.getElementById('uMenuName').textContent = user.displayName || user.email;
+    window.appInit(user);
+  } else {
+    window._user = null;
+    document.getElementById('loginScreen').style.display = 'flex';
+    document.getElementById('app').style.display = 'none';
+  }
+});
+
+window.doSignIn = async () => {
+  try {
+    document.getElementById('loginBtn').textContent = 'Signing in...';
+    await signInWithPopup(auth, gprov);
+  } catch(e) {
+    document.getElementById('loginBtn').textContent = 'Sign in with Google';
+    document.getElementById('authErr').textContent = e.message;
+    document.getElementById('authErr').style.display = 'block';
+  }
+};
+window.doSignOut = () => signOut(auth);
+
+// Firebase helpers — all data stored per user uid
+const up = () => `users/${window._user?.uid}`;
+window.fbSet  = async (path, data)  => setDoc(doc(db,path), {...data, _ts: Date.now()}, {merge:true});
+window.fbGet  = async (path)        => { const s=await getDoc(doc(db,path)); return s.exists()?s.data():null; };
+window.fbDel  = async (path)        => deleteDoc(doc(db,path));
+window.fbList = async (path,field)  => { const q=query(collection(db,path),orderBy(field||'_ts','desc')); const s=await getDocs(q); return s.docs.map(d=>({id:d.id,...d.data()})); };
+window.fbCfg  = { save: d=>window.fbSet(`${up()}/cfg/main`,d),       get: ()=>window.fbGet(`${up()}/cfg/main`) };
+window.fbMem  = { save: l=>window.fbSet(`${up()}/members/all`,{list:l}), get: async()=>{ const d=await window.fbGet(`${up()}/members/all`); return d?.list||[]; } };
+window.fbUpd  = { save: d=>window.fbSet(`${up()}/updates/cur`,{data:d}),  get: async()=>{ const d=await window.fbGet(`${up()}/updates/cur`);  return d?.data||{}; } };
+window.fbEdt  = { save: d=>window.fbSet(`${up()}/edits/cur`,{data:d}),    get: async()=>{ const d=await window.fbGet(`${up()}/edits/cur`);    return d?.data||{}; } };
+window.fbBlk  = { save: l=>window.fbSet(`${up()}/blockers/all`,{list:l}), get: async()=>{ const d=await window.fbGet(`${up()}/blockers/all`); return d?.list||[]; } };
+window.fbHist = {
+  save: async e => { const id=(e.week+'-'+e.type).replace(/[^a-z0-9-]/gi,'_'); await window.fbSet(`${up()}/history/${id}`,e); },
+  list: ()=>window.fbList(`${up()}/history`,'_ts'),
+  del:  id=>window.fbDel(`${up()}/history/${id}`)
+};
+</script>
+
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{background:#0f172a;color:#e2e8f0;font-family:'Inter',sans-serif;min-height:100vh}
-header{background:#1e293b;border-bottom:1px solid #334155;padding:16px 28px;display:flex;align-items:center;justify-content:space-between}
-.logo{display:flex;align-items:center;gap:12px}
-.logo-box{width:36px;height:36px;background:#f59e0b;border-radius:8px;display:grid;place-items:center;font-weight:700;font-size:14px;color:#000}
-.logo-title{font-size:16px;font-weight:700;color:#f1f5f9}
-.logo-sub{font-size:11px;color:#64748b;margin-top:2px;text-transform:uppercase;letter-spacing:1px}
-.header-right{display:flex;gap:10px;align-items:center}
-.badge{padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600;letter-spacing:.5px}
-.badge-fri{background:rgba(245,158,11,.15);border:1px solid #f59e0b;color:#f59e0b}
-.badge-mon{background:rgba(34,211,238,.15);border:1px solid #22d3ee;color:#22d3ee}
-button.hbtn{background:transparent;border:1px solid #334155;color:#94a3b8;padding:7px 14px;border-radius:6px;cursor:pointer;font-size:12px;font-family:'Inter',sans-serif}
-button.hbtn:hover{border-color:#f59e0b;color:#f59e0b}
-button.hbtn.active{background:rgba(245,158,11,.15);border-color:#f59e0b;color:#f59e0b}
+body{background:#0f172a;color:#e2e8f0;font-family:'Inter',sans-serif;font-size:13px}
 
-/* ── Onboarding Wizard ─────────────────────── */
-#onboarding{position:fixed;inset:0;z-index:200;background:#0f172a;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto}
-#onboarding.done{display:none}
-.ob-box{background:#1e293b;border:1px solid #334155;border-radius:16px;width:100%;max-width:580px;overflow:hidden;margin:auto}
-.ob-header{background:linear-gradient(135deg,#0f172a,#1e3a5f);padding:24px 32px;text-align:center}
-.ob-logo{width:48px;height:48px;background:#f59e0b;border-radius:10px;display:grid;place-items:center;font-weight:800;font-size:18px;color:#000;margin:0 auto 12px}
-.ob-title{font-size:20px;font-weight:700;color:#f1f5f9;margin-bottom:4px}
-.ob-sub{font-size:13px;color:#64748b}
-.ob-body{padding:24px 28px;display:flex;flex-direction:column;gap:20px}
-.ob-section{display:flex;flex-direction:column;gap:8px}
-.ob-section-title{font-size:10px;font-weight:600;color:#f59e0b;letter-spacing:1px;text-transform:uppercase;padding-bottom:6px;border-bottom:1px solid #334155}
-.ob-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.ob-field{display:flex;flex-direction:column;gap:5px}
-.ob-field label{font-size:10px;color:#64748b;letter-spacing:.5px;text-transform:uppercase}
-.ob-field input{background:#0f172a;border:1px solid #334155;border-radius:8px;color:#e2e8f0;font-family:'Inter',sans-serif;font-size:12px;padding:9px 11px;outline:none;transition:.2s;width:100%}
-.ob-field input:focus{border-color:#f59e0b}
-.ob-hint{font-size:11px;color:#475569;line-height:1.6}
-.ob-footer{padding:16px 28px;border-top:1px solid #334155;display:flex;justify-content:flex-end;gap:10px}
-.ob-btn-go{background:#f59e0b;border:none;color:#000;padding:11px 32px;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer;font-family:'Inter',sans-serif}
-.ob-btn-go:hover{background:#d97706}
-.ob-member-list{display:flex;flex-direction:column;gap:6px;max-height:150px;overflow-y:auto}
-.ob-member-row{display:flex;align-items:center;gap:8px;background:#0f172a;border-radius:6px;padding:7px 10px}
-.ob-member-avatar{width:26px;height:26px;border-radius:50%;background:#f59e0b;display:grid;place-items:center;font-size:10px;font-weight:700;color:#000;flex-shrink:0}
-.ob-member-name{flex:1;font-size:12px;color:#e2e8f0}
-.ob-member-dept{font-size:10px;color:#64748b}
-.ob-member-del{background:transparent;border:none;color:#475569;cursor:pointer;font-size:13px}
-.ob-member-del:hover{color:#f87171}
-.ob-add-row{display:flex;gap:8px}
-.ob-add-row input{background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;font-family:'Inter',sans-serif;font-size:12px;padding:7px 10px;outline:none;flex:1}
-.ob-add-row input:focus{border-color:#f59e0b}
-.ob-add-btn{background:rgba(245,158,11,.15);border:1px solid #f59e0b;color:#f59e0b;padding:7px 14px;border-radius:6px;font-size:12px;cursor:pointer;white-space:nowrap}
-.ob-required{color:#f87171;font-size:9px;margin-left:4px}
+/* Login */
+#loginScreen{position:fixed;inset:0;background:#0f172a;display:flex;align-items:center;justify-content:center;z-index:999;padding:20px}
+.lb{background:#1e293b;border:1px solid #334155;border-radius:16px;padding:36px;width:100%;max-width:380px;text-align:center}
+.lb-logo{width:52px;height:52px;background:#f59e0b;border-radius:12px;display:grid;place-items:center;font-weight:800;font-size:20px;color:#000;margin:0 auto 16px}
+.lb-title{font-size:20px;font-weight:700;color:#f1f5f9;margin-bottom:6px}
+.lb-sub{font-size:12px;color:#64748b;margin-bottom:24px;line-height:1.6}
+#loginBtn{background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:11px 20px;font-size:13px;font-weight:600;color:#1a1a1a;cursor:pointer;width:100%;display:flex;align-items:center;justify-content:center;gap:10px;transition:.2s;font-family:'Inter',sans-serif}
+#loginBtn:hover{box-shadow:0 2px 8px rgba(0,0,0,.1)}
+#loginBtn img{width:18px}
+#authErr{display:none;margin-top:12px;padding:9px 12px;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);border-radius:6px;color:#f87171;font-size:11px}
+.lb-badge{margin-top:14px;font-size:11px;color:#475569}
 
-/* Dashboard */
-#dashView{display:none;position:fixed;inset:0;z-index:50;background:#0f172a;overflow-y:auto;padding:24px 28px}
-#dashView.open{display:block}
-.dash-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}
-.dash-title{font-size:18px;font-weight:700;color:#f1f5f9}
-.dash-sub{font-size:12px;color:#64748b;margin-top:3px}
-.stat-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:24px}
-.stat-card{background:#1e293b;border:1px solid #334155;border-radius:10px;padding:14px 16px}
-.stat-card .sc-n{font-size:28px;font-weight:700;color:#f1f5f9}
-.stat-card .sc-l{font-size:11px;color:#64748b;margin-top:4px;text-transform:uppercase;letter-spacing:.5px}
-.stat-card.red{border-color:rgba(248,113,113,.4);background:rgba(248,113,113,.06)}
-.stat-card.green{border-color:rgba(52,211,153,.4);background:rgba(52,211,153,.06)}
-.stat-card.amber{border-color:rgba(245,158,11,.4);background:rgba(245,158,11,.06)}
-.section-title{font-size:11px;font-weight:600;color:#64748b;letter-spacing:1px;text-transform:uppercase;margin-bottom:12px;display:flex;align-items:center;gap:8px}
-.section-title::after{content:'';flex:1;height:1px;background:#1e293b}
-.rag-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin-bottom:28px}
-.rag-card{background:#1e293b;border-radius:10px;padding:14px 16px;border-left:4px solid #334155;position:relative}
-.rag-card.R{border-left-color:#f87171}
-.rag-card.A{border-left-color:#f59e0b}
-.rag-card.G{border-left-color:#34d399}
-.rag-name{font-size:13px;font-weight:600;color:#f1f5f9;margin-bottom:2px}
-.rag-dept{font-size:10px;color:#64748b;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px}
-.rag-badge{position:absolute;top:14px;right:14px;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-size:11px;font-weight:700}
-.rag-badge.R{background:rgba(248,113,113,.2);color:#f87171}
-.rag-badge.A{background:rgba(245,158,11,.2);color:#f59e0b}
-.rag-badge.G{background:rgba(52,211,153,.2);color:#34d399}
-.rag-detail{font-size:11px;color:#64748b;line-height:1.6}
-.rag-detail .blocker-item{color:#f87171}
-.rag-detail .win-item{color:#34d399}
-.history-table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:28px}
-.history-table th{padding:8px 12px;text-align:left;color:#64748b;font-weight:500;border-bottom:1px solid #1e293b;font-size:10px;text-transform:uppercase;letter-spacing:.5px}
-.history-table td{padding:10px 12px;border-bottom:1px solid #1e293b;color:#94a3b8;vertical-align:middle}
-.history-table tr:hover td{background:#1e293b}
-.history-table .week-label{color:#f1f5f9;font-weight:500}
-.rag-pill{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600}
-.rag-pill.R{background:rgba(248,113,113,.15);color:#f87171;border:1px solid rgba(248,113,113,.3)}
-.rag-pill.A{background:rgba(245,158,11,.15);color:#f59e0b;border:1px solid rgba(245,158,11,.3)}
-.rag-pill.G{background:rgba(52,211,153,.15);color:#34d399;border:1px solid rgba(52,211,153,.3)}
-.blocker-list{margin-bottom:28px}
-.blocker-item-row{background:#1e293b;border-radius:8px;padding:12px 16px;margin-bottom:8px;display:flex;align-items:flex-start;gap:12px;border-left:3px solid #f87171}
-.blocker-week{font-size:10px;color:#64748b;white-space:nowrap;margin-top:2px}
-.blocker-text{font-size:12px;color:#e2e8f0;flex:1;line-height:1.5}
-.blocker-owner{font-size:11px;color:#f87171;font-weight:500}
-.no-data{text-align:center;padding:40px;color:#475569;font-size:13px}
-.trend-bar-wrap{display:flex;align-items:center;gap:10px;margin-bottom:8px}
-.trend-label{font-size:11px;color:#64748b;min-width:80px;text-align:right}
-.trend-bar-bg{flex:1;background:#1e293b;border-radius:4px;height:8px;overflow:hidden}
-.trend-bar{height:100%;border-radius:4px;transition:.3s}
-.trend-bar.blockers{background:#f87171}
-.trend-bar.wins{background:#34d399}
-.trend-val{font-size:11px;color:#94a3b8;min-width:20px}
+/* App shell */
+#app{display:none}
+header{background:#1e293b;border-bottom:1px solid #334155;padding:10px 16px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.logo{display:flex;align-items:center;gap:8px}
+.logo-box{width:30px;height:30px;background:#f59e0b;border-radius:7px;display:grid;place-items:center;font-weight:700;font-size:12px;color:#000;flex-shrink:0}
+.logo-title{font-size:13px;font-weight:700;color:#f1f5f9}
+.logo-sub{font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.5px}
+.hright{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.badge{padding:3px 9px;border-radius:20px;font-size:10px;font-weight:600;letter-spacing:.5px}
+.fri{background:rgba(245,158,11,.15);border:1px solid #f59e0b;color:#f59e0b}
+.mon{background:rgba(34,211,238,.15);border:1px solid #22d3ee;color:#22d3ee}
+.hbtn{background:transparent;border:1px solid #334155;color:#94a3b8;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:11px;font-family:'Inter',sans-serif;white-space:nowrap}
+.hbtn:hover{border-color:#f59e0b;color:#f59e0b}
+.hbtn.on{background:rgba(245,158,11,.12);border-color:#f59e0b;color:#f59e0b}
+.upill{display:flex;align-items:center;gap:6px;background:#0f172a;border:1px solid #334155;border-radius:20px;padding:3px 10px 3px 3px;cursor:pointer}
+.upill:hover{border-color:#f59e0b}
+.uav{width:24px;height:24px;border-radius:50%;background:#f59e0b;display:grid;place-items:center;font-size:10px;font-weight:700;color:#000}
+.uname{font-size:11px;color:#94a3b8;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
-/* History & Archive view */
-#historyView{display:none;position:fixed;inset:0;z-index:50;background:#0f172a;overflow-y:auto;padding:24px 28px}
-#historyView.open{display:block}
-.hist-cards{display:flex;flex-direction:column;gap:10px;margin-bottom:28px}
-.hist-card{background:#1e293b;border:1px solid #334155;border-radius:10px;padding:16px 20px;cursor:pointer;transition:.2s}
-.hist-card:hover{border-color:#f59e0b}
-.hist-card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
-.hist-card-week{font-size:13px;font-weight:600;color:#f1f5f9}
-.hist-card-meta{font-size:11px;color:#64748b}
-.hist-card-tags{display:flex;gap:6px;flex-wrap:wrap}
-.hist-tag{font-size:10px;padding:2px 8px;border-radius:20px;border:1px solid #334155;color:#64748b}
-.hist-tag.fri{border-color:rgba(245,158,11,.4);color:#f59e0b}
-.hist-tag.mon{border-color:rgba(34,211,238,.4);color:#22d3ee}
-.report-viewer{background:#1e293b;border-radius:10px;padding:20px 24px;margin-top:16px}
-.report-viewer-tabs{display:flex;gap:0;border:1px solid #334155;border-radius:6px;overflow:hidden;margin-bottom:16px;width:fit-content}
-.rv-tab{background:transparent;border:none;color:#64748b;padding:6px 14px;font-size:11px;cursor:pointer;font-family:'Inter',sans-serif;transition:.15s}
-.rv-tab.active{background:rgba(245,158,11,.15);color:#f59e0b}
-.rv-content{font-size:12px;line-height:1.8;color:#94a3b8;max-height:400px;overflow-y:auto}
+/* User menu */
+#uMenu{display:none;position:fixed;top:50px;right:14px;z-index:300;background:#1e293b;border:1px solid #334155;border-radius:10px;padding:12px;min-width:190px;box-shadow:0 8px 24px rgba(0,0,0,.4)}
+#uMenu.open{display:block}
+.um-n{font-size:13px;font-weight:600;color:#f1f5f9;margin-bottom:2px}
+.um-e{font-size:11px;color:#64748b;padding-bottom:8px;border-bottom:1px solid #334155;margin-bottom:8px}
+.um-btn{background:transparent;border:1px solid #334155;color:#94a3b8;padding:6px 10px;border-radius:6px;font-size:11px;cursor:pointer;width:100%;text-align:left;font-family:'Inter',sans-serif}
+.um-btn:hover{border-color:#f87171;color:#f87171}
 
-/* Team Templates */
-#templatesView{display:none;position:fixed;inset:0;z-index:50;background:#0f172a;overflow-y:auto;padding:24px 28px}
-#templatesView.open{display:block}
-.member-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;margin-bottom:24px}
-.member-card{background:#1e293b;border:1px solid #334155;border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:10px}
-.member-card-head{display:flex;align-items:center;justify-content:space-between}
-.member-avatar{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#f59e0b,#d97706);display:grid;place-items:center;font-size:12px;font-weight:700;color:#000;flex-shrink:0}
-.member-info{flex:1;margin-left:10px}
-.member-name{font-size:13px;font-weight:600;color:#f1f5f9}
-.member-dept{font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.5px}
-.member-del{background:transparent;border:none;color:#475569;font-size:14px;cursor:pointer;padding:4px}
-.member-del:hover{color:#f87171}
-.update-field{display:flex;flex-direction:column;gap:4px}
-.update-field label{font-size:10px;color:#64748b;letter-spacing:.5px;text-transform:uppercase}
-.update-field textarea{background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;font-family:'Inter',sans-serif;font-size:12px;padding:8px 10px;resize:none;outline:none;min-height:52px;transition:.2s;line-height:1.5}
-.update-field textarea:focus{border-color:#f59e0b}
-.add-member-form{background:#1e293b;border:1px dashed #334155;border-radius:10px;padding:16px;display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
-.add-field{display:flex;flex-direction:column;gap:5px;flex:1;min-width:140px}
-.add-field label{font-size:10px;color:#64748b;letter-spacing:.5px;text-transform:uppercase}
-.add-field input{background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;font-family:'Inter',sans-serif;font-size:12px;padding:8px 10px;outline:none;transition:.2s}
-.add-field input:focus{border-color:#f59e0b}
-.btn-compile{background:#22d3ee;border:none;color:#000;padding:10px 20px;border-radius:6px;font-weight:600;font-size:13px;cursor:pointer;width:100%;margin-top:8px}
-.btn-compile:hover{background:#06b6d4}
+/* Config */
+#cfgPanel{background:#1e293b;border-bottom:1px solid #334155;overflow:hidden;max-height:0;transition:max-height .3s}
+#cfgPanel.open{max-height:1000px}
+.cfg-inner{padding:18px 20px}
+.cfg-sec{font-size:10px;color:#f59e0b;letter-spacing:1px;text-transform:uppercase;grid-column:1/-1;margin-top:10px;padding-bottom:5px;border-bottom:1px solid #334155}
+.cfg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px}
+.cfg-f{display:flex;flex-direction:column;gap:4px}
+.cfg-f label{font-size:10px;color:#64748b;letter-spacing:.5px;text-transform:uppercase}
+.cfg-f input{background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;font-family:'Inter',sans-serif;font-size:12px;padding:8px 10px;outline:none;transition:.2s}
+.cfg-f input:focus{border-color:#f59e0b}
+.cfg-note{grid-column:1/-1;font-size:11px;color:#475569;line-height:1.6;padding:8px 12px;background:rgba(245,158,11,.04);border-left:2px solid #f59e0b;border-radius:0 4px 4px 0;margin-top:6px}
+.cfg-acts{margin-top:10px;display:flex;gap:8px}
+.bsave{background:#f59e0b;border:none;color:#000;padding:7px 18px;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer;font-family:'Inter',sans-serif}
+.bclose{background:transparent;border:1px solid #334155;color:#64748b;padding:7px 14px;border-radius:6px;font-size:12px;cursor:pointer;font-family:'Inter',sans-serif}
 
-/* Config panel */
-#cfgPanel{background:#1e293b;border-bottom:1px solid #334155;overflow:hidden;max-height:0;transition:max-height .3s ease}
-#cfgPanel.open{max-height:900px}
-.cfg-inner{padding:24px 28px}
-.cfg-title{font-size:11px;color:#f59e0b;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:16px}
-.cfg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
-.cfg-field{display:flex;flex-direction:column;gap:5px}
-.cfg-field label{font-size:10px;color:#64748b;letter-spacing:.8px;text-transform:uppercase}
-.cfg-field input{background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;font-family:'Inter',sans-serif;font-size:12px;padding:8px 11px;outline:none;transition:.2s}
-.cfg-field input:focus{border-color:#f59e0b}
-.cfg-actions{margin-top:16px;display:flex;gap:10px}
-.btn-save{background:#f59e0b;border:none;color:#000;padding:8px 20px;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer}
-.btn-close{background:transparent;border:1px solid #334155;color:#64748b;padding:8px 20px;border-radius:6px;font-size:12px;cursor:pointer}
-.cfg-note{margin-top:14px;font-size:11px;color:#64748b;line-height:1.7;padding:10px 14px;background:rgba(245,158,11,.05);border-left:2px solid #f59e0b;border-radius:0 4px 4px 0}
-
-/* Main layout */
-main{display:grid;grid-template-columns:1fr 1fr;height:calc(100vh - 65px)}
-@media(max-width:800px){main{grid-template-columns:1fr;height:auto}}
-
-/* Left panel */
+/* Layout */
+main{display:grid;grid-template-columns:1fr 1fr;height:calc(100vh - 53px)}
+@media(max-width:768px){
+  main{grid-template-columns:1fr;height:auto}
+  .right{border-top:1px solid #334155;min-height:60vh}
+  .logo-sub,.logo-title{font-size:11px}
+  .hright .badge{display:none}
+}
 .left{border-right:1px solid #334155;display:flex;flex-direction:column}
-.panel-head{padding:14px 20px;border-bottom:1px solid #334155;display:flex;align-items:center;justify-content:space-between}
-.panel-head span{font-size:12px;font-weight:600;color:#94a3b8;letter-spacing:.5px;text-transform:uppercase}
-.mode-toggle{display:flex;border:1px solid #334155;border-radius:6px;overflow:hidden}
-.mode-toggle button{background:transparent;border:none;color:#64748b;padding:5px 14px;font-size:11px;font-family:'Inter',sans-serif;cursor:pointer;transition:.15s}
-.mode-toggle button.active-fri{background:rgba(245,158,11,.15);color:#f59e0b}
-.mode-toggle button.active-mon{background:rgba(34,211,238,.15);color:#22d3ee}
-.input-wrap{flex:1;display:flex;flex-direction:column;padding:16px 20px;gap:10px}
-.input-label{font-size:10px;color:#64748b;letter-spacing:.8px;text-transform:uppercase}
-textarea{background:#1e293b;border:1px solid #334155;border-radius:8px;color:#e2e8f0;font-family:'Inter',sans-serif;font-size:13px;line-height:1.7;padding:14px;resize:none;flex:1;min-height:300px;outline:none;transition:.2s}
+.phead{padding:10px 14px;border-bottom:1px solid #334155;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px}
+.phead span{font-size:10px;font-weight:600;color:#94a3b8;letter-spacing:.5px;text-transform:uppercase}
+.mtoggle{display:flex;border:1px solid #334155;border-radius:6px;overflow:hidden}
+.mtoggle button{background:transparent;border:none;color:#64748b;padding:4px 10px;font-size:11px;font-family:'Inter',sans-serif;cursor:pointer;transition:.15s}
+.mfri{background:rgba(245,158,11,.15)!important;color:#f59e0b!important}
+.mmon{background:rgba(34,211,238,.15)!important;color:#22d3ee!important}
+.iwrap{flex:1;display:flex;flex-direction:column;padding:12px 14px;gap:7px}
+.ilabel{font-size:10px;color:#64748b;letter-spacing:.8px;text-transform:uppercase;display:flex;align-items:center;justify-content:space-between}
+textarea{background:#1e293b;border:1px solid #334155;border-radius:8px;color:#e2e8f0;font-family:'Inter',sans-serif;font-size:13px;line-height:1.7;padding:11px;resize:none;flex:1;min-height:200px;outline:none;transition:.2s}
 textarea:focus{border-color:#f59e0b}
 textarea::placeholder{color:#334155}
-.action-bar{padding:14px 20px;border-top:1px solid #334155;display:flex;gap:12px;align-items:center}
-#genBtn{flex:1;background:#f59e0b;border:none;border-radius:8px;color:#000;font-weight:700;font-size:14px;padding:12px;cursor:pointer;transition:.2s;font-family:'Inter',sans-serif}
+.abar{padding:10px 14px;border-top:1px solid #334155;display:flex;gap:8px;align-items:center}
+#genBtn{flex:1;background:#f59e0b;border:none;border-radius:8px;color:#000;font-weight:700;font-size:13px;padding:10px;cursor:pointer;font-family:'Inter',sans-serif}
 #genBtn:hover:not(:disabled){background:#d97706}
 #genBtn:disabled{opacity:.5;cursor:not-allowed}
 .chars{font-size:11px;color:#475569}
-
-/* Right panel */
 .right{display:flex;flex-direction:column}
-.tabs{display:flex;border-bottom:1px solid #334155;background:#1e293b}
-.tab{flex:1;background:transparent;border:none;border-bottom:2px solid transparent;color:#64748b;font-family:'Inter',sans-serif;font-size:11px;padding:12px 6px;cursor:pointer;transition:.15s;display:flex;align-items:center;justify-content:center;gap:5px}
-.tab .dot{width:5px;height:5px;border-radius:50%;background:#334155}
+.tabs{display:flex;border-bottom:1px solid #334155;background:#1e293b;overflow-x:auto}
+.tab{flex:1;min-width:65px;background:transparent;border:none;border-bottom:2px solid transparent;color:#64748b;font-family:'Inter',sans-serif;font-size:11px;padding:9px 4px;cursor:pointer;transition:.15s;white-space:nowrap}
+.tab .dot{width:5px;height:5px;border-radius:50%;background:#334155;display:inline-block;margin-right:3px}
 .tab.active{color:#f1f5f9;border-bottom-color:#f59e0b}
 .tab.ready .dot{background:#34d399}
 .tab.active .dot{background:#f59e0b}
-.output{flex:1;overflow-y:auto;padding:20px}
-.placeholder{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:12px;color:#475569;text-align:center}
-.placeholder-icon{font-size:36px}
-.placeholder p{font-size:13px;line-height:1.6;max-width:260px}
+.ebar{padding:5px 14px;background:rgba(245,158,11,.04);border-bottom:1px solid rgba(245,158,11,.1);display:flex;align-items:center;justify-content:space-between;font-size:11px}
+.ehint{color:#64748b}
+.eacts{display:flex;gap:5px}
+.ebtn{background:transparent;border:1px solid #334155;border-radius:4px;color:#64748b;font-family:'Inter',sans-serif;font-size:10px;padding:3px 8px;cursor:pointer}
+.ebtn.on{background:rgba(245,158,11,.12);border-color:#f59e0b;color:#f59e0b}
+.ebtn.rst{border-color:rgba(248,113,113,.3);color:#f87171}
+.sdot{width:5px;height:5px;border-radius:50%;background:#34d399;display:inline-block;margin-right:3px;opacity:0;transition:.3s}
+.sdot.show{opacity:1}
+.output{flex:1;overflow-y:auto;padding:14px}
+.ph{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:8px;color:#475569;text-align:center}
+.ph-icon{font-size:28px}
 .report{font-size:13px;line-height:1.8;color:#cbd5e1}
-.report h2{font-size:14px;font-weight:600;color:#f1f5f9;margin:18px 0 8px;padding-bottom:6px;border-bottom:1px solid #1e293b}
+.report h2{font-size:13px;font-weight:600;color:#f1f5f9;margin:14px 0 5px;padding-bottom:4px;border-bottom:1px solid #1e293b}
 .report h2:first-child{margin-top:0}
-.report h3{font-size:12px;font-weight:600;color:#f59e0b;margin:12px 0 5px;text-transform:uppercase;letter-spacing:.5px}
-.report p{margin-bottom:8px}
-.report ul{padding-left:18px;margin-bottom:8px}
-.report li{margin-bottom:3px}
+.report h3{font-size:11px;font-weight:600;color:#f59e0b;margin:8px 0 3px;text-transform:uppercase;letter-spacing:.5px}
+.report p{margin-bottom:7px}
+.report ul{padding-left:14px;margin-bottom:7px}
+.report li{margin-bottom:2px}
 .report strong{color:#f1f5f9}
-.report .blocker{background:rgba(248,113,113,.12);color:#f87171;border:1px solid rgba(248,113,113,.3);padding:1px 7px;border-radius:4px;font-size:11px}
-.report .win{background:rgba(52,211,153,.12);color:#34d399;border:1px solid rgba(52,211,153,.3);padding:1px 7px;border-radius:4px;font-size:11px}
-.send-bar{padding:12px 20px;border-top:1px solid #334155;background:#1e293b;display:flex;gap:8px;flex-wrap:wrap}
-.sbtn{background:transparent;border:1px solid #334155;border-radius:6px;color:#64748b;font-family:'Inter',sans-serif;font-size:11px;padding:6px 12px;cursor:pointer;transition:.2s}
+.report .blocker{background:rgba(248,113,113,.12);color:#f87171;border:1px solid rgba(248,113,113,.25);padding:1px 5px;border-radius:3px;font-size:11px}
+.report .win{background:rgba(52,211,153,.12);color:#34d399;border:1px solid rgba(52,211,153,.25);padding:1px 5px;border-radius:3px;font-size:11px}
+.sbar{padding:8px 14px;border-top:1px solid #334155;background:#1e293b;display:flex;gap:5px;flex-wrap:wrap;align-items:center}
+.sbtn{background:transparent;border:1px solid #334155;border-radius:5px;color:#64748b;font-family:'Inter',sans-serif;font-size:11px;padding:5px 8px;cursor:pointer;transition:.15s}
 .sbtn:hover:not(:disabled){border-color:#22d3ee;color:#22d3ee}
 .sbtn:disabled{opacity:.4;cursor:not-allowed}
 .sbtn.sent{border-color:#34d399;color:#34d399}
-#sendAll{margin-left:auto;background:rgba(34,211,238,.08);border-color:#22d3ee;color:#22d3ee}
-#sendAll:hover:not(:disabled){background:rgba(34,211,238,.18)}
+#sendAll{margin-left:auto;border-color:#22d3ee;color:#22d3ee;background:rgba(34,211,238,.06)}
+
+/* Full views */
+.fv{display:none;position:fixed;inset:0;z-index:50;background:#0f172a;overflow-y:auto;padding:18px 20px}
+.fv.open{display:block}
+.fvh{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:8px}
+.fv-title{font-size:17px;font-weight:700;color:#f1f5f9}
+.fv-sub{font-size:11px;color:#64748b;margin-top:2px}
+
+/* Dashboard */
+.scards{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin-bottom:18px}
+.sc{background:#1e293b;border:1px solid #334155;border-radius:10px;padding:11px 13px}
+.sc .n{font-size:24px;font-weight:700;color:#f1f5f9}
+.sc .l{font-size:10px;color:#64748b;margin-top:2px;text-transform:uppercase;letter-spacing:.5px}
+.sc.red{border-color:rgba(248,113,113,.35);background:rgba(248,113,113,.04)}
+.sc.grn{border-color:rgba(52,211,153,.35);background:rgba(52,211,153,.04)}
+.sc.amb{border-color:rgba(245,158,11,.35);background:rgba(245,158,11,.04)}
+.stitle{font-size:10px;font-weight:600;color:#64748b;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.stitle::after{content:'';flex:1;height:1px;background:#1e293b}
+.rgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px;margin-bottom:20px}
+.rc{background:#1e293b;border-radius:8px;padding:11px 13px;border-left:4px solid #334155;position:relative}
+.rc.R{border-left-color:#f87171}
+.rc.A{border-left-color:#f59e0b}
+.rc.G{border-left-color:#34d399}
+.rname{font-size:12px;font-weight:600;color:#f1f5f9;margin-bottom:1px}
+.rdept{font-size:10px;color:#64748b;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px}
+.rbadge{position:absolute;top:10px;right:10px;width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font-size:10px;font-weight:700}
+.rbadge.R{background:rgba(248,113,113,.2);color:#f87171}
+.rbadge.A{background:rgba(245,158,11,.2);color:#f59e0b}
+.rbadge.G{background:rgba(52,211,153,.2);color:#34d399}
+.rdet{font-size:11px;color:#64748b;line-height:1.5}
+.rdet .bi{color:#f87171}
+.rdet .wi{color:#34d399}
+.brow{background:#1e293b;border-radius:7px;padding:9px 12px;margin-bottom:7px;display:flex;align-items:center;gap:8px;border-left:3px solid #f87171;flex-wrap:wrap}
+.bown{font-size:11px;color:#f87171;font-weight:500}
+.bwk{font-size:10px;color:#64748b}
+.btxt{font-size:12px;color:#e2e8f0;flex:1;line-height:1.5;min-width:100px}
+.htbl{width:100%;border-collapse:collapse;font-size:12px}
+.htbl th{padding:6px 9px;text-align:left;color:#64748b;border-bottom:1px solid #1e293b;font-size:10px;text-transform:uppercase;letter-spacing:.5px}
+.htbl td{padding:7px 9px;border-bottom:1px solid #1e293b;color:#94a3b8;vertical-align:middle}
+.htbl tr:hover td{background:#1e293b}
+.rpill{display:inline-block;padding:2px 6px;border-radius:20px;font-size:10px;font-weight:600}
+.rpill.R{background:rgba(248,113,113,.15);color:#f87171;border:1px solid rgba(248,113,113,.25)}
+.rpill.A{background:rgba(245,158,11,.15);color:#f59e0b;border:1px solid rgba(245,158,11,.25)}
+.rpill.G{background:rgba(52,211,153,.15);color:#34d399;border:1px solid rgba(52,211,153,.25)}
+.nodata{text-align:center;padding:28px;color:#475569;font-size:12px}
+.tbar{display:flex;align-items:center;gap:7px;margin-bottom:5px}
+.tlabel{font-size:11px;color:#64748b;min-width:64px;text-align:right}
+.tbg{flex:1;background:#1e293b;border-radius:3px;height:6px;overflow:hidden}
+.tbar-fill{height:100%;border-radius:3px;transition:.3s}
+.tbar-fill.bl{background:#f87171}
+.tbar-fill.wn{background:#34d399}
+.tval{font-size:11px;color:#94a3b8;min-width:16px}
+
+/* Team templates */
+.mcards{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:8px;margin-bottom:16px}
+.mcard{background:#1e293b;border:1px solid #334155;border-radius:9px;padding:12px;display:flex;flex-direction:column;gap:7px}
+.mcard-h{display:flex;align-items:center;justify-content:space-between}
+.mav{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#f59e0b,#d97706);display:grid;place-items:center;font-size:10px;font-weight:700;color:#000;flex-shrink:0}
+.mni{flex:1;margin-left:7px}
+.mn{font-size:12px;font-weight:600;color:#f1f5f9}
+.md{font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.4px}
+.mdel{background:transparent;border:none;color:#475569;font-size:12px;cursor:pointer}
+.mdel:hover{color:#f87171}
+.uf{display:flex;flex-direction:column;gap:3px}
+.uf label{font-size:10px;color:#64748b;letter-spacing:.4px;text-transform:uppercase}
+.uf textarea{background:#0f172a;border:1px solid #334155;border-radius:5px;color:#e2e8f0;font-family:'Inter',sans-serif;font-size:12px;padding:6px 8px;resize:none;outline:none;min-height:44px;transition:.2s;line-height:1.5}
+.uf textarea:focus{border-color:#f59e0b}
+.amform{background:#1e293b;border:1px dashed #334155;border-radius:9px;padding:12px;display:flex;gap:7px;align-items:flex-end;flex-wrap:wrap;margin-bottom:16px}
+.af{display:flex;flex-direction:column;gap:3px;flex:1;min-width:110px}
+.af label{font-size:10px;color:#64748b;letter-spacing:.4px;text-transform:uppercase}
+.af input{background:#0f172a;border:1px solid #334155;border-radius:5px;color:#e2e8f0;font-family:'Inter',sans-serif;font-size:12px;padding:7px 9px;outline:none;transition:.2s}
+.af input:focus{border-color:#f59e0b}
+.bcompile{background:#22d3ee;border:none;color:#000;padding:9px;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer;width:100%;font-family:'Inter',sans-serif}
+
+/* History */
+.hcard{background:#1e293b;border:1px solid #334155;border-radius:9px;padding:12px 16px;cursor:pointer;transition:.2s;margin-bottom:7px}
+.hcard:hover{border-color:#f59e0b}
+.htag{display:inline-block;font-size:10px;padding:2px 6px;border-radius:20px;border:1px solid #334155;color:#64748b;margin-right:3px}
+.rvtab{background:transparent;border:none;border-bottom:2px solid transparent;color:#64748b;font-family:'Inter',sans-serif;font-size:11px;padding:5px 10px;cursor:pointer;transition:.15s}
+.rvtab.active{color:#f59e0b;border-bottom-color:#f59e0b}
+.rvcont{font-size:12px;line-height:1.8;color:#94a3b8;max-height:380px;overflow-y:auto;margin-top:10px}
+
+/* Modals */
+.moverlay{display:none;position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);align-items:center;justify-content:center;padding:16px}
+.moverlay.open{display:flex}
+.mbox{background:#1e293b;border:1px solid #334155;border-radius:12px;width:100%;max-width:480px;overflow:hidden}
+.mhead{padding:14px 18px;border-bottom:1px solid #334155;display:flex;align-items:center;justify-content:space-between}
+.mtitle{font-size:13px;font-weight:600;color:#f1f5f9}
+.mxbtn{background:transparent;border:none;color:#64748b;font-size:17px;cursor:pointer}
+.mbody{padding:16px 18px;display:flex;flex-direction:column;gap:10px}
+.mig{background:#0f172a;border-radius:7px;padding:11px 13px;border:1px solid #334155}
+.mil{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.mil.mg{color:#f59e0b}.mil.cl{color:#22d3ee}.mil.tm{color:#34d399}.mil.ch{color:#a78bfa}
+.mi{background:#1e293b;border:1px solid #334155;border-radius:5px;color:#e2e8f0;font-family:'Inter',sans-serif;font-size:12px;padding:7px 9px;outline:none;width:100%}
+.mi:focus{border-color:#f59e0b}
+.mfoot{padding:11px 18px;border-top:1px solid #334155;display:flex;gap:7px;justify-content:flex-end}
+.bcancel{background:transparent;border:1px solid #334155;color:#64748b;padding:7px 14px;border-radius:5px;font-size:12px;cursor:pointer;font-family:'Inter',sans-serif}
+.bgo{background:linear-gradient(135deg,#f59e0b,#d97706);border:none;color:#000;padding:7px 18px;border-radius:5px;font-weight:700;font-size:12px;cursor:pointer;font-family:'Inter',sans-serif}
 
 /* Log */
 #log{background:#1e293b;border-top:1px solid #334155;max-height:0;overflow:hidden;transition:max-height .25s}
-#log.open{max-height:160px}
-.log-head{padding:8px 20px;display:flex;justify-content:space-between;cursor:pointer}
-.log-head span{font-size:10px;color:#475569;text-transform:uppercase;letter-spacing:.8px}
-.log-entries{padding:0 20px 10px;overflow-y:auto;max-height:110px;display:flex;flex-direction:column;gap:3px}
-.log-row{display:flex;gap:10px;font-size:11px}
-.log-t{color:#475569;min-width:56px}
-.log-m{color:#94a3b8}
-.log-m.ok{color:#34d399}
-.log-m.err{color:#f87171}
-.log-m.info{color:#22d3ee}
+#log.open{max-height:140px}
+.logh{padding:6px 14px;display:flex;justify-content:space-between;cursor:pointer}
+.logh span{font-size:10px;color:#475569;text-transform:uppercase;letter-spacing:.5px}
+.loge{padding:0 14px 7px;overflow-y:auto;max-height:90px;display:flex;flex-direction:column;gap:2px}
+.logr{display:flex;gap:7px;font-size:11px}
+.logt{color:#475569;min-width:48px}
+.logm{color:#94a3b8}
+.logm.ok{color:#34d399}.logm.err{color:#f87171}.logm.info{color:#22d3ee}
 
 /* Toast */
-#toast{position:fixed;bottom:20px;right:20px;z-index:999;padding:10px 18px;border-radius:8px;font-size:12px;font-family:'Inter',sans-serif;opacity:0;transform:translateY(60px);transition:.3s;max-width:300px;pointer-events:none}
+#toast{position:fixed;bottom:14px;right:14px;z-index:999;padding:9px 14px;border-radius:7px;font-size:12px;font-family:'Inter',sans-serif;opacity:0;transform:translateY(50px);transition:.3s;max-width:280px;pointer-events:none}
 #toast.show{opacity:1;transform:translateY(0)}
 #toast.ok{background:#0d2e1e;border:1px solid #34d399;color:#34d399}
 #toast.err{background:#2e0d0d;border:1px solid #f87171;color:#f87171}
 #toast.info{background:#0d1e2e;border:1px solid #22d3ee;color:#22d3ee}
-.spin{display:inline-block;width:13px;height:13px;border:2px solid rgba(0,0,0,.3);border-top-color:#000;border-radius:50%;animation:sp .6s linear infinite;vertical-align:middle;margin-right:6px}
+.spin{display:inline-block;width:11px;height:11px;border:2px solid rgba(0,0,0,.2);border-top-color:#000;border-radius:50%;animation:sp .6s linear infinite;vertical-align:middle;margin-right:4px}
 @keyframes sp{to{transform:rotate(360deg)}}
-
-/* Editable report */
-.edit-bar{padding:6px 20px;background:rgba(245,158,11,.06);border-bottom:1px solid rgba(245,158,11,.15);display:flex;align-items:center;justify-content:space-between;font-size:11px}
-.edit-hint{color:#64748b}
-.edit-hint.editing{color:#f59e0b}
-.edit-actions{display:flex;gap:6px}
-.edit-btn{background:transparent;border:1px solid #334155;border-radius:5px;color:#64748b;font-family:'Inter',sans-serif;font-size:11px;padding:4px 10px;cursor:pointer;transition:.15s}
-.edit-btn:hover{border-color:#f59e0b;color:#f59e0b}
-.edit-btn.active{background:rgba(245,158,11,.15);border-color:#f59e0b;color:#f59e0b}
-.edit-btn.reset{border-color:rgba(248,113,113,.3);color:#f87171}
-.edit-btn.reset:hover{background:rgba(248,113,113,.08)}
-.output.editing-mode [contenteditable]{outline:none;border-radius:6px}
-.output.editing-mode [contenteditable]:focus{background:rgba(245,158,11,.04);outline:1px solid rgba(245,158,11,.2)}
-.saved-dot{width:6px;height:6px;border-radius:50%;background:#34d399;display:inline-block;margin-right:4px;opacity:0;transition:.3s}
-.saved-dot.show{opacity:1}
-@keyframes pulse-red{0%,100%{box-shadow:0 0 0 2px rgba(248,113,113,.3)}50%{box-shadow:0 0 0 5px rgba(248,113,113,.1)}}
+@keyframes pulse-r{0%,100%{box-shadow:0 0 0 2px rgba(248,113,113,.15)}50%{box-shadow:0 0 0 5px rgba(248,113,113,.06)}}
 </style>
 </head>
 <body>
 
-<!-- ── ONBOARDING WIZARD ──────────────────────── -->
-<div id="onboarding">
-  <div class="ob-box">
-    <div class="ob-header">
-      <div class="ob-logo">DN</div>
-      <div class="ob-title">Welcome to DN Status Rollup</div>
-      <div class="ob-sub">Fill in your details once — takes less than 3 minutes</div>
-    </div>
-    <div class="ob-body">
-
-      <!-- Your Details -->
-      <div class="ob-section">
-        <div class="ob-section-title">👤 Your Details</div>
-        <div class="ob-row">
-          <div class="ob-field">
-            <label>Your Name <span class="ob-required">required</span></label>
-            <input id="ob-name" type="text" placeholder="e.g. Anitha Kumar"/>
-          </div>
-          <div class="ob-field">
-            <label>Project Name</label>
-            <input id="ob-project" type="text" placeholder="e.g. UPP / Project Alpha"/>
-          </div>
-        </div>
-      </div>
-
-      <!-- Chat Space IDs -->
-      <div class="ob-section">
-        <div class="ob-section-title">💬 Google Chat Space IDs</div>
-        <div class="ob-hint">Open each Chat Space → look at URL → copy the ID after <code style="background:#0f172a;padding:1px 5px;border-radius:3px">/room/</code>. Add up to 4 spaces.</div>
-        <div class="ob-row">
-          <div class="ob-field">
-            <label>Space ID 1</label>
-            <input id="ob-space1" type="text" placeholder="e.g. AAQAsAvqA-4"/>
-          </div>
-          <div class="ob-field">
-            <label>Space ID 2 (optional)</label>
-            <input id="ob-space2" type="text" placeholder="e.g. gUVzysAAAAE"/>
-          </div>
-        </div>
-        <div class="ob-row">
-          <div class="ob-field">
-            <label>Space ID 3 (optional)</label>
-            <input id="ob-space3" type="text" placeholder="Space ID 3"/>
-          </div>
-          <div class="ob-field">
-            <label>Space ID 4 (optional)</label>
-            <input id="ob-space4" type="text" placeholder="Space ID 4"/>
-          </div>
-        </div>
-      </div>
-
-      <!-- Webhooks -->
-      <div class="ob-section">
-        <div class="ob-section-title">🔔 Google Chat Webhooks (for posting reports)</div>
-        <div class="ob-hint">Space → Apps & integrations → Webhooks → Add webhook → copy URL.</div>
-        <div class="ob-field">
-          <label>Webhook URL 1</label>
-          <input id="ob-wh1" type="text" placeholder="https://chat.googleapis.com/v1/spaces/..."/>
-        </div>
-        <div class="ob-row">
-          <div class="ob-field">
-            <label>Webhook URL 2 (optional)</label>
-            <input id="ob-wh2" type="text" placeholder="Webhook URL 2"/>
-          </div>
-          <div class="ob-field">
-            <label>Webhook URL 3 (optional)</label>
-            <input id="ob-wh3" type="text" placeholder="Webhook URL 3"/>
-          </div>
-        </div>
-      </div>
-
-      <!-- Team Members -->
-      <div class="ob-section">
-        <div class="ob-section-title">👥 Your Team Members</div>
-        <div class="ob-hint">Add the people whose updates you collect. You can add more later.</div>
-        <div class="ob-member-list" id="ob-member-list">
-          <div style="font-size:11px;color:#475569;text-align:center;padding:10px">No members added yet</div>
-        </div>
-        <div class="ob-add-row" style="margin-top:8px">
-          <input id="ob-new-name" type="text" placeholder="Full name" onkeydown="if(event.key==='Enter')obAddMember()"/>
-          <input id="ob-new-dept" type="text" placeholder="Department" onkeydown="if(event.key==='Enter')obAddMember()"/>
-          <button class="ob-add-btn" onclick="obAddMember()">+ Add</button>
-        </div>
-      </div>
-
-    </div>
-    <div class="ob-footer">
-      <button class="ob-btn-go" onclick="obFinish()">✨ Start using the tool →</button>
-    </div>
+<!-- LOGIN -->
+<div id="loginScreen">
+  <div class="lb">
+    <div class="lb-logo">DN</div>
+    <div class="lb-title">DN Program Status Rollup</div>
+    <div class="lb-sub">Automated weekly reporting for Datanimbus PMs. Sign in with your company account to continue.</div>
+    <button id="loginBtn" onclick="if(window.doSignIn)window.doSignIn();else{this.textContent='Loading...';setTimeout(()=>window.doSignIn&&window.doSignIn(),1500)}">
+      <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="G"/>
+      Sign in with Google
+    </button>
+    <div id="authErr"></div>
+    <div class="lb-badge">🔒 Restricted to @datanimbus.com accounts</div>
   </div>
 </div>
 
+<!-- APP -->
+<div id="app">
 <header>
   <div class="logo">
     <div class="logo-box">DN</div>
@@ -358,394 +348,185 @@ textarea::placeholder{color:#334155}
       <div class="logo-sub">Datanimbus · Automated Reporting</div>
     </div>
   </div>
-  <div class="header-right">
-    <span class="badge badge-fri" id="modeBadge">FRIDAY ROLLUP</span>
-    <button class="hbtn" id="dashBtn"      onclick="toggleDash()">📊 Dashboard</button>
-    <button class="hbtn" id="historyBtn"   onclick="toggleHistory()">🗂 History</button>
-    <button class="hbtn" id="templatesBtn" onclick="toggleTemplates()">👥 Team</button>
+  <div class="hright">
+    <span class="badge fri" id="modeBadge">FRIDAY ROLLUP</span>
+    <button class="hbtn" id="dashBtn"  onclick="toggleDash()">📊 Dashboard</button>
+    <button class="hbtn" id="histBtn"  onclick="toggleHist()">🗂 History</button>
+    <button class="hbtn" id="teamBtn"  onclick="toggleTeam()">👥 Team</button>
     <button class="hbtn" onclick="toggleCfg()">⚙ Config</button>
+    <div class="upill" onclick="toggleUMenu()">
+      <div class="uav" id="uAvatar">U</div>
+      <div class="uname" id="uName">...</div>
+    </div>
   </div>
 </header>
 
-<!-- CONFIG -->
+<!-- User menu -->
+<div id="uMenu">
+  <div class="um-n" id="uMenuName"></div>
+  <div class="um-e" id="uEmail"></div>
+  <button class="um-btn" onclick="window.doSignOut()">Sign out</button>
+</div>
+
+<!-- Config -->
 <div id="cfgPanel">
   <div class="cfg-inner">
-    <div class="cfg-title">⚙ Settings</div>
     <div class="cfg-grid">
-      <div class="cfg-field">
-        <label>Your Name</label>
-        <input id="cfgName" type="text" placeholder="e.g. Anitha"/>
-      </div>
+      <div class="cfg-sec">Your Details</div>
+      <div class="cfg-f"><label>Your Name</label><input id="cName" placeholder="e.g. Anitha Kumar"/></div>
+      <div class="cfg-f"><label>Project Name</label><input id="cProject" placeholder="e.g. UPP / Project Alpha"/></div>
+      <div class="cfg-sec">Chat Space IDs (for pulling updates)</div>
+      <div class="cfg-f"><label>Space ID 1</label><input id="cS1" placeholder="e.g. AAQAsAvqA-4"/></div>
+      <div class="cfg-f"><label>Space ID 2</label><input id="cS2" placeholder="Space ID 2 (optional)"/></div>
+      <div class="cfg-f"><label>Space ID 3</label><input id="cS3" placeholder="Space ID 3 (optional)"/></div>
+      <div class="cfg-f"><label>Space ID 4</label><input id="cS4" placeholder="Space ID 4 (optional)"/></div>
+      <div class="cfg-sec">Chat Webhooks (for posting reports)</div>
+      <div class="cfg-f" style="grid-column:1/-1"><label>Webhook 1</label><input id="cW1" placeholder="https://chat.googleapis.com/v1/spaces/..."/></div>
+      <div class="cfg-f"><label>Webhook 2</label><input id="cW2" placeholder="Webhook 2 (optional)"/></div>
+      <div class="cfg-f"><label>Webhook 3</label><input id="cW3" placeholder="Webhook 3 (optional)"/></div>
+      <div class="cfg-note">Settings sync to your account automatically across all devices.</div>
     </div>
-
-    <!-- Webhooks section -->
-    <div style="margin-top:16px">
-      <div style="font-size:10px;color:#64748b;letter-spacing:.8px;text-transform:uppercase;margin-bottom:10px">
-        Google Chat Space IDs (for pulling updates)
-      </div>
-      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px">
-        <input id="cfgSpace1" type="text" placeholder="Space ID 1 (e.g. AAQAsAvqA-4)"
-          style="background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;
-                 font-family:'Inter',sans-serif;font-size:12px;padding:8px 10px;outline:none;width:100%"
-          onfocus="this.style.borderColor='#f59e0b'" onblur="this.style.borderColor='#334155'"/>
-        <input id="cfgSpace2" type="text" placeholder="Space ID 2 (optional)"
-          style="background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;
-                 font-family:'Inter',sans-serif;font-size:12px;padding:8px 10px;outline:none;width:100%"
-          onfocus="this.style.borderColor='#f59e0b'" onblur="this.style.borderColor='#334155'"/>
-        <input id="cfgSpace3" type="text" placeholder="Space ID 3 (optional)"
-          style="background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;
-                 font-family:'Inter',sans-serif;font-size:12px;padding:8px 10px;outline:none;width:100%"
-          onfocus="this.style.borderColor='#f59e0b'" onblur="this.style.borderColor='#334155'"/>
-        <input id="cfgSpace4" type="text" placeholder="Space ID 4 (optional)"
-          style="background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;
-                 font-family:'Inter',sans-serif;font-size:12px;padding:8px 10px;outline:none;width:100%"
-          onfocus="this.style.borderColor='#f59e0b'" onblur="this.style.borderColor='#334155'"/>
-      </div>
-    </div>
-
-    <!-- Webhooks section -->
-    <div style="margin-top:4px">
-      <div style="font-size:10px;color:#64748b;letter-spacing:.8px;text-transform:uppercase;margin-bottom:10px">
-        Google Chat Webhooks (up to 3 spaces)
-      </div>
-      <div style="display:flex;flex-direction:column;gap:8px">
-        <input id="cfgWebhook1" type="text" placeholder="Webhook URL 1"
-          style="background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;
-                 font-family:'Inter',sans-serif;font-size:12px;padding:8px 10px;outline:none;width:100%"
-          onfocus="this.style.borderColor='#f59e0b'" onblur="this.style.borderColor='#334155'"/>
-        <input id="cfgWebhook2" type="text" placeholder="Webhook URL 2 (optional)"
-          style="background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;
-                 font-family:'Inter',sans-serif;font-size:12px;padding:8px 10px;outline:none;width:100%"
-          onfocus="this.style.borderColor='#f59e0b'" onblur="this.style.borderColor='#334155'"/>
-        <input id="cfgWebhook3" type="text" placeholder="Webhook URL 3 (optional)"
-          style="background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;
-                 font-family:'Inter',sans-serif;font-size:12px;padding:8px 10px;outline:none;width:100%"
-          onfocus="this.style.borderColor='#f59e0b'" onblur="this.style.borderColor='#334155'"/>
-      </div>
-    </div>
-
-    <div class="cfg-note" style="margin-top:12px">
-      <strong>Your Name</strong> → shown as sender on all reports<br>
-      <strong>Webhooks</strong> → add one per Google Chat space — all will receive the message when you click Send Chat
-    </div>
-    <div class="cfg-actions">
-      <button class="btn-save" onclick="saveCfg()">💾 Save</button>
-      <button class="btn-close" onclick="toggleCfg()">Close</button>
+    <div class="cfg-acts">
+      <button class="bsave" onclick="saveCfg()">💾 Save Settings</button>
+      <button class="bclose" onclick="toggleCfg()">Close</button>
     </div>
   </div>
 </div>
 
-<!-- DASHBOARD VIEW -->
-<div id="dashView">
-  <div class="dash-header">
-    <div>
-      <div class="dash-title">📊 Program Status Dashboard</div>
-      <div class="dash-sub" id="dashWeekLabel">No data yet — generate a report first</div>
-    </div>
-    <div style="display:flex;gap:10px;align-items:center">
-      <select id="dashWeekFilter" onchange="renderDashFromHistory()"
-        style="background:#1e293b;border:1px solid #334155;color:#94a3b8;padding:6px 12px;
-               border-radius:6px;font-family:'Inter',sans-serif;font-size:12px;outline:none">
+<!-- DASHBOARD -->
+<div id="dashView" class="fv">
+  <div class="fvh">
+    <div><div class="fv-title">📊 Programme Dashboard</div><div class="fv-sub" id="dashSub">Loading...</div></div>
+    <div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap">
+      <select id="wkFilter" onchange="renderDash()"
+        style="background:#1e293b;border:1px solid #334155;color:#94a3b8;padding:5px 9px;border-radius:6px;font-family:'Inter',sans-serif;font-size:11px;outline:none">
         <option value="all">All weeks</option>
       </select>
       <button class="hbtn" onclick="toggleDash()">✕ Close</button>
     </div>
   </div>
-
-  <!-- Overall Stats — across all history -->
-  <div class="section-title">Overall Programme Health</div>
-  <div class="stat-cards" id="dashStats" style="margin-bottom:24px">
-    <div class="stat-card"><div class="sc-n" id="statWeeks">—</div><div class="sc-l">Weeks tracked</div></div>
-    <div class="stat-card green"><div class="sc-n" id="statGreen">—</div><div class="sc-l">🟢 On Track</div></div>
-    <div class="stat-card amber"><div class="sc-n" id="statAmber">—</div><div class="sc-l">🟡 At Risk</div></div>
-    <div class="stat-card red"><div class="sc-n" id="statRed">—</div><div class="sc-l">🔴 Blocked</div></div>
-    <div class="stat-card"><div class="sc-n" id="statActive">—</div><div class="sc-l">🚧 Open blockers</div></div>
-    <div class="stat-card"><div class="sc-n" id="statWins">—</div><div class="sc-l">🏆 Total wins</div></div>
+  <div class="stitle">Overall Health</div>
+  <div class="scards">
+    <div class="sc"><div class="n" id="dWeeks">—</div><div class="l">Weeks tracked</div></div>
+    <div class="sc grn"><div class="n" id="dGrn">—</div><div class="l">🟢 On Track</div></div>
+    <div class="sc amb"><div class="n" id="dAmb">—</div><div class="l">🟡 At Risk</div></div>
+    <div class="sc red"><div class="n" id="dRed">—</div><div class="l">🔴 Blocked</div></div>
+    <div class="sc red"><div class="n" id="dBlk">—</div><div class="l">🚧 Open blockers</div></div>
+    <div class="sc"><div class="n" id="dWins">—</div><div class="l">🏆 Total wins</div></div>
   </div>
-
-  <!-- Active Blockers — PERSISTENT, stays until resolved -->
-  <div class="section-title" style="color:#f87171">🚧 Active Blockers — Stays until resolved</div>
-  <div class="blocker-list" id="blockerList" style="margin-bottom:28px">
-    <div class="no-data">No active blockers</div>
-  </div>
-
-  <!-- RAG Status per week -->
-  <div class="section-title" id="ragTitle">Team RAG Status</div>
-  <div class="rag-grid" id="ragGrid" style="margin-bottom:28px">
-    <div class="no-data">Generate a report to see team RAG status</div>
-  </div>
-
-  <!-- Weekly Trends -->
-  <div class="section-title">Weekly Trends — Blockers vs Wins</div>
-  <div id="trendChart" style="margin-bottom:28px">
-    <div class="no-data">No history yet — trends appear after 2+ weeks</div>
-  </div>
-
-  <!-- Weekly History Table -->
-  <div class="section-title">Weekly History</div>
+  <div class="stitle" style="color:#f87171">🚧 Active Blockers — stays until resolved</div>
+  <div id="bList" style="margin-bottom:20px"><div class="nodata">No active blockers</div></div>
+  <div class="stitle" id="ragTitle">Team RAG Status</div>
+  <div class="rgrid" id="ragGrid"><div class="nodata">Generate a report first</div></div>
+  <div class="stitle">Weekly Trends</div>
+  <div id="trendChart" style="margin-bottom:20px"><div class="nodata">Trends appear after 2+ weeks</div></div>
+  <div class="stitle">Weekly History</div>
   <div style="overflow-x:auto">
-    <table class="history-table" id="historyTable">
-      <thead>
-        <tr>
-          <th>Week</th>
-          <th>Type</th>
-          <th>Members</th>
-          <th>Overall RAG</th>
-          <th>Blockers</th>
-          <th>Wins</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody id="historyBody">
-        <tr><td colspan="7" class="no-data">No history yet</td></tr>
-      </tbody>
+    <table class="htbl">
+      <thead><tr><th>Week</th><th>Type</th><th>Members</th><th>RAG</th><th>Blockers</th><th>Wins</th><th>Owner</th><th></th></tr></thead>
+      <tbody id="histBody"><tr><td colspan="8" class="nodata">No history yet</td></tr></tbody>
     </table>
   </div>
 </div>
 
-<!-- EMAIL POPUP MODAL -->
-
-<!-- HISTORY & ARCHIVE VIEW -->
-<div id="historyView">
-  <div class="dash-header">
-    <div>
-      <div class="dash-title">🗂 History & Archive</div>
-      <div class="dash-sub">Every report saved automatically — never lose a rollup again</div>
-    </div>
-    <div style="display:flex;gap:10px">
-      <button class="hbtn" onclick="clearAllHistory()" style="border-color:#f87171;color:#f87171">🗑 Clear All</button>
-      <button class="hbtn" onclick="toggleHistory()">✕ Close</button>
+<!-- HISTORY -->
+<div id="histView" class="fv">
+  <div class="fvh">
+    <div><div class="fv-title">🗂 History & Archive</div><div class="fv-sub">Every report saved to your account</div></div>
+    <div style="display:flex;gap:7px">
+      <button class="hbtn" style="border-color:#f87171;color:#f87171" onclick="clearAllHist()">🗑 Clear All</button>
+      <button class="hbtn" onclick="toggleHist()">✕ Close</button>
     </div>
   </div>
-
-  <div id="histArchiveList">
-    <div class="no-data">No reports archived yet — generate your first report!</div>
-  </div>
-
-  <!-- Report Viewer -->
-  <div id="reportViewer" style="display:none">
-    <div class="section-title" id="viewerTitle">Viewing Report</div>
-    <div class="report-viewer">
-      <div class="report-viewer-tabs">
-        <button class="rv-tab active" onclick="switchViewer('mgmt')">Management</button>
-        <button class="rv-tab" onclick="switchViewer('client')">Client</button>
-        <button class="rv-tab" onclick="switchViewer('team')">Team</button>
-        <button class="rv-tab" onclick="switchViewer('chat')">Chat</button>
+  <div id="histList"><div class="nodata">No reports yet</div></div>
+  <div id="rvPanel" style="display:none;margin-top:14px">
+    <div class="stitle" id="rvTitle">Report</div>
+    <div style="background:#1e293b;border-radius:9px;padding:14px 18px">
+      <div style="display:flex;gap:0;border:1px solid #334155;border-radius:5px;overflow:hidden;width:fit-content;margin-bottom:10px">
+        <button class="rvtab active" onclick="switchRv('mgmt')">Management</button>
+        <button class="rvtab" onclick="switchRv('client')">Client</button>
+        <button class="rvtab" onclick="switchRv('team')">Team</button>
+        <button class="rvtab" onclick="switchRv('chat')">Chat</button>
       </div>
-      <div class="rv-content" id="rvContent"></div>
+      <div class="rvcont report" id="rvCont"></div>
     </div>
   </div>
 </div>
 
-<!-- TEAM TEMPLATES VIEW -->
-<div id="templatesView">
-  <div class="dash-header">
-    <div>
-      <div class="dash-title">👥 Team Member Templates</div>
-      <div class="dash-sub">Fill in each person's update — auto-compiles into the input box</div>
-    </div>
-    <button class="hbtn" onclick="toggleTemplates()">✕ Close</button>
+<!-- TEAM -->
+<div id="teamView" class="fv">
+  <div class="fvh">
+    <div><div class="fv-title">👥 Team Updates</div><div class="fv-sub">Fill in each person — compiles to generator</div></div>
+    <button class="hbtn" onclick="toggleTeam()">✕ Close</button>
   </div>
-
-  <!-- Load from Chat button -->
-  <div style="background:rgba(34,211,238,.06);border:1px solid rgba(34,211,238,.2);border-radius:8px;padding:14px 16px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between">
+  <div style="background:rgba(34,211,238,.06);border:1px solid rgba(34,211,238,.2);border-radius:8px;padding:11px 14px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
     <div>
-      <div style="font-size:13px;font-weight:600;color:#22d3ee;margin-bottom:3px">📥 Load from Google Chat</div>
-      <div style="font-size:11px;color:#475569">Auto-populate updates from your Chat spaces — runs every Friday at 3PM</div>
+      <div style="font-size:13px;font-weight:600;color:#22d3ee;margin-bottom:2px">📥 Load from Google Chat</div>
+      <div style="font-size:11px;color:#475569">Pull this week's updates from your Chat spaces automatically</div>
     </div>
-    <button onclick="loadFromChat()"
-      style="background:#22d3ee;border:none;color:#000;padding:9px 18px;border-radius:6px;
-             font-weight:600;font-size:12px;cursor:pointer;white-space:nowrap;flex-shrink:0">
+    <button id="loadChatBtn" onclick="loadFromChat()"
+      style="background:#22d3ee;border:none;color:#000;padding:7px 14px;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer;font-family:'Inter',sans-serif">
       📥 Load Now
     </button>
   </div>
-
-  <!-- Add Member -->
-  <div class="section-title">Add Team Member</div>
-  <div class="add-member-form" style="margin-bottom:24px">
-    <div class="add-field">
-      <label>Full Name</label>
-      <input id="newMemberName" type="text" placeholder="e.g. Raj Kumar"/>
-    </div>
-    <div class="add-field">
-      <label>Department / Role</label>
-      <input id="newMemberDept" type="text" placeholder="e.g. Engineering"/>
-    </div>
-    <button class="btn-save" onclick="addMember()" style="padding:8px 16px;height:fit-content">+ Add</button>
+  <div class="stitle">Add Member</div>
+  <div class="amform">
+    <div class="af"><label>Full Name</label><input id="nmName" placeholder="e.g. Raj Kumar" onkeydown="if(event.key==='Enter')addMember()"/></div>
+    <div class="af"><label>Department</label><input id="nmDept" placeholder="e.g. Engineering" onkeydown="if(event.key==='Enter')addMember()"/></div>
+    <button class="bsave" onclick="addMember()" style="height:fit-content;padding:7px 13px">+ Add</button>
   </div>
-
-  <!-- Member Update Cards -->
-  <div class="section-title">This Week's Updates</div>
-  <div class="member-cards" id="memberCards">
-    <div class="no-data" style="grid-column:1/-1">No team members yet — add your first member above!</div>
-  </div>
-
-  <!-- Compile Button -->
-  <button class="btn-compile" onclick="compileUpdates()">
-    ⚡ Compile All Updates → Paste into Generator
-  </button>
-  <button onclick="clearWeeklyUpdates()"
-    style="background:transparent;border:1px solid #334155;color:#64748b;padding:10px;
-           border-radius:6px;font-size:12px;cursor:pointer;width:100%;margin-top:8px">
-    🗑 Clear This Week's Updates
-  </button>
-  <p style="font-size:11px;color:#475569;text-align:center;margin-top:8px">
-    Updates auto-save as you type — they'll still be here when you come back
-  </p>
-</div>
-<!-- SEND ALL MODAL -->
-<div id="sendAllModal" style="display:none;position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);align-items:center;justify-content:center">
-  <div style="background:#1e293b;border:1px solid #334155;border-radius:12px;width:90%;max-width:520px;overflow:hidden">
-    <div style="padding:18px 24px;border-bottom:1px solid #334155;display:flex;align-items:center;justify-content:space-between">
-      <div>
-        <div style="font-size:14px;font-weight:600;color:#f1f5f9">🚀 Send All</div>
-        <div style="font-size:11px;color:#64748b;margin-top:3px">Fill in recipients — all 3 emails + chat will be sent</div>
-      </div>
-      <button onclick="closeSendAllModal()" style="background:transparent;border:none;color:#64748b;font-size:20px;cursor:pointer">✕</button>
-    </div>
-    <div style="padding:20px 24px;display:flex;flex-direction:column;gap:16px">
-
-      <!-- Management -->
-      <div style="background:#0f172a;border-radius:8px;padding:14px 16px;border:1px solid #334155">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
-          <div style="width:8px;height:8px;border-radius:50%;background:#f59e0b"></div>
-          <span style="font-size:11px;font-weight:600;color:#f59e0b;text-transform:uppercase;letter-spacing:.5px">📧 Management</span>
-        </div>
-        <input id="saEmail1" type="text" placeholder="ceo@company.com, vp@company.com"
-          style="background:#1e293b;border:1px solid #334155;border-radius:6px;color:#e2e8f0;
-                 font-family:'Inter',sans-serif;font-size:12px;padding:8px 11px;outline:none;width:100%"
-          onfocus="this.style.borderColor='#f59e0b'" onblur="this.style.borderColor='#334155'"/>
-      </div>
-
-      <!-- Client -->
-      <div style="background:#0f172a;border-radius:8px;padding:14px 16px;border:1px solid #334155">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
-          <div style="width:8px;height:8px;border-radius:50%;background:#22d3ee"></div>
-          <span style="font-size:11px;font-weight:600;color:#22d3ee;text-transform:uppercase;letter-spacing:.5px">📧 Client</span>
-        </div>
-        <input id="saEmail2" type="text" placeholder="client@company.com"
-          style="background:#1e293b;border:1px solid #334155;border-radius:6px;color:#e2e8f0;
-                 font-family:'Inter',sans-serif;font-size:12px;padding:8px 11px;outline:none;width:100%"
-          onfocus="this.style.borderColor='#22d3ee'" onblur="this.style.borderColor='#334155'"/>
-      </div>
-
-      <!-- Team -->
-      <div style="background:#0f172a;border-radius:8px;padding:14px 16px;border:1px solid #334155">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
-          <div style="width:8px;height:8px;border-radius:50%;background:#34d399"></div>
-          <span style="font-size:11px;font-weight:600;color:#34d399;text-transform:uppercase;letter-spacing:.5px">📧 Team</span>
-        </div>
-        <input id="saEmail3" type="text" placeholder="team@datanimbus.com"
-          style="background:#1e293b;border:1px solid #334155;border-radius:6px;color:#e2e8f0;
-                 font-family:'Inter',sans-serif;font-size:12px;padding:8px 11px;outline:none;width:100%"
-          onfocus="this.style.borderColor='#34d399'" onblur="this.style.borderColor='#334155'"/>
-      </div>
-
-      <!-- Chat -->
-      <div style="background:#0f172a;border-radius:8px;padding:12px 16px;border:1px solid #334155;display:flex;align-items:center;justify-content:space-between">
-        <div style="display:flex;align-items:center;gap:8px">
-          <div style="width:8px;height:8px;border-radius:50%;background:#a78bfa"></div>
-          <span style="font-size:11px;font-weight:600;color:#a78bfa;text-transform:uppercase;letter-spacing:.5px">💬 Google Chat</span>
-        </div>
-        <span style="font-size:11px;color:#475569">Sends to all configured webhooks</span>
-      </div>
-
-    </div>
-    <div style="padding:14px 24px;border-top:1px solid #334155;display:flex;gap:10px;justify-content:flex-end">
-      <button onclick="closeSendAllModal()" style="background:transparent;border:1px solid #334155;color:#64748b;padding:9px 18px;border-radius:6px;font-size:12px;cursor:pointer">Cancel</button>
-      <button onclick="confirmSendAll()" id="sendAllConfirmBtn"
-        style="background:linear-gradient(135deg,#f59e0b,#d97706);border:none;color:#000;
-               padding:9px 24px;border-radius:6px;font-weight:700;font-size:13px;cursor:pointer">
-        🚀 Open All in Gmail + Send Chat
-      </button>
-    </div>
-  </div>
-</div>
-<!-- EMAIL MODAL -->
-<div id="emailModal" style="display:none;position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);align-items:center;justify-content:center">
-  <div style="background:#1e293b;border:1px solid #334155;border-radius:12px;width:90%;max-width:460px;overflow:hidden">
-    <div style="padding:18px 24px;border-bottom:1px solid #334155;display:flex;align-items:center;justify-content:space-between">
-      <span id="modalTitle" style="font-size:14px;font-weight:600;color:#f1f5f9">Send Email</span>
-      <button onclick="closeEmailModal()" style="background:transparent;border:none;color:#64748b;font-size:20px;cursor:pointer">✕</button>
-    </div>
-    <div style="padding:20px 24px;display:flex;flex-direction:column;gap:14px">
-      <div style="display:flex;flex-direction:column;gap:6px">
-        <label style="font-size:10px;color:#64748b;letter-spacing:.8px;text-transform:uppercase">To (comma-separated emails)</label>
-        <input id="modalEmail" type="text" placeholder="name@company.com, another@company.com"
-          style="background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;
-                 font-family:'Inter',sans-serif;font-size:13px;padding:10px 12px;outline:none;width:100%"
-          onfocus="this.style.borderColor='#f59e0b'" onblur="this.style.borderColor='#334155'"/>
-        <span style="font-size:11px;color:#475569">Add as many recipients as you need</span>
-      </div>
-      <div style="display:flex;flex-direction:column;gap:6px">
-        <label style="font-size:10px;color:#64748b;letter-spacing:.8px;text-transform:uppercase">Subject</label>
-        <input id="modalSubject" type="text"
-          style="background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;
-                 font-family:'Inter',sans-serif;font-size:13px;padding:10px 12px;outline:none;width:100%"
-          onfocus="this.style.borderColor='#f59e0b'" onblur="this.style.borderColor='#334155'"/>
-      </div>
-    </div>
-    <div style="padding:14px 24px;border-top:1px solid #334155;display:flex;gap:10px;justify-content:flex-end">
-      <button onclick="closeEmailModal()" style="background:transparent;border:1px solid #334155;color:#64748b;padding:8px 18px;border-radius:6px;font-size:12px;cursor:pointer">Cancel</button>
-      <button onclick="confirmSendEmail()" id="modalSendBtn"
-        style="background:#f59e0b;border:none;color:#000;padding:8px 20px;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer">
-        ✉️ Open in Gmail
-      </button>
-    </div>
-  </div>
+  <div class="stitle">This Week's Updates</div>
+  <div class="mcards" id="mCards"><div class="nodata" style="grid-column:1/-1">No members yet</div></div>
+  <button class="bcompile" onclick="compileUpdates()">⚡ Compile All → Paste into Generator</button>
+  <button onclick="clearUpdates()" style="background:transparent;border:1px solid #334155;color:#64748b;padding:7px;border-radius:5px;font-size:12px;cursor:pointer;width:100%;margin-top:7px;font-family:'Inter',sans-serif">🗑 Clear This Week's Updates</button>
+  <p style="font-size:11px;color:#475569;text-align:center;margin-top:7px">Updates auto-save to your account as you type</p>
 </div>
 
+<!-- MAIN -->
 <main>
-  <!-- LEFT -->
   <div class="left">
-    <div class="panel-head">
+    <div class="phead">
       <span>Team Updates Input</span>
-      <div class="mode-toggle">
-        <button id="btnFri" class="active-fri" onclick="setMode('friday')">FRIDAY</button>
-        <button id="btnMon" onclick="setMode('monday')">MONDAY</button>
+      <div class="mtoggle">
+        <button id="bFri" class="mfri" onclick="setMode('friday')">FRIDAY</button>
+        <button id="bMon" onclick="setMode('monday')">MONDAY</button>
       </div>
     </div>
-    <div class="input-wrap">
-      <div style="display:flex;align-items:center;justify-content:space-between">
-        <span class="input-label">Paste raw team updates below</span>
-        <button onclick="loadFromChat()" id="loadChatBtn"
+    <div class="iwrap">
+      <div class="ilabel">
+        <span>Paste raw team updates below</span>
+        <button id="lcBtnMain" onclick="loadFromChat()"
           style="background:rgba(34,211,238,.1);border:1px solid rgba(34,211,238,.3);color:#22d3ee;
-                 font-family:'Inter',sans-serif;font-size:11px;padding:5px 12px;border-radius:6px;
-                 cursor:pointer;white-space:nowrap;font-weight:500">
+                 font-family:'Inter',sans-serif;font-size:11px;padding:4px 9px;border-radius:5px;cursor:pointer;font-weight:500">
           📥 Load from Chat
         </button>
       </div>
-      <textarea id="input" placeholder="Example:&#10;&#10;Anitha (PM): Completed client onboarding deck. Q3 roadmap updated. Win: Client approved Phase 2. No blockers.&#10;&#10;Dev Team: Shipped 3 API endpoints. 92% test coverage. Blocker: Need staging server access from DevOps.&#10;&#10;QA Team: Regression suite complete - 96% pass rate. 4 edge cases still under investigation."></textarea>
+      <textarea id="input" placeholder="Example:&#10;&#10;Anitha (PM): Completed Q3 roadmap. Win: Client approved Phase 2. No blockers.&#10;&#10;Raj (Engineering): Shipped OAuth. Blocker: Need Redis cluster from DevOps."></textarea>
     </div>
-    <div class="action-bar">
+    <div class="abar">
       <button id="genBtn" onclick="generate()">⚡ Generate All Reports</button>
       <span class="chars" id="chars">0 chars</span>
     </div>
   </div>
-
-  <!-- RIGHT -->
   <div class="right">
     <div class="tabs">
-      <button class="tab active" id="tab-mgmt"   onclick="switchTab('mgmt')">  <span class="dot"></span> Management</button>
-      <button class="tab"        id="tab-client" onclick="switchTab('client')"><span class="dot"></span> Client</button>
-      <button class="tab"        id="tab-team"   onclick="switchTab('team')">  <span class="dot"></span> Team</button>
-      <button class="tab"        id="tab-chat"   onclick="switchTab('chat')">  <span class="dot"></span> Chat</button>
+      <button class="tab active" id="tab-mgmt"   onclick="switchTab('mgmt')"><span class="dot"></span>Management</button>
+      <button class="tab"        id="tab-client" onclick="switchTab('client')"><span class="dot"></span>Client</button>
+      <button class="tab"        id="tab-team"   onclick="switchTab('team')"><span class="dot"></span>Team</button>
+      <button class="tab"        id="tab-chat"   onclick="switchTab('chat')"><span class="dot"></span>Chat</button>
     </div>
-    <div class="edit-bar" id="editBar" style="display:none">
-      <span class="edit-hint" id="editHint"><span class="saved-dot" id="savedDot"></span>Click anywhere in the report to edit</span>
-      <div class="edit-actions">
-        <button class="edit-btn reset" id="resetBtn" onclick="resetReport()" style="display:none">↩ Reset to original</button>
-        <button class="edit-btn active" id="editToggle" onclick="toggleEditMode()">✏️ Edit mode: ON</button>
+    <div class="ebar" id="ebar" style="display:none">
+      <span class="ehint" id="ehint"><span class="sdot" id="sdot"></span>Click to edit</span>
+      <div class="eacts">
+        <button class="ebtn rst" id="rstBtn" onclick="resetReport()" style="display:none">↩ Reset</button>
+        <button class="ebtn on" id="etoggle" onclick="toggleEdit()">✏️ Edit: ON</button>
       </div>
     </div>
     <div class="output" id="output">
-      <div class="placeholder">
-        <div class="placeholder-icon">📊</div>
-        <p>Paste your team updates and click <strong>Generate All Reports</strong></p>
-      </div>
+      <div class="ph"><div class="ph-icon">📊</div><p>Paste team updates and click <strong>Generate All Reports</strong></p></div>
     </div>
-    <div class="send-bar">
-      <span style="font-size:11px;color:#64748b;font-weight:500;letter-spacing:.5px;text-transform:uppercase;white-space:nowrap">Send to:</span>
+    <div class="sbar">
+      <span style="font-size:10px;color:#64748b;font-weight:500;letter-spacing:.5px;text-transform:uppercase;white-space:nowrap">Send to:</span>
       <button class="sbtn" id="s-mgmt"   onclick="sendEmail('mgmt')"   disabled>📧 Mgmt</button>
       <button class="sbtn" id="s-client" onclick="sendEmail('client')" disabled>📧 Client</button>
       <button class="sbtn" id="s-team"   onclick="sendEmail('team')"   disabled>📧 Team</button>
@@ -756,1301 +537,651 @@ textarea::placeholder{color:#334155}
 </main>
 
 <div id="log">
-  <div class="log-head" onclick="document.getElementById('log').classList.toggle('open')">
-    <span>Activity Log</span>
-    <span id="logCount">0 events</span>
+  <div class="logh" onclick="document.getElementById('log').classList.toggle('open')">
+    <span>Activity Log</span><span id="logCnt" style="color:#f59e0b;font-size:10px">0 events</span>
   </div>
-  <div class="log-entries" id="logEntries"></div>
+  <div class="loge" id="logE"></div>
+</div>
+
+<!-- SEND ALL MODAL -->
+<div id="saModal" class="moverlay">
+  <div class="mbox">
+    <div class="mhead"><div class="mtitle">🚀 Send All Reports</div><button class="mxbtn" onclick="closeSA()">✕</button></div>
+    <div class="mbody">
+      <div class="mig"><div class="mil mg">📧 Management</div><input class="mi" id="saM" placeholder="ceo@datanimbus.com"/></div>
+      <div class="mig"><div class="mil cl">📧 Client</div><input class="mi" id="saCl" placeholder="client@company.com"/></div>
+      <div class="mig"><div class="mil tm">📧 Team</div><input class="mi" id="saTm" placeholder="team@datanimbus.com"/></div>
+      <div class="mig"><div class="mil ch">💬 Google Chat</div><div style="font-size:11px;color:#475569">Posts to all configured webhooks</div></div>
+    </div>
+    <div class="mfoot"><button class="bcancel" onclick="closeSA()">Cancel</button><button class="bgo" onclick="confirmSA()">🚀 Open Gmail + Chat</button></div>
+  </div>
+</div>
+
+<!-- SINGLE EMAIL MODAL -->
+<div id="emailModal" class="moverlay">
+  <div class="mbox">
+    <div class="mhead"><span class="mtitle" id="emTitle">Send Email</span><button class="mxbtn" onclick="closeEM()">✕</button></div>
+    <div class="mbody">
+      <div style="display:flex;flex-direction:column;gap:4px">
+        <label style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.5px">To (comma-separated)</label>
+        <input class="mi" id="emTo" placeholder="name@company.com, another@company.com"/>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px;margin-top:8px">
+        <label style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.5px">Subject</label>
+        <input class="mi" id="emSubj"/>
+      </div>
+    </div>
+    <div class="mfoot"><button class="bcancel" onclick="closeEM()">Cancel</button><button class="bgo" onclick="confirmEM()">✉️ Open in Gmail</button></div>
+  </div>
 </div>
 
 <div id="toast"></div>
+</div><!-- /app -->
 
 <script>
-// ── State ─────────────────────────────────────────────────────
-let mode = 'friday';
-let tab  = 'mgmt';
-let reports = {mgmt:null, client:null, team:null, chat:null};
-let logN = 0;
+// ── Constants ─────────────────────────────────────────────────
+const PROXY = 'https://statusrollup.anitha.workers.dev';
 
-// ── HARDCODED CONFIG (admin only) ─────────────────────────────
-const PROXY_URL = 'https://statusrollup.anitha.workers.dev';
-const CHAT_READER_URL = 'https://script.google.com/a/macros/datanimbus.com/s/AKfycbwBGAZqr8O8Op0Ak4-sf0YdCwxfsXgwRBTPyD-JulMt_ez3QD5ucg06_uYsP7x7X333lg/exec';
+// ── State ─────────────────────────────────────────────────────
+let mode='friday', tab='mgmt', editOn=true;
+let reports={mgmt:null,client:null,team:null,chat:null};
+let _cfg={}, _members=[], _updates={}, _edits={}, _history=[], _blockers=[];
+let _emType=null, _rvEntry=null, _rvTab='mgmt';
+
+// ── App init ──────────────────────────────────────────────────
+window.appInit = async user => {
+  addLog('Signed in: ' + user.email, 'info');
+  await Promise.all([loadCfg(), loadMembers(), loadUpdates(), loadEdits()]);
+  renderTab();
+  addLog('Ready ✓', 'ok');
+};
 
 // ── Config ────────────────────────────────────────────────────
-function saveCfg() {
-  localStorage.setItem('dn_cfg', JSON.stringify({
-    name:     document.getElementById('cfgName').value.trim(),
-    webhook1: document.getElementById('cfgWebhook1').value.trim(),
-    webhook2: document.getElementById('cfgWebhook2').value.trim(),
-    webhook3: document.getElementById('cfgWebhook3').value.trim(),
-    space1:   document.getElementById('cfgSpace1').value.trim(),
-    space2:   document.getElementById('cfgSpace2').value.trim(),
-    space3:   document.getElementById('cfgSpace3').value.trim(),
-    space4:   document.getElementById('cfgSpace4').value.trim(),
-  }));
-  toast('Settings saved ✓', 'ok');
-  addLog('Settings saved', 'info');
-  toggleCfg();
+async function saveCfg() {
+  _cfg = { name:v('cName'), project:v('cProject'), s1:v('cS1'), s2:v('cS2'), s3:v('cS3'), s4:v('cS4'), w1:v('cW1'), w2:v('cW2'), w3:v('cW3') };
+  await window.fbCfg.save(_cfg);
+  toast('Settings saved ✓', 'ok'); addLog('Config saved to Firebase', 'info'); toggleCfg();
 }
-
-function loadCfg() {
-  try {
-    const c = JSON.parse(localStorage.getItem('dn_cfg') || '{}');
-    if (c.name)     document.getElementById('cfgName').value     = c.name;
-    if (c.webhook1) document.getElementById('cfgWebhook1').value = c.webhook1;
-    if (c.webhook2) document.getElementById('cfgWebhook2').value = c.webhook2;
-    if (c.webhook3) document.getElementById('cfgWebhook3').value = c.webhook3;
-    if (c.space1)   document.getElementById('cfgSpace1').value   = c.space1;
-    if (c.space2)   document.getElementById('cfgSpace2').value   = c.space2;
-    if (c.space3)   document.getElementById('cfgSpace3').value   = c.space3;
-    if (c.space4)   document.getElementById('cfgSpace4').value   = c.space4;
-    return c;
-  } catch { return {}; }
+async function loadCfg() {
+  _cfg = await window.fbCfg.get() || {};
+  const m = { cName:'name', cProject:'project', cS1:'s1', cS2:'s2', cS3:'s3', cS4:'s4', cW1:'w1', cW2:'w2', cW3:'w3' };
+  Object.entries(m).forEach(([id,k]) => { if(_cfg[k]) sv(id,_cfg[k]); });
 }
-
 function getCfg() {
-  try {
-    const c = JSON.parse(localStorage.getItem('dn_cfg') || '{}');
-    c.proxy    = PROXY_URL;
-    c.webhooks = [c.webhook1, c.webhook2, c.webhook3].filter(Boolean);
-    c.spaces   = [c.space1, c.space2, c.space3, c.space4].filter(Boolean);
-    return c;
-  } catch { return { proxy: PROXY_URL, webhooks: [], spaces: [] }; }
+  return { ..._cfg, proxy:PROXY, spaces:[_cfg.s1,_cfg.s2,_cfg.s3,_cfg.s4].filter(Boolean), webhooks:[_cfg.w1,_cfg.w2,_cfg.w3].filter(Boolean) };
 }
+function toggleCfg() { document.getElementById('cfgPanel').classList.toggle('open'); }
 
-function toggleCfg() {
-  document.getElementById('cfgPanel').classList.toggle('open');
-}
+// ── UI helpers ────────────────────────────────────────────────
+const v = id => document.getElementById(id)?.value?.trim()||'';
+const sv = (id,val) => { const el=document.getElementById(id); if(el) el.value=val; };
+function toggleUMenu() { document.getElementById('uMenu').classList.toggle('open'); }
+document.addEventListener('click', e => { if(!e.target.closest('.upill')&&!e.target.closest('#uMenu')) document.getElementById('uMenu').classList.remove('open'); });
 
-// ── Mode ──────────────────────────────────────────────────────
 function setMode(m) {
-  mode = m;
-  document.getElementById('btnFri').className = m==='friday' ? 'active-fri' : '';
-  document.getElementById('btnMon').className = m==='monday' ? 'active-mon' : '';
-  document.getElementById('modeBadge').textContent = m==='friday' ? 'FRIDAY ROLLUP' : 'MONDAY KICKOFF';
-  document.getElementById('modeBadge').className = 'badge ' + (m==='friday' ? 'badge-fri' : 'badge-mon');
+  mode=m;
+  document.getElementById('bFri').className = m==='friday'?'mfri':'';
+  document.getElementById('bMon').className = m==='monday'?'mmon':'';
+  document.getElementById('modeBadge').textContent = m==='friday'?'FRIDAY ROLLUP':'MONDAY KICKOFF';
+  document.getElementById('modeBadge').className = 'badge '+(m==='friday'?'fri':'mon');
   resetReports();
 }
 
-// ── Tab ───────────────────────────────────────────────────────
-let editMode = true; // edit mode on by default
-
-function switchTab(t) {
-  tab = t;
-  ['mgmt','client','team','chat'].forEach(x => {
-    const el = document.getElementById('tab-'+x);
-    el.classList.toggle('active', x===t);
+function resetReports() {
+  reports={mgmt:null,client:null,team:null,chat:null};
+  _edits={};
+  ['mgmt','client','team','chat'].forEach(t => {
+    document.getElementById('tab-'+t).classList.remove('ready');
+    document.getElementById('s-'+t).disabled=true;
   });
+  document.getElementById('sendAll').disabled=true;
+  renderTab();
+}
+
+// ── Tabs & edit ───────────────────────────────────────────────
+function switchTab(t) {
+  tab=t;
+  ['mgmt','client','team','chat'].forEach(x => document.getElementById('tab-'+x).classList.toggle('active',x===t));
   renderTab();
 }
 
 function renderTab() {
-  const out = document.getElementById('output');
-  const r   = getEditedReport(tab); // use edited version if exists
-  const editBar = document.getElementById('editBar');
-
+  const out=document.getElementById('output');
+  const r=_edits[tab]||reports[tab];
+  const eb=document.getElementById('ebar');
   if (!r) {
-    editBar.style.display = 'none';
-    out.innerHTML = `<div class="placeholder">
-      <div class="placeholder-icon">${{mgmt:'📊',client:'🤝',team:'👥',chat:'💬'}[tab]}</div>
-      <p>Generate the report first to see the ${tab} output here.</p>
-    </div>`;
+    eb.style.display='none';
+    out.innerHTML=`<div class="ph"><div class="ph-icon">${{mgmt:'📊',client:'🤝',team:'👥',chat:'💬'}[tab]}</div><p>Generate report first</p></div>`;
     return;
   }
-
-  editBar.style.display = 'flex';
-  updateEditBar();
-
-  if (tab === 'chat') {
-    // Chat is plain text — use a textarea for editing
-    out.innerHTML = `<div class="report">
-      <textarea id="chatEditArea"
-        oninput="saveEditedReport('chat', this.value)"
-        style="width:100%;min-height:260px;background:transparent;border:none;
-               color:#94a3b8;font-family:'Inter',sans-serif;font-size:13px;
-               line-height:1.8;resize:none;outline:none;padding:0"
-        ${editMode ? '' : 'readonly'}>${r}</textarea>
-    </div>`;
+  eb.style.display='flex';
+  document.getElementById('etoggle').textContent = editOn?'✏️ Edit: ON':'👁 Edit: OFF';
+  document.getElementById('etoggle').className   = editOn?'ebtn on':'ebtn';
+  document.getElementById('ehint').innerHTML     = `<span class="sdot" id="sdot"></span>${editOn?'Click to edit':'Read only'}`;
+  document.getElementById('rstBtn').style.display = _edits[tab]?'inline-block':'none';
+  if (tab==='chat') {
+    out.innerHTML=`<div class="report"><textarea id="chatTA" oninput="onEdit()" style="width:100%;min-height:220px;background:transparent;border:none;color:#94a3b8;font-family:'Inter',sans-serif;font-size:13px;line-height:1.8;resize:none;outline:none;padding:0" ${editOn?'':'readonly'}>${r}</textarea></div>`;
   } else {
-    out.className = editMode ? 'output editing-mode' : 'output';
-    out.innerHTML = `<div class="report" id="reportContent"
-      contenteditable="${editMode}"
-      oninput="onReportEdit()"
-      style="outline:none">${md(r)}</div>`;
+    out.className = editOn?'output editing-mode':'output';
+    out.innerHTML = `<div class="report" id="rCont" contenteditable="${editOn}" oninput="onEdit()" style="outline:none">${md(r)}</div>`;
   }
-
-  // Show reset button if edits exist
-  const hasEdits = !!getStoredEdits()[tab];
-  document.getElementById('resetBtn').style.display = hasEdits ? 'inline-block' : 'none';
 }
 
-function updateEditBar() {
-  const toggle = document.getElementById('editToggle');
-  const hint   = document.getElementById('editHint');
-  toggle.textContent = editMode ? '✏️ Edit mode: ON' : '👁 Edit mode: OFF';
-  toggle.className   = editMode ? 'edit-btn active' : 'edit-btn';
-  hint.textContent   = editMode ? 'Click anywhere in the report to edit' : 'Edit mode is off — turn on to edit';
-  hint.className     = editMode ? 'edit-hint editing' : 'edit-hint';
+function toggleEdit() { editOn=!editOn; renderTab(); }
+
+let edTm;
+async function onEdit() {
+  const c = tab==='chat' ? document.getElementById('chatTA')?.value||'' : document.getElementById('rCont')?.innerHTML||'';
+  _edits[tab]=c;
+  await window.fbEdt.save(_edits);
+  clearTimeout(edTm);
+  const d=document.getElementById('sdot'); if(d){d.classList.add('show'); edTm=setTimeout(()=>d.classList.remove('show'),1400);}
+  document.getElementById('rstBtn').style.display='inline-block';
 }
 
-function toggleEditMode() {
-  editMode = !editMode;
+async function resetReport() {
+  if(!confirm('Reset to original?')) return;
+  delete _edits[tab];
+  await window.fbEdt.save(_edits);
   renderTab();
+  toast('Reset ✓','info');
 }
-
-let editSaveTimer;
-function onReportEdit() {
-  const content = document.getElementById('reportContent')?.innerHTML || '';
-  // Strip md() wrapping — save raw HTML
-  saveEditedReport(tab, content);
-  // Show saved dot
-  clearTimeout(editSaveTimer);
-  const dot = document.getElementById('savedDot');
-  dot.classList.add('show');
-  editSaveTimer = setTimeout(() => dot.classList.remove('show'), 1500);
-  document.getElementById('resetBtn').style.display = 'inline-block';
-}
-
-// ── Edited reports storage ─────────────────────────────────────
-function getStoredEdits() {
-  try { return JSON.parse(localStorage.getItem('dn_edits') || '{}'); } catch { return {}; }
-}
-
-function saveEditedReport(type, content) {
-  const edits = getStoredEdits();
-  edits[type] = content;
-  localStorage.setItem('dn_edits', JSON.stringify(edits));
-  // Keep reports object in sync
-  reports[type] = content;
-}
-
-function getEditedReport(type) {
-  const edits = getStoredEdits();
-  // Use edited version if exists, else use generated
-  return edits[type] || reports[type] || null;
-}
-
-function resetReport() {
-  if (!confirm('Reset this report to the original generated version? Your edits will be lost.')) return;
-  const edits = getStoredEdits();
-  delete edits[tab];
-  localStorage.setItem('dn_edits', JSON.stringify(edits));
-  // Restore original
-  reports[tab] = reports['_orig_'+tab] || reports[tab];
-  renderTab();
-  toast('Report reset to original ✓', 'info');
-}
-
-function clearAllEdits() {
-  localStorage.removeItem('dn_edits');
-}
+async function loadEdits() { _edits = await window.fbEdt.get()||{}; }
 
 // ── Generate ──────────────────────────────────────────────────
 async function generate() {
-  const input = document.getElementById('input').value.trim();
-  if (!input) { toast('Paste team updates first', 'err'); return; }
-
-  const cfg = getCfg();
-  const proxy = cfg.proxy || '';
-  if (!proxy) {
-    toast('Add your Cloudflare Worker URL in ⚙ Config first', 'err');
-    return;
-  }
-
-  const btn = document.getElementById('genBtn');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spin"></span>Generating...';
-  document.getElementById('output').innerHTML = `<div class="placeholder">
-    <div style="font-size:32px;animation:sp 1.2s linear infinite;display:inline-block">⚡</div>
-    <p style="margin-top:12px">Claude is generating all 4 reports...</p>
-  </div>`;
-
-  const week    = getWeek();
-  const isFri   = mode === 'friday';
-  const sender  = cfg.name || 'DN Team';
-
-  const system = `You are a professional status report writer for Datanimbus.
-Generate exactly 5 outputs from the team updates. Return ONLY a raw JSON object — no markdown, no code blocks, no explanation:
-{"mgmt":"...","client":"...","team":"...","chat":"...","dashboard":{...}}
-
+  const inp=v('input');
+  if (!inp) { toast('Paste team updates first','err'); return; }
+  const cfg=getCfg();
+  const btn=document.getElementById('genBtn');
+  btn.disabled=true; btn.innerHTML='<span class="spin"></span>Generating...';
+  document.getElementById('output').innerHTML='<div class="ph"><div style="font-size:28px;animation:sp 1s linear infinite;display:inline-block">⚡</div><p style="margin-top:10px">Claude is generating reports...</p></div>';
+  const week=getWeek(), isFri=mode==='friday';
+  const sender=_cfg.name||window._user?.displayName||'DN Team';
+  const project=_cfg.project||'DN Programme';
+  const system=`You are writing status reports for ${project} at Datanimbus.
+Return ONLY a raw JSON object, no markdown, no code blocks:
+{"mgmt":"...","client":"...","team":"...","chat":"...","dashboard":{}}
 Rules:
-- mgmt: Full internal HTML report. Per-person breakdown, department sections, blockers in red, wins in green. Use <h2><h3><ul><li><p><strong>. Add <span class='blocker'>BLOCKER</span> and <span class='win'>WIN</span> tags.
-- client: Professional HTML. Achievements, metrics, next steps only. No internal politics or blockers.
-- team: ${isFri ? 'End-of-week HTML recap. Celebrate wins, list completed work, set next week expectations.' : 'Monday HTML kickoff. Energising, who does what, surface blockers.'}
-- chat: Plain text for Google Chat. Max 180 words. Use *bold* for names. ${isFri ? 'Wins, blockers, highlights.' : 'Week plan, blockers.'}
-- dashboard: Structured JSON object with this exact shape:
-{
-  "members": [
-    {
-      "name": "Person Name",
-      "dept": "Department",
-      "rag": "G",
-      "ragReason": "One sentence reason for RAG status",
-      "blockers": ["blocker text if any"],
-      "wins": ["win text if any"],
-      "completed": ["completed item"],
-      "inProgress": ["in progress item"]
-    }
-  ],
-  "summary": {
-    "totalMembers": 0,
-    "greenCount": 0,
-    "amberCount": 0,
-    "redCount": 0,
-    "totalBlockers": 0,
-    "totalWins": 0,
-    "overallRAG": "G"
-  }
-}
-RAG rules: G=no blockers, on track. A=minor risks or delays. R=has active blockers or critical issues.`;
-
-  const user = `Week: ${week}\nType: ${isFri ? 'Friday end-of-week rollup' : 'Monday week kickoff'}\nSender: ${sender}\n\nTeam Updates:\n${input}`;
-
-  try {
-    const res = await fetch(proxy, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 4000,
-        system: system,
-        messages: [{ role: 'user', content: user }]
-      })
-    });
-
-    if (!res.ok) {
-      const e = await res.text();
-      throw new Error('API error ' + res.status + ': ' + e.slice(0, 200));
-    }
-
-    const data = await res.json();
-
-    if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
-
-    const raw = data.content?.[0]?.text || '';
-    let parsed;
+mgmt: Full HTML. Per-person, blockers red, wins green. Use h2/h3/ul/li/p. Add <span class='blocker'>BLOCKER</span> and <span class='win'>WIN</span>.
+client: Professional HTML. Achievements + next steps only.
+team: ${isFri?'End-of-week HTML recap.':'Monday kickoff HTML.'}
+chat: Plain text max 180 words. *bold* names.
+dashboard: {"members":[{"name":"","dept":"","rag":"G","ragReason":"","blockers":[],"wins":[],"completed":[],"inProgress":[]}],"summary":{"totalMembers":0,"greenCount":0,"amberCount":0,"redCount":0,"totalBlockers":0,"totalWins":0,"overallRAG":"G"}}
+RAG: G=on track, A=at risk, R=blocked.`;
+  let tries=0;
+  while(tries<3) {
     try {
-      const clean = raw.replace(/```json|```/g,'').trim();
-      parsed = JSON.parse(clean);
-    } catch {
-      throw new Error('Could not parse response. Raw: ' + raw.slice(0,200));
-    }
-
-    reports = parsed;
-
-    // Save originals so reset always works
-    ['mgmt','client','team','chat'].forEach(t => {
-      if (parsed[t]) reports['_orig_'+t] = parsed[t];
-    });
-
-    // Clear previous edits when new report generated
-    clearAllEdits();
-
-    ['mgmt','client','team','chat'].forEach(t => {
-      if (parsed[t]) {
-        document.getElementById('tab-'+t).classList.add('ready');
-        document.getElementById('s-'+t).disabled = false;
-      }
-    });
-    document.getElementById('sendAll').disabled = false;
-
-    // Save dashboard data + full reports to history
-    if (parsed.dashboard) {
-      saveToHistory(parsed.dashboard, week, mode, { mgmt: parsed.mgmt, client: parsed.client, team: parsed.team, chat: parsed.chat });
-      renderDashboard(parsed.dashboard, week);
-    }
-
-    renderTab();
-    addLog('All 4 reports + dashboard generated ✓', 'ok');
-    toast('Reports ready! Check each tab or view Dashboard.', 'ok');
-
-  } catch(e) {
-    document.getElementById('output').innerHTML = `<div class="placeholder">
-      <div style="font-size:28px">❌</div>
-      <p style="color:#f87171;margin-top:8px">${e.message}</p>
-    </div>`;
-    addLog('Error: ' + e.message, 'err');
-    toast('Error: ' + e.message, 'err');
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = '⚡ Generate All Reports';
-  }
-}
-
-// ── Email modal ───────────────────────────────────────────────
-const EMAIL_META = {
-  mgmt:   { label: 'Management', subFri: 'Weekly Status Report',   subMon: 'Week Kickoff — Management Update' },
-  client: { label: 'Client',     subFri: 'Weekly Progress Update', subMon: 'Week Ahead — Project Update' },
-  team:   { label: 'Team',       subFri: '🎉 End-of-Week Rollup', subMon: '🚀 Week Kickoff' },
-};
-
-let currentEmailType = null;
-
-function sendEmail(type) {
-  if (!reports[type]) { toast('Generate the report first', 'err'); return; }
-  currentEmailType = type;
-  const meta    = EMAIL_META[type];
-  const isFri   = mode === 'friday';
-  const subject = `[DN ${getWeek()}] ${isFri ? meta.subFri : meta.subMon}`;
-  document.getElementById('modalTitle').textContent   = `Send ${meta.label} Email`;
-  document.getElementById('modalSubject').value       = subject;
-  document.getElementById('modalEmail').value         = '';
-  document.getElementById('emailModal').style.display = 'flex';
-  setTimeout(() => document.getElementById('modalEmail').focus(), 100);
-}
-
-function closeEmailModal() {
-  document.getElementById('emailModal').style.display = 'none';
-  currentEmailType = null;
-}
-
-function confirmSendEmail() {
-  const to      = document.getElementById('modalEmail').value.trim();
-  const subject = document.getElementById('modalSubject').value.trim();
-  if (!to) { toast('Please enter at least one email address', 'err'); return; }
-
-  const type    = currentEmailType;
-  const content = getEditedReport(type); // use edited version if exists
-  const meta    = EMAIL_META[type];
-
-  // Strip HTML tags for Gmail body (Gmail compose accepts plain text + some HTML)
-  const plainBody = content
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/p>/gi, '\n\n')
-    .replace(/<\/h[1-6]>/gi, '\n\n')
-    .replace(/<\/li>/gi, '\n')
-    .replace(/<li>/gi, '• ')
-    .replace(/<[^>]+>/g, '')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
-
-  // Build Gmail compose URL
-  const gmailUrl = 'https://mail.google.com/mail/?view=cm&fs=1' +
-    '&to=' + encodeURIComponent(to) +
-    '&su=' + encodeURIComponent(subject) +
-    '&body=' + encodeURIComponent(plainBody);
-
-  // Open Gmail compose in new tab
-  window.open(gmailUrl, '_blank');
-
-  closeEmailModal();
-  const btn = document.getElementById('s-' + type);
-  btn.innerHTML  = '✓ Opened';
-  btn.className += ' sent';
-  addLog('Gmail compose opened → ' + meta.label + ' (' + to + ')', 'ok');
-  toast('Gmail compose opened — just click Send! ✓', 'ok');
-}
-
-// ── Send Google Chat — posts to all configured webhooks ────────
-async function sendChat() {
-  const cfg      = getCfg();
-  const webhooks = cfg.webhooks || [];
-  const content  = getEditedReport('chat'); // use edited version if exists
-
-  if (!content)        { toast('Generate the report first', 'err'); return; }
-  if (!webhooks.length){ toast('Add at least one Google Chat webhook in ⚙ Config', 'err'); return; }
-
-  const btn = document.getElementById('s-chat');
-  btn.innerHTML = '<span class="spin" style="border-top-color:#22d3ee"></span>';
-  btn.disabled  = true;
-
-  let successCount = 0;
-  for (const url of webhooks) {
-    try {
-      await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: content }),
-        mode: 'no-cors'
+      const res=await fetch(PROXY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:4000,system,messages:[{role:'user',content:`Week:${week}\nType:${isFri?'Friday':'Monday'}\nSender:${sender}\nProject:${project}\n\nUpdates:\n${inp}`}]})});
+      if(!res.ok) { const e=await res.json(); throw new Error('API '+res.status+': '+(e.error?.message||JSON.stringify(e))); }
+      const data=await res.json();
+      if(data.error) throw new Error(data.error.message||JSON.stringify(data.error));
+      const raw=data.content?.[0]?.text||'';
+      let parsed;
+      try { parsed=JSON.parse(raw.replace(/```json|```/g,'').trim()); } catch { throw new Error('Parse failed: '+raw.slice(0,150)); }
+      reports=parsed; _edits={};
+      await window.fbEdt.save({});
+      ['mgmt','client','team','chat'].forEach(t => {
+        if(parsed[t]) { document.getElementById('tab-'+t).classList.add('ready'); document.getElementById('s-'+t).disabled=false; }
       });
-      successCount++;
-      addLog(`Chat → webhook ${successCount} sent ✓`, 'ok');
+      document.getElementById('sendAll').disabled=false;
+      if(parsed.dashboard) {
+        await saveHist(parsed.dashboard,week,mode,{mgmt:parsed.mgmt,client:parsed.client,team:parsed.team,chat:parsed.chat});
+        await syncBlockers(parsed.dashboard,week);
+        renderDash();
+      }
+      renderTab();
+      addLog('Reports generated ✓','ok');
+      toast('Reports ready! Review each tab.','ok');
+      break;
     } catch(e) {
-      addLog(`Chat → webhook failed: ${e.message}`, 'err');
+      tries++;
+      if(tries>=3) {
+        document.getElementById('output').innerHTML=`<div class="ph"><div style="font-size:22px">❌</div><p style="color:#f87171;margin-top:8px">${e.message}</p><button onclick="generate()" style="margin-top:12px;background:#f59e0b;border:none;color:#000;padding:7px 18px;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer;font-family:'Inter',sans-serif">↩ Retry</button></div>`;
+        addLog('Failed after 3 tries: '+e.message,'err'); toast('Failed: '+e.message,'err');
+      } else { await delay(1000*tries); addLog('Retry '+tries+'/3...','info'); }
     }
   }
-
-  btn.innerHTML  = `✓ Sent to ${successCount}`;
-  btn.className += ' sent';
-  toast(`Chat sent to ${successCount} space${successCount > 1 ? 's' : ''} ✓`, 'ok');
+  btn.disabled=false; btn.innerHTML='⚡ Generate All Reports';
 }
 
-async function sendAll() {
-  if (!reports.mgmt && !reports.client && !reports.team) {
-    toast('Generate the reports first', 'err'); return;
-  }
-  // Pre-fill from localStorage if available
-  const saved = JSON.parse(localStorage.getItem('dn_send_all_emails') || '{}');
-  document.getElementById('saEmail1').value = saved.mgmt   || '';
-  document.getElementById('saEmail2').value = saved.client || '';
-  document.getElementById('saEmail3').value = saved.team   || '';
-  document.getElementById('sendAllModal').style.display = 'flex';
-  setTimeout(() => document.getElementById('saEmail1').focus(), 100);
+// ── Email ─────────────────────────────────────────────────────
+const EM = { mgmt:{label:'Management',fri:'Weekly Status Report',mon:'Week Kickoff — Management'}, client:{label:'Client',fri:'Weekly Progress Update',mon:'Week Ahead'}, team:{label:'Team',fri:'🎉 End-of-Week Rollup',mon:'🚀 Week Kickoff'} };
+function sendEmail(type) {
+  if(!reports[type]) { toast('Generate first','err'); return; }
+  _emType=type;
+  const m=EM[type], isFri=mode==='friday';
+  sv('emTitle','Send '+m.label+' Email');
+  sv('emSubj','['+((_cfg.project||'DN')+' '+getWeek())+'] '+(isFri?m.fri:m.mon));
+  sv('emTo','');
+  document.getElementById('emailModal').classList.add('open');
+  setTimeout(()=>document.getElementById('emTo').focus(),100);
+}
+function closeEM() { document.getElementById('emailModal').classList.remove('open'); _emType=null; }
+function confirmEM() {
+  const to=v('emTo'), subj=v('emSubj');
+  if(!to) { toast('Enter an email address','err'); return; }
+  const body=htmlToPlain(_edits[_emType]||reports[_emType]);
+  window.open('https://mail.google.com/mail/?view=cm&fs=1&to='+encodeURIComponent(to)+'&su='+encodeURIComponent(subj)+'&body='+encodeURIComponent(body),'_blank');
+  closeEM();
+  const b=document.getElementById('s-'+_emType); b.innerHTML='✓ Opened'; b.className+=' sent';
+  addLog('Gmail opened → '+EM[_emType].label,'ok'); toast('Gmail opened ✓','ok');
 }
 
-function closeSendAllModal() {
-  document.getElementById('sendAllModal').style.display = 'none';
+// ── Send all ──────────────────────────────────────────────────
+function sendAll() {
+  if(!reports.mgmt&&!reports.client&&!reports.team) { toast('Generate first','err'); return; }
+  const s=JSON.parse(localStorage.getItem('dn_sa')||'{}');
+  sv('saM',s.m||''); sv('saCl',s.c||''); sv('saTm',s.t||'');
+  document.getElementById('saModal').classList.add('open');
+  setTimeout(()=>document.getElementById('saM').focus(),100);
 }
-
-function confirmSendAll() {
-  const mgmtTo   = document.getElementById('saEmail1').value.trim();
-  const clientTo = document.getElementById('saEmail2').value.trim();
-  const teamTo   = document.getElementById('saEmail3').value.trim();
-
-  if (!mgmtTo && !clientTo && !teamTo) {
-    toast('Please fill in at least one email address', 'err'); return;
-  }
-
-  // Save emails for next time
-  localStorage.setItem('dn_send_all_emails', JSON.stringify({
-    mgmt: mgmtTo, client: clientTo, team: teamTo
-  }));
-
-  const cfg    = getCfg();
-  const isFri  = mode === 'friday';
-  const week   = getWeek();
-
-  // Open Gmail for each filled recipient
-  const sends = [
-    { type: 'mgmt',   to: mgmtTo,   meta: EMAIL_META.mgmt },
-    { type: 'client', to: clientTo, meta: EMAIL_META.client },
-    { type: 'team',   to: teamTo,   meta: EMAIL_META.team },
-  ];
-
-  let opened = 0;
-  sends.forEach(({ type, to, meta }) => {
-    if (!to) return;
-    const content  = getEditedReport(type);
-    if (!content) return;
-    const subject  = `[DN ${week}] ${isFri ? meta.subFri : meta.subMon}`;
-    const plainBody = content
-      .replace(/<br\s*\/?>/gi, '\n').replace(/<\/p>/gi, '\n\n')
-      .replace(/<\/h[1-6]>/gi, '\n\n').replace(/<\/li>/gi, '\n')
-      .replace(/<li>/gi, '• ').replace(/<[^>]+>/g, '')
-      .replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>')
-      .replace(/&nbsp;/g,' ').replace(/\n{3,}/g,'\n\n').trim();
-
-    const gmailUrl = 'https://mail.google.com/mail/?view=cm&fs=1' +
-      '&to=' + encodeURIComponent(to) +
-      '&su=' + encodeURIComponent(subject) +
-      '&body=' + encodeURIComponent(plainBody);
-
-    setTimeout(() => window.open(gmailUrl, '_blank'), opened * 600);
-    const btn = document.getElementById('s-' + type);
-    btn.innerHTML  = '✓ Opened';
-    btn.className += ' sent';
-    addLog(`Gmail → ${meta.label} (${to}) opened ✓`, 'ok');
-    opened++;
+function closeSA() { document.getElementById('saModal').classList.remove('open'); }
+function confirmSA() {
+  const es=[{t:'mgmt',to:v('saM')},{t:'client',to:v('saCl')},{t:'team',to:v('saTm')}];
+  if(!es.some(e=>e.to)) { toast('Enter at least one email','err'); return; }
+  localStorage.setItem('dn_sa',JSON.stringify({m:v('saM'),c:v('saCl'),t:v('saTm')}));
+  const isFri=mode==='friday', wk=getWeek(); let opened=0;
+  es.forEach(({t,to},i) => {
+    if(!to||!reports[t]) return;
+    const m=EM[t], subj='['+((_cfg.project||'DN')+' '+wk)+'] '+(isFri?m.fri:m.mon);
+    setTimeout(()=>window.open('https://mail.google.com/mail/?view=cm&fs=1&to='+encodeURIComponent(to)+'&su='+encodeURIComponent(subj)+'&body='+encodeURIComponent(htmlToPlain(_edits[t]||reports[t])),'_blank'),i*600);
+    const b=document.getElementById('s-'+t); b.innerHTML='✓ Opened'; b.className+=' sent';
+    addLog('Gmail → '+m.label+' ✓','ok'); opened++;
   });
-
-  // Send chat
-  sendChat();
-
-  closeSendAllModal();
-  toast(`${opened} Gmail window${opened > 1 ? 's' : ''} opening + Chat sent 🎉`, 'ok');
-  addLog('Send All complete ✓', 'ok');
+  sendChat(); closeSA(); toast(opened+' Gmail window'+(opened>1?'s':'')+' opening + Chat 🎉','ok');
 }
 
-// ── Helpers ───────────────────────────────────────────────────
-function resetReports() {
-  reports = {mgmt:null,client:null,team:null,chat:null};
-  ['mgmt','client','team','chat'].forEach(t => {
-    document.getElementById('tab-'+t).classList.remove('ready','active');
-    document.getElementById('s-'+t).disabled = true;
-  });
-  document.getElementById('tab-mgmt').classList.add('active');
-  document.getElementById('sendAll').disabled = true;
-  tab = 'mgmt';
-  renderTab();
+// ── Chat ──────────────────────────────────────────────────────
+async function sendChat() {
+  const cfg=getCfg(), whs=cfg.webhooks, c=_edits.chat||reports.chat;
+  if(!c) { toast('Generate first','err'); return; }
+  if(!whs.length) { toast('Add webhooks in ⚙ Config','err'); return; }
+  const b=document.getElementById('s-chat'); b.innerHTML='<span class="spin" style="border-top-color:#22d3ee"></span>'; b.disabled=true;
+  let n=0;
+  for(const u of whs) { try{ await fetch(u,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:c}),mode:'no-cors'}); n++; addLog('Chat webhook '+n+' ✓','ok'); }catch(e){addLog('Webhook failed: '+e.message,'err');} }
+  b.innerHTML='✓ Sent to '+n; b.className+=' sent'; toast('Chat sent to '+n+' space'+(n>1?'s':'')+' ✓','ok');
 }
 
-function getWeek() {
-  const n = new Date(), d = n.getDay();
-  const mon = new Date(n); mon.setDate(n.getDate()-((d+6)%7));
-  const fri = new Date(mon); fri.setDate(mon.getDate()+4);
-  const f = x => x.toLocaleDateString('en-GB',{day:'numeric',month:'short'});
-  return `${f(mon)} – ${f(fri)}, ${fri.getFullYear()}`;
+// ── Load from Chat ─────────────────────────────────────────────
+async function loadFromChat() {
+  const cfg=getCfg(), spaces=cfg.spaces;
+  if(!spaces.length) { toast('Add Space IDs in ⚙ Config','err'); return; }
+  const btns=['loadChatBtn','lcBtnMain'].map(id=>document.getElementById(id)).filter(Boolean);
+  btns.forEach(b=>{b.innerHTML='<span class="spin"></span> Loading...';b.disabled=true;});
+  try {
+    const res=await fetch(PROXY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'chat_reader',spaces})});
+    const data=await res.json();
+    if(!data||!data.length) { toast('No updates found this week','err'); return; }
+    data.forEach(p => {
+      if(!p.name) return;
+      if(!_members.find(m=>m.name.toLowerCase()===p.name.toLowerCase())) _members.push({name:p.name,dept:p.dept||'General'});
+      const id=p.name.replace(/\s+/g,'_');
+      _updates[id]={completed:p.completed||'',inprogress:p.inProgress||'',blockers:p.blockers||'',wins:p.wins||''};
+    });
+    await window.fbMem.save(_members); await window.fbUpd.save(_updates);
+    renderMCards(); addLog('Loaded '+data.length+' updates from Chat ✓','ok'); toast(data.length+' updates loaded ✓','ok');
+  } catch(e) { addLog('Chat load failed: '+e.message,'err'); toast('Chat load failed','err'); }
+  finally { btns.forEach(b=>{b.innerHTML=b.id==='loadChatBtn'?'📥 Load Now':'📥 Load from Chat';b.disabled=false;}); }
 }
 
-function md(text) {
-  return text
-    .replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')
-    .replace(/^### (.*)/gm,'<h3>$1</h3>')
-    .replace(/^## (.*)/gm,'<h2>$1</h2>')
-    .replace(/^# (.*)/gm,'<h2>$1</h2>')
-    .replace(/^- (.*)/gm,'<li>$1</li>')
-    .replace(/(<li>.*?<\/li>)/gs,'<ul>$1</ul>')
-    .replace(/\n\n/g,'</p><p>')
-    || text;
+// ── Team members ──────────────────────────────────────────────
+async function loadMembers() { _members=await window.fbMem.get(); renderMCards(); }
+async function loadUpdates() { _updates=await window.fbUpd.get(); }
+async function addMember() {
+  const name=v('nmName'), dept=v('nmDept');
+  if(!name){toast('Enter a name','err');return;}
+  if(_members.find(m=>m.name.toLowerCase()===name.toLowerCase())){toast('Already exists','err');return;}
+  _members.push({name,dept:dept||'General'});
+  await window.fbMem.save(_members);
+  sv('nmName',''); sv('nmDept','');
+  renderMCards(); toast(name+' added ✓','ok');
+}
+async function removeMember(n) {
+  _members=_members.filter(m=>m.name!==n);
+  await window.fbMem.save(_members); renderMCards();
+}
+function renderMCards() {
+  const el=document.getElementById('mCards');
+  if(!_members.length){el.innerHTML='<div class="nodata" style="grid-column:1/-1">No members yet — add above!</div>';return;}
+  el.innerHTML=_members.map(m=>{
+    const ini=m.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+    const id=m.name.replace(/\s+/g,'_'), u=_updates[id]||{};
+    return `<div class="mcard">
+      <div class="mcard-h">
+        <div class="mav">${ini}</div>
+        <div class="mni"><div class="mn">${m.name}</div><div class="md">${m.dept}</div></div>
+        <button class="mdel" onclick="removeMember('${m.name}')">✕</button>
+      </div>
+      <div class="uf"><label>✅ Completed</label><textarea oninput="saveUpd('${id}','completed',this.value)" placeholder="What did ${m.name.split(' ')[0]} finish?">${u.completed||''}</textarea></div>
+      <div class="uf"><label>🔄 In Progress</label><textarea oninput="saveUpd('${id}','inprogress',this.value)" placeholder="Working on?">${u.inprogress||''}</textarea></div>
+      <div class="uf"><label>🚧 Blockers</label><textarea oninput="saveUpd('${id}','blockers',this.value)" placeholder="Any blockers?">${u.blockers||''}</textarea></div>
+      <div class="uf"><label>🏆 Wins</label><textarea oninput="saveUpd('${id}','wins',this.value)" placeholder="Any wins?">${u.wins||''}</textarea></div>
+    </div>`;
+  }).join('');
+}
+let updTm;
+function saveUpd(id,field,val) {
+  if(!_updates[id]) _updates[id]={};
+  _updates[id][field]=val;
+  clearTimeout(updTm); updTm=setTimeout(()=>window.fbUpd.save(_updates),700);
+}
+function compileUpdates() {
+  if(!_members.length){toast('No members yet','err');return;}
+  const lines=_members.map(m=>{
+    const id=m.name.replace(/\s+/g,'_'), u=_updates[id]||{};
+    if(!u.completed&&!u.inprogress&&!u.blockers&&!u.wins) return null;
+    let t=`${m.name} (${m.dept}):`;
+    if(u.completed)  t+='\nCompleted: '+u.completed;
+    if(u.inprogress) t+='\nIn Progress: '+u.inprogress;
+    if(u.blockers)   t+='\nBlocker: '+u.blockers;
+    if(u.wins)       t+='\nWin: '+u.wins;
+    return t;
+  }).filter(Boolean);
+  if(!lines.length){toast('Fill in at least one update','err');return;}
+  const c=lines.join('\n\n');
+  sv('input',c); document.getElementById('chars').textContent=c.length.toLocaleString()+' chars';
+  toggleTeam(); toast(lines.length+' updates compiled ✓','ok');
+}
+async function clearUpdates() {
+  if(!confirm('Clear all update fields?')) return;
+  _updates={}; await window.fbUpd.save({}); renderMCards(); toast('Cleared ✓','info');
 }
 
-let toastTimer;
-function toast(msg, type='info') {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.className = 'show ' + type;
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.className='', 3500);
+// ── History ────────────────────────────────────────────────────
+async function saveHist(dashboard,week,type,rpts) {
+  const entry={week,type,dashboard,reports:rpts||{},owner:window._user?.email,savedAt:new Date().toISOString()};
+  await window.fbHist.save(entry);
+  _history=await window.fbHist.list();
 }
-
-function addLog(msg, type='info') {
-  logN++;
-  document.getElementById('logCount').textContent = logN + ' event' + (logN>1?'s':'');
-  const now = new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
-  const el = document.createElement('div');
-  el.className = 'log-row';
-  el.innerHTML = `<span class="log-t">${now}</span><span class="log-m ${type}">${msg}</span>`;
-  document.getElementById('logEntries').prepend(el);
-  document.getElementById('log').classList.add('open');
+async function loadHistData() { _history=await window.fbHist.list(); }
+function renderHistList() {
+  const el=document.getElementById('histList');
+  document.getElementById('rvPanel').style.display='none';
+  if(!_history.length){el.innerHTML='<div class="nodata">No reports yet</div>';return;}
+  el.innerHTML=_history.map((h,i)=>{
+    const s=h.dashboard?.summary||{}, rag=s.overallRAG||'G';
+    const col={G:'#34d399',A:'#f59e0b',R:'#f87171'}[rag];
+    return `<div class="hcard" onclick="viewHist(${i})">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+        <div style="display:flex;align-items:center;gap:7px">
+          <div style="width:7px;height:7px;border-radius:50%;background:${col}"></div>
+          <span style="font-size:13px;font-weight:600;color:#f1f5f9">${h.week}</span>
+          <span class="htag">${h.type==='friday'?'📅 Fri':'🚀 Mon'}</span>
+        </div>
+        <div style="display:flex;gap:5px;align-items:center">
+          <span style="font-size:10px;color:#475569">${h.owner||''}</span>
+          <button onclick="event.stopPropagation();delHist('${h.id}')" style="background:transparent;border:none;color:#475569;cursor:pointer;font-size:11px">✕</button>
+        </div>
+      </div>
+      <div>
+        <span class="htag">${s.totalMembers||0} members</span>
+        <span class="htag" style="color:#f87171;border-color:rgba(248,113,113,.3)">🚧 ${s.totalBlockers||0}</span>
+        <span class="htag" style="color:#34d399;border-color:rgba(52,211,153,.3)">🏆 ${s.totalWins||0}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+function viewHist(i) {
+  _rvEntry=_history[i]; _rvTab='mgmt';
+  document.getElementById('rvTitle').textContent=_history[i].week+' — '+_history[i].type;
+  document.getElementById('rvPanel').style.display='block';
+  renderRv();
+}
+function switchRv(t) { _rvTab=t; document.querySelectorAll('.rvtab').forEach(el=>el.classList.toggle('active',el.textContent.toLowerCase()===t)); renderRv(); }
+function renderRv() {
+  const h=_rvEntry, el=document.getElementById('rvCont'); if(!h) return;
+  if(_rvTab==='chat') { el.innerHTML=`<pre style="white-space:pre-wrap;font-family:'Inter',sans-serif">${h.reports?.chat||'Not saved'}</pre>`; return; }
+  const c=h.reports?.[_rvTab]; el.innerHTML=c?`<div class="report">${md(c)}</div>`:'<div class="nodata">Not available</div>';
+}
+async function delHist(id) {
+  if(!confirm('Delete this report?')) return;
+  await window.fbHist.del(id); _history=_history.filter(h=>h.id!==id);
+  renderHistList(); renderHistTable(); toast('Deleted ✓','info');
+}
+async function clearAllHist() {
+  if(!confirm('Delete all history? Cannot be undone.')) return;
+  for(const h of _history) await window.fbHist.del(h.id);
+  _history=[]; renderHistList(); renderHistTable(); toast('Cleared ✓','info');
 }
 
 // ── Dashboard ─────────────────────────────────────────────────
-function toggleDash() {
-  const dash = document.getElementById('dashView');
-  const btn  = document.getElementById('dashBtn');
-  const isOpen = !dash.classList.contains('open');
-  closeAllViews();
-  dash.classList.toggle('open', isOpen);
-  btn.classList.toggle('active', isOpen);
-  if (isOpen) {
-    populateWeekFilter();
-    renderDashFromHistory();
-  }
+function fillWkFilter() {
+  const sel=document.getElementById('wkFilter'), cur=sel.value;
+  sel.innerHTML='<option value="all">All weeks</option>';
+  _history.forEach(h=>{ const o=document.createElement('option'); o.value=h.week; o.textContent=h.week+(h.type==='friday'?' (Fri)':' (Mon)'); sel.appendChild(o); });
+  if(cur) sel.value=cur;
 }
-
-function saveToHistory(dashboard, week, type, fullReports) {
-  try {
-    const history = JSON.parse(localStorage.getItem('dn_history') || '[]');
-    const filtered = history.filter(h => !(h.week === week && h.type === type));
-    filtered.unshift({
-      week, type, dashboard,
-      reports: fullReports || {},
-      savedAt: new Date().toISOString()
-    });
-    localStorage.setItem('dn_history', JSON.stringify(filtered.slice(0, 24)));
-
-    // Also update blocker tracker with this week's blockers
-    syncBlockersFromHistory(dashboard, week);
-  } catch(e) { console.error('History save failed', e); }
-}
-
-function getHistory() {
-  try { return JSON.parse(localStorage.getItem('dn_history') || '[]'); } catch { return []; }
-}
-
-// ── Sync blockers from latest report into persistent tracker ──
-function syncBlockersFromHistory(dashboard, week) {
-  const members  = dashboard?.members || [];
-  const existing = getTrackedBlockers();
-
-  // Add new blockers
-  members.forEach(m => {
-    (m.blockers || []).forEach(text => {
-      const already = existing.find(b => b.name === m.name && b.text === text && !b.resolved);
-      if (!already) {
-        existing.unshift({
-          id:         Date.now() + Math.random(),
-          name:       m.name,
-          dept:       m.dept || '',
-          text:       text,
-          week:       week,
-          addedWeek:  week,
-          resolved:   false,
-          resolvedAt: null,
-        });
-      }
-    });
-  });
-
-  // Auto-resolve: person has no blockers this week
-  existing.forEach(b => {
-    if (b.resolved) return;
-    const member = members.find(m => m.name === b.name);
-    if (member && !(member.blockers || []).includes(b.text)) {
-      // Only auto-resolve if the member reported this week
-      b.resolved   = true;
-      b.resolvedAt = week;
-    }
-  });
-
-  saveTrackedBlockers(existing);
-}
-
-// ── Populate week filter dropdown ─────────────────────────────
-function populateWeekFilter() {
-  const history = getHistory();
-  const sel     = document.getElementById('dashWeekFilter');
-  const current = sel.value;
-  sel.innerHTML = '<option value="all">All weeks</option>';
-  history.forEach(h => {
-    const opt = document.createElement('option');
-    opt.value = h.week;
-    opt.textContent = h.week + (h.type === 'friday' ? ' (Fri)' : ' (Mon)');
-    sel.appendChild(opt);
-  });
-  if (current) sel.value = current;
-}
-
-// ── Main dashboard renderer — uses history ────────────────────
-function renderDashFromHistory() {
-  const history   = getHistory();
-  const filter    = document.getElementById('dashWeekFilter')?.value || 'all';
-  const filtered  = filter === 'all' ? history : history.filter(h => h.week === filter);
-
-  if (history.length === 0) {
-    document.getElementById('dashWeekLabel').textContent = 'No data yet — generate a report first';
-    return;
-  }
-
-  // Week label
-  const latest = history[0];
-  document.getElementById('dashWeekLabel').textContent =
-    filter === 'all'
-      ? `All time · ${history.length} week${history.length > 1 ? 's' : ''} tracked · Latest: ${latest.week}`
-      : `Showing: ${filter}`;
-
-  // Aggregate stats across filtered weeks
-  let totalGreen = 0, totalAmber = 0, totalRed = 0, totalWins = 0;
-  filtered.forEach(h => {
-    const s = h.dashboard?.summary || {};
-    totalGreen += s.greenCount  || 0;
-    totalAmber += s.amberCount  || 0;
-    totalRed   += s.redCount    || 0;
-    totalWins  += s.totalWins   || 0;
-  });
-
-  const activeBlockers = getTrackedBlockers().filter(b => !b.resolved);
-
-  document.getElementById('statWeeks').textContent  = history.length;
-  document.getElementById('statGreen').textContent  = totalGreen;
-  document.getElementById('statAmber').textContent  = totalAmber;
-  document.getElementById('statRed').textContent    = totalRed;
-  document.getElementById('statActive').textContent = activeBlockers.length;
-  document.getElementById('statWins').textContent   = totalWins;
-
-  // RAG grid — show latest week or filtered week
-  const ragSource = filtered[0];
-  document.getElementById('ragTitle').textContent =
-    ragSource ? `Team RAG Status — ${ragSource.week}` : 'Team RAG Status';
-  renderRAGGrid(ragSource?.dashboard?.members || []);
-
-  // Always show ALL active blockers regardless of filter
-  renderBlockerTracker();
-
-  // Trends
+function renderDash() {
+  if(!_history.length){ document.getElementById('dashSub').textContent='No data yet — generate a report first'; return; }
+  const filter=document.getElementById('wkFilter')?.value||'all';
+  const fil=filter==='all'?_history:_history.filter(h=>h.week===filter);
+  document.getElementById('dashSub').textContent = filter==='all'?('All time · '+_history.length+' week(s) tracked'):('Showing: '+filter);
+  let tG=0,tA=0,tR=0,tW=0;
+  fil.forEach(h=>{ const s=h.dashboard?.summary||{}; tG+=s.greenCount||0; tA+=s.amberCount||0; tR+=s.redCount||0; tW+=s.totalWins||0; });
+  const aBlk=_blockers.filter(b=>!b.resolved);
+  document.getElementById('dWeeks').textContent = _history.length;
+  document.getElementById('dGrn').textContent   = tG;
+  document.getElementById('dAmb').textContent   = tA;
+  document.getElementById('dRed').textContent   = tR;
+  document.getElementById('dBlk').textContent   = aBlk.length;
+  document.getElementById('dWins').textContent  = tW;
+  const src=fil[0];
+  document.getElementById('ragTitle').textContent = src?'Team RAG Status — '+src.week:'Team RAG Status';
+  renderRAGGrid(src?.dashboard?.members||[]);
+  renderBlockers();
   renderTrends();
-  renderHistoryTable();
+  renderHistTable();
 }
-
-// Called after generating new report
-function renderDashboard(dashboard, week) {
-  populateWeekFilter();
-  renderDashFromHistory();
-}
-
-// ── RAG Grid ──────────────────────────────────────────────────
 function renderRAGGrid(members) {
-  const ragGrid = document.getElementById('ragGrid');
-  if (!members.length) {
-    ragGrid.innerHTML = '<div class="no-data">No RAG data for this week</div>';
-    return;
-  }
-  const sorted = [...members].sort((a,b) => ({R:0,A:1,G:2}[a.rag]||2) - ({R:0,A:1,G:2}[b.rag]||2));
-  ragGrid.innerHTML = sorted.map(m => {
-    const isRed   = m.rag === 'R';
-    const isAmber = m.rag === 'A';
-    return `
-    <div class="rag-card ${m.rag}" style="${isRed ? 'animation:pulse-red 2s infinite' : ''}">
-      <div class="rag-badge ${m.rag}">${m.rag}</div>
-      ${isRed   ? '<div style="font-size:9px;color:#f87171;font-weight:600;letter-spacing:.5px;margin-bottom:4px;text-transform:uppercase">⚠️ Needs Attention</div>' : ''}
-      ${isAmber ? '<div style="font-size:9px;color:#f59e0b;font-weight:600;letter-spacing:.5px;margin-bottom:4px;text-transform:uppercase">⚡ At Risk</div>' : ''}
-      <div class="rag-name">${m.name}</div>
-      <div class="rag-dept">${m.dept || ''}</div>
-      <div class="rag-detail">
-        ${m.ragReason ? `<div style="margin-bottom:6px;color:#94a3b8;font-size:11px">${m.ragReason}</div>` : ''}
-        ${(m.blockers||[]).map(b => `<div class="blocker-item">🚧 ${b}</div>`).join('')}
-        ${(m.wins||[]).map(w => `<div class="win-item">🏆 ${w}</div>`).join('')}
+  const el=document.getElementById('ragGrid');
+  if(!members.length){el.innerHTML='<div class="nodata">No RAG data</div>';return;}
+  const sorted=[...members].sort((a,b)=>({R:0,A:1,G:2}[a.rag]||2)-({R:0,A:1,G:2}[b.rag]||2));
+  el.innerHTML=sorted.map(m=>`
+    <div class="rc ${m.rag}" style="${m.rag==='R'?'animation:pulse-r 2s infinite':''}">
+      <div class="rbadge ${m.rag}">${m.rag}</div>
+      ${m.rag==='R'?'<div style="font-size:9px;color:#f87171;font-weight:600;margin-bottom:3px;text-transform:uppercase">⚠️ Needs attention</div>':''}
+      ${m.rag==='A'?'<div style="font-size:9px;color:#f59e0b;font-weight:600;margin-bottom:3px;text-transform:uppercase">⚡ At risk</div>':''}
+      <div class="rname">${m.name}</div>
+      <div class="rdept">${m.dept||''}</div>
+      <div class="rdet">
+        ${m.ragReason?`<div style="margin-bottom:4px;color:#94a3b8;font-size:11px">${m.ragReason}</div>`:''}
+        ${(m.blockers||[]).map(b=>`<div class="bi">🚧 ${b}</div>`).join('')}
+        ${(m.wins||[]).map(w=>`<div class="wi">🏆 ${w}</div>`).join('')}
       </div>
-    </div>`;
-  }).join('');
-}
-
-// ── Persistent Blocker Tracker ────────────────────────────────
-function getTrackedBlockers() {
-  try { return JSON.parse(localStorage.getItem('dn_blockers') || '[]'); } catch { return []; }
-}
-
-function saveTrackedBlockers(blockers) {
-  localStorage.setItem('dn_blockers', JSON.stringify(blockers));
-}
-
-function renderBlockerTracker() {
-  const all      = getTrackedBlockers();
-  const active   = all.filter(b => !b.resolved);
-  const resolved = all.filter(b => b.resolved).slice(0, 5);
-  const el       = document.getElementById('blockerList');
-
-  let html = '';
-
-  if (active.length === 0) {
-    html += '<div class="no-data" style="color:#34d399;padding:16px">✅ No active blockers — all clear!</div>';
-  } else {
-    // Sort: oldest first so carried-over ones are most visible
-    const sorted = [...active].sort((a,b) => new Date(a.savedAt||0) - new Date(b.savedAt||0));
-    html += sorted.map(b => {
-      const isOld    = b.addedWeek && b.addedWeek !== getWeek();
-      const weeksBg  = isOld ? 'background:rgba(248,113,113,.08)' : '';
-      return `
-      <div class="blocker-item-row" style="border-left-color:#f87171;${weeksBg};align-items:center">
-        <div style="flex-shrink:0;min-width:140px">
-          <div class="blocker-owner">${b.name}</div>
-          <div class="blocker-week" style="color:#64748b">${b.dept}</div>
-          <div style="font-size:10px;color:#f59e0b;margin-top:3px">Since: ${b.addedWeek || b.week}</div>
-          ${isOld ? `<div style="font-size:10px;color:#f87171;margin-top:2px;font-weight:600">⚠️ Carried over</div>` : '<div style="font-size:10px;color:#94a3b8;margin-top:2px">New this week</div>'}
-        </div>
-        <div class="blocker-text" style="flex:1;padding:0 12px">${b.text}</div>
-        <button onclick="resolveBlocker('${b.id}')"
-          style="background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.3);color:#34d399;
-                 padding:6px 14px;border-radius:6px;font-size:11px;cursor:pointer;white-space:nowrap;
-                 font-weight:600;flex-shrink:0">
-          ✓ Mark Resolved
-        </button>
-      </div>`;
-    }).join('');
-  }
-
-  if (resolved.length) {
-    html += `<div style="margin-top:20px;font-size:10px;color:#34d399;letter-spacing:.5px;
-             text-transform:uppercase;margin-bottom:8px;display:flex;align-items:center;gap:8px">
-             ✓ Recently Resolved
-             <span style="flex:1;height:1px;background:#1e293b;display:inline-block"></span></div>`;
-    html += resolved.map(b => `
-      <div style="display:flex;align-items:center;gap:12px;padding:8px 14px;border-radius:8px;
-                  background:rgba(52,211,153,.04);border:1px solid rgba(52,211,153,.12);
-                  margin-bottom:6px;opacity:.65">
-        <div style="flex:1;display:flex;align-items:center;gap:8px">
-          <span style="font-size:12px;font-weight:500;color:#34d399">${b.name}</span>
-          <span style="font-size:11px;color:#475569">${b.text}</span>
-        </div>
-        <div style="font-size:10px;color:#34d399;white-space:nowrap">✓ ${b.resolvedAt || 'Resolved'}</div>
-        <button onclick="unresolveBlocker('${b.id}')"
-          style="background:transparent;border:1px solid #334155;color:#475569;
-                 padding:3px 8px;border-radius:4px;font-size:10px;cursor:pointer">
-          Reopen
-        </button>
-      </div>`).join('');
-  }
-
-  el.innerHTML = html;
-
-  // Update active blocker count in stat card
-  const statEl = document.getElementById('statActive');
-  if (statEl) statEl.textContent = active.length;
-}
-
-function resolveBlocker(id) {
-  const blockers = getTrackedBlockers();
-  const b        = blockers.find(b => String(b.id) === String(id));
-  if (b) {
-    b.resolved   = true;
-    b.resolvedAt = getWeek();
-    saveTrackedBlockers(blockers);
-    renderBlockerTracker();
-    renderDashFromHistory();
-    toast(`Blocker resolved ✓ — ${b.name}`, 'ok');
-    addLog(`Blocker resolved: ${b.name} — ${b.text.slice(0,40)}`, 'ok');
-  }
-}
-
-function unresolveBlocker(id) {
-  const blockers = getTrackedBlockers();
-  const b        = blockers.find(b => String(b.id) === String(id));
-  if (b) {
-    b.resolved   = false;
-    b.resolvedAt = null;
-    saveTrackedBlockers(blockers);
-    renderBlockerTracker();
-    renderDashFromHistory();
-    toast('Blocker reopened', 'info');
-  }
-}
-
-function renderTrends() {
-  const history = getHistory();
-  if (history.length < 2) {
-    document.getElementById('trendChart').innerHTML = '<div class="no-data">No history yet — trends appear after 2+ weeks</div>';
-    return;
-  }
-
-  const maxBlockers = Math.max(...history.map(h => h.dashboard?.summary?.totalBlockers || 0), 1);
-  const maxWins     = Math.max(...history.map(h => h.dashboard?.summary?.totalWins || 0), 1);
-
-  document.getElementById('trendChart').innerHTML = history.slice(0, 6).reverse().map(h => {
-    const blockers = h.dashboard?.summary?.totalBlockers || 0;
-    const wins     = h.dashboard?.summary?.totalWins     || 0;
-    const rag      = h.dashboard?.summary?.overallRAG    || 'G';
-    return `
-    <div style="margin-bottom:14px">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-        <span class="rag-pill ${rag}">${rag}</span>
-        <span style="font-size:12px;color:#94a3b8">${h.week}</span>
-      </div>
-      <div class="trend-bar-wrap">
-        <span class="trend-label">Blockers</span>
-        <div class="trend-bar-bg"><div class="trend-bar blockers" style="width:${(blockers/maxBlockers)*100}%"></div></div>
-        <span class="trend-val">${blockers}</span>
-      </div>
-      <div class="trend-bar-wrap">
-        <span class="trend-label">Wins</span>
-        <div class="trend-bar-bg"><div class="trend-bar wins" style="width:${(wins/maxWins)*100}%"></div></div>
-        <span class="trend-val">${wins}</span>
-      </div>
-    </div>`;
-  }).join('');
-}
-
-function renderHistoryTable() {
-  const history = getHistory();
-  const tbody   = document.getElementById('historyBody');
-  if (history.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="7" class="no-data">No history yet</td></tr>';
-    return;
-  }
-  tbody.innerHTML = history.map((h, i) => {
-    const s   = h.dashboard?.summary || {};
-    const rag = s.overallRAG || 'G';
-    return `<tr>
-      <td class="week-label">${h.week}</td>
-      <td><span style="font-size:11px;color:#64748b;text-transform:uppercase">${h.type}</span></td>
-      <td>${s.totalMembers || '—'}</td>
-      <td><span class="rag-pill ${rag}">${{G:'🟢 On Track',A:'🟡 At Risk',R:'🔴 Blocked'}[rag]||rag}</span></td>
-      <td style="color:#f87171">${s.totalBlockers || 0}</td>
-      <td style="color:#34d399">${s.totalWins || 0}</td>
-      <td><button onclick="loadHistoryEntry(${i})" style="background:transparent;border:1px solid #334155;color:#64748b;padding:4px 10px;border-radius:4px;font-size:11px;cursor:pointer">View</button>
-          <button onclick="deleteHistoryEntry(${i})" style="background:transparent;border:none;color:#475569;padding:4px 6px;font-size:11px;cursor:pointer">✕</button></td>
-    </tr>`;
-  }).join('');
-}
-
-function loadHistoryEntry(i) {
-  const h = getHistory()[i];
-  if (!h) return;
-  renderDashboard(h.dashboard, h.week);
-  document.getElementById('dashWeekLabel').textContent = `Week of ${h.week} · ${h.type} (history)`;
-}
-
-function deleteHistoryEntry(i) {
-  const history = getHistory();
-  history.splice(i, 1);
-  localStorage.setItem('dn_history', JSON.stringify(history));
-  renderHistoryTable();
-  toast('Entry deleted', 'info');
-}
-
-// ── History & Archive ─────────────────────────────────────────
-let currentViewerEntry = null;
-let currentViewerTab   = 'mgmt';
-
-function toggleHistory() {
-  const v   = document.getElementById('historyView');
-  const btn = document.getElementById('historyBtn');
-  const isOpen = !v.classList.contains('open');
-  closeAllViews();
-  v.classList.toggle('open', isOpen);
-  btn.classList.toggle('active', isOpen);
-  if (isOpen) renderArchiveList();
-}
-
-function renderArchiveList() {
-  const history = getHistory();
-  const el      = document.getElementById('histArchiveList');
-  document.getElementById('reportViewer').style.display = 'none';
-
-  if (history.length === 0) {
-    el.innerHTML = '<div class="no-data">No reports archived yet — generate your first report!</div>';
-    return;
-  }
-
-  el.innerHTML = '<div class="hist-cards">' + history.map((h, i) => {
-    const s   = h.dashboard?.summary || {};
-    const rag = s.overallRAG || 'G';
-    const ragColor = { G: '#34d399', A: '#f59e0b', R: '#f87171' }[rag];
-    const date = h.savedAt ? new Date(h.savedAt).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '';
-    return `
-    <div class="hist-card" onclick="viewArchiveEntry(${i})">
-      <div class="hist-card-head">
-        <div style="display:flex;align-items:center;gap:10px">
-          <div style="width:10px;height:10px;border-radius:50%;background:${ragColor};flex-shrink:0"></div>
-          <span class="hist-card-week">${h.week}</span>
-          <span class="hist-tag ${h.type}">${h.type === 'friday' ? '📅 Friday Rollup' : '🚀 Monday Kickoff'}</span>
-        </div>
-        <div style="display:flex;align-items:center;gap:8px">
-          <span class="hist-card-meta">${date}</span>
-          <button onclick="event.stopPropagation();deleteHistoryEntry(${i})" style="background:transparent;border:none;color:#475569;cursor:pointer;font-size:13px;padding:2px 6px" title="Delete">✕</button>
-        </div>
-      </div>
-      <div class="hist-card-tags" style="margin-top:8px">
-        <span class="hist-tag">${s.totalMembers || 0} members</span>
-        <span class="hist-tag" style="color:#f87171;border-color:rgba(248,113,113,.3)">🚧 ${s.totalBlockers || 0} blockers</span>
-        <span class="hist-tag" style="color:#34d399;border-color:rgba(52,211,153,.3)">🏆 ${s.totalWins || 0} wins</span>
-        ${h.reports?.mgmt ? '<span class="hist-tag" style="color:#22d3ee;border-color:rgba(34,211,238,.3)">📄 Full report saved</span>' : ''}
-      </div>
-    </div>`;
-  }).join('') + '</div>';
-}
-
-function viewArchiveEntry(i) {
-  const h = getHistory()[i];
-  if (!h) return;
-  currentViewerEntry = h;
-  currentViewerTab   = 'mgmt';
-
-  document.getElementById('viewerTitle').textContent = `Viewing: ${h.week} — ${h.type === 'friday' ? 'Friday Rollup' : 'Monday Kickoff'}`;
-  document.getElementById('reportViewer').style.display = 'block';
-  renderViewerContent();
-  document.getElementById('reportViewer').scrollIntoView({ behavior: 'smooth' });
-}
-
-function switchViewer(tab) {
-  currentViewerTab = tab;
-  document.querySelectorAll('.rv-tab').forEach(t => t.classList.toggle('active', t.textContent.toLowerCase() === tab));
-  renderViewerContent();
-}
-
-function renderViewerContent() {
-  const h   = currentViewerEntry;
-  const el  = document.getElementById('rvContent');
-  if (!h) return;
-
-  if (currentViewerTab === 'chat') {
-    el.innerHTML = `<pre style="white-space:pre-wrap;font-family:'Inter',sans-serif">${h.reports?.chat || 'Not saved'}</pre>`;
-  } else {
-    const content = h.reports?.[currentViewerTab];
-    el.innerHTML  = content ? `<div class="report">${md(content)}</div>` : '<div class="no-data">Report content not available for this entry</div>';
-  }
-}
-
-function clearAllHistory() {
-  if (!confirm('Delete all archived reports? This cannot be undone.')) return;
-  localStorage.removeItem('dn_history');
-  renderArchiveList();
-  renderHistoryTable();
-  toast('All history cleared', 'info');
-}
-
-// ── Team Member Templates ─────────────────────────────────────
-function getMembers() {
-  try { return JSON.parse(localStorage.getItem('dn_members') || '[]'); } catch { return []; }
-}
-
-function saveMembers(members) {
-  localStorage.setItem('dn_members', JSON.stringify(members));
-}
-
-function toggleTemplates() {
-  const v   = document.getElementById('templatesView');
-  const btn = document.getElementById('templatesBtn');
-  const isOpen = !v.classList.contains('open');
-  closeAllViews();
-  v.classList.toggle('open', isOpen);
-  btn.classList.toggle('active', isOpen);
-  if (isOpen) renderMemberCards();
-}
-
-function addMember() {
-  const name = document.getElementById('newMemberName').value.trim();
-  const dept = document.getElementById('newMemberDept').value.trim();
-  if (!name) { toast('Please enter a name', 'err'); return; }
-
-  const members = getMembers();
-  if (members.find(m => m.name.toLowerCase() === name.toLowerCase())) {
-    toast('Member already exists', 'err'); return;
-  }
-
-  members.push({ name, dept: dept || 'General' });
-  saveMembers(members);
-  document.getElementById('newMemberName').value = '';
-  document.getElementById('newMemberDept').value = '';
-  renderMemberCards();
-  toast(`${name} added ✓`, 'ok');
-}
-
-function removeMember(name) {
-  const members = getMembers().filter(m => m.name !== name);
-  saveMembers(members);
-  renderMemberCards();
-  toast(`${name} removed`, 'info');
-}
-
-function getUpdates() {
-  try { return JSON.parse(localStorage.getItem('dn_updates') || '{}'); } catch { return {}; }
-}
-
-function saveUpdate(id, field, value) {
-  const updates = getUpdates();
-  if (!updates[id]) updates[id] = {};
-  updates[id][field] = value;
-  localStorage.setItem('dn_updates', JSON.stringify(updates));
-}
-
-function clearUpdates() {
-  localStorage.removeItem('dn_updates');
-}
-
-function renderMemberCards() {
-  const members = getMembers();
-  const updates = getUpdates();
-  const el      = document.getElementById('memberCards');
-
-  if (members.length === 0) {
-    el.innerHTML = '<div class="no-data" style="grid-column:1/-1">No team members yet — add your first member above!</div>';
-    return;
-  }
-
-  el.innerHTML = members.map(m => {
-    const initials = m.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
-    const id       = m.name.replace(/\s+/g, '_');
-    const u        = updates[id] || {};
-    return `
-    <div class="member-card">
-      <div class="member-card-head">
-        <div class="member-avatar">${initials}</div>
-        <div class="member-info">
-          <div class="member-name">${m.name}</div>
-          <div class="member-dept">${m.dept}</div>
-        </div>
-        <button class="member-del" onclick="removeMember('${m.name}')" title="Remove member">✕</button>
-      </div>
-      <div class="update-field">
-        <label>✅ Completed this week</label>
-        <textarea id="u_${id}_completed"
-          oninput="saveUpdate('${id}','completed',this.value)"
-          placeholder="What did ${m.name.split(' ')[0]} finish?">${u.completed || ''}</textarea>
-      </div>
-      <div class="update-field">
-        <label>🔄 In Progress</label>
-        <textarea id="u_${id}_inprogress"
-          oninput="saveUpdate('${id}','inprogress',this.value)"
-          placeholder="What are they currently working on?">${u.inprogress || ''}</textarea>
-      </div>
-      <div class="update-field">
-        <label>🚧 Blockers / Risks</label>
-        <textarea id="u_${id}_blockers"
-          oninput="saveUpdate('${id}','blockers',this.value)"
-          placeholder="Any blockers? Leave blank if none">${u.blockers || ''}</textarea>
-      </div>
-      <div class="update-field">
-        <label>🏆 Wins / Highlights</label>
-        <textarea id="u_${id}_wins"
-          oninput="saveUpdate('${id}','wins',this.value)"
-          placeholder="Any wins to celebrate?">${u.wins || ''}</textarea>
-      </div>
-    </div>`;
-  }).join('');
-}
-
-function compileUpdates() {
-  const members = getMembers();
-  if (members.length === 0) { toast('No team members added yet', 'err'); return; }
-
-  const updates = getUpdates();
-  const lines = members.map(m => {
-    const id        = m.name.replace(/\s+/g, '_');
-    const u         = updates[id] || {};
-    const completed  = u.completed  || '';
-    const inprogress = u.inprogress || '';
-    const blockers   = u.blockers   || '';
-    const wins       = u.wins       || '';
-
-    if (!completed && !inprogress && !blockers && !wins) return null;
-
-    let text = `${m.name} (${m.dept}):`;
-    if (completed)  text += `\nCompleted: ${completed}`;
-    if (inprogress) text += `\nIn Progress: ${inprogress}`;
-    if (blockers)   text += `\nBlocker: ${blockers}`;
-    if (wins)       text += `\nWin: ${wins}`;
-    return text;
-  }).filter(Boolean);
-
-  if (lines.length === 0) { toast('Please fill in at least one update', 'err'); return; }
-
-  const compiled = lines.join('\n\n');
-  document.getElementById('input').value = compiled;
-  document.getElementById('chars').textContent = compiled.length.toLocaleString() + ' chars';
-
-  toggleTemplates();
-  addLog(`Compiled ${lines.length} member updates ✓`, 'ok');
-  toast(`${lines.length} updates compiled → ready to generate! ✓`, 'ok');
-}
-
-function clearWeeklyUpdates() {
-  if (!confirm('Clear all update fields for this week? Member names stay saved.')) return;
-  clearUpdates();
-  renderMemberCards();
-  toast('Weekly updates cleared ✓', 'info');
-}
-
-// ── Load from Google Chat ─────────────────────────────────────
-async function loadFromChat() {
-  const cfg    = getCfg();
-  const spaces = cfg.spaces || [];
-
-  if (!spaces.length) {
-    toast('Add your Chat Space IDs in ⚙ Config first', 'err');
-    return;
-  }
-
-  const btn = document.getElementById('loadChatBtn');
-  const orig = btn.innerHTML;
-  btn.innerHTML = '<span class="spin" style="border-top-color:#22d3ee"></span> Loading...';
-  btn.disabled  = true;
-
-  try {
-    // Route through Cloudflare Worker to avoid CORS
-    const res  = await fetch(PROXY_URL, {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ action: 'chat_reader', spaces })
-    });
-    const data = await res.json();
-
-    if (!data || !data.length) {
-      toast('No structured data found — make sure team has posted updates this week', 'err');
-      return;
-    }
-
-    const existingMembers = getMembers();
-    const updates = getUpdates();
-
-    data.forEach(person => {
-      if (!person.name) return;
-      if (!existingMembers.find(m => m.name.toLowerCase() === person.name.toLowerCase())) {
-        existingMembers.push({ name: person.name, dept: person.dept || 'General' });
-      }
-      const id = person.name.replace(/\s+/g, '_');
-      updates[id] = {
-        completed:  person.completed  || '',
-        inprogress: person.inProgress || '',
-        blockers:   person.blockers   || '',
-        wins:       person.wins       || '',
-      };
-    });
-
-    saveMembers(existingMembers);
-    localStorage.setItem('dn_updates', JSON.stringify(updates));
-    renderMemberCards();
-
-    addLog(`Loaded ${data.length} member updates from Google Chat ✓`, 'ok');
-    toast(`${data.length} updates loaded from Chat ✓`, 'ok');
-
-  } catch(e) {
-    addLog('Chat load failed: ' + e.message, 'err');
-    toast('Failed to load from Chat: ' + e.message, 'err');
-  } finally {
-    btn.innerHTML = '📥 Load from Chat';
-    btn.disabled  = false;
-  }
-}
-function closeAllViews() {
-  ['dashView','historyView','templatesView'].forEach(id => {
-    document.getElementById(id).classList.remove('open');
-  });
-  ['dashBtn','historyBtn','templatesBtn'].forEach(id => {
-    document.getElementById(id)?.classList.remove('active');
-  });
-}
-
-// ── Onboarding Wizard ─────────────────────────────────────────
-let obMembers = [];
-
-function obCheckFirstTime() {
-  const done = localStorage.getItem('dn_onboarding_done');
-  if (done) document.getElementById('onboarding').classList.add('done');
-}
-
-function obAddMember() {
-  const name = document.getElementById('ob-new-name').value.trim();
-  const dept = document.getElementById('ob-new-dept').value.trim();
-  if (!name) return;
-  obMembers.push({ name, dept: dept || 'General' });
-  document.getElementById('ob-new-name').value = '';
-  document.getElementById('ob-new-dept').value = '';
-  obRenderMembers();
-}
-
-function obRemoveMember(i) {
-  obMembers.splice(i, 1);
-  obRenderMembers();
-}
-
-function obRenderMembers() {
-  const el = document.getElementById('ob-member-list');
-  if (!obMembers.length) {
-    el.innerHTML = '<div style="font-size:11px;color:#475569;text-align:center;padding:10px">No members added yet</div>';
-    return;
-  }
-  el.innerHTML = obMembers.map((m, i) => `
-    <div class="ob-member-row">
-      <div class="ob-member-avatar">${m.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2)}</div>
-      <div style="flex:1">
-        <div class="ob-member-name">${m.name}</div>
-        <div class="ob-member-dept">${m.dept}</div>
-      </div>
-      <button class="ob-member-del" onclick="obRemoveMember(${i})">✕</button>
     </div>`).join('');
 }
 
-function obFinish() {
-  const name = document.getElementById('ob-name').value.trim();
-  if (!name) {
-    document.getElementById('ob-name').style.borderColor = '#f87171';
-    document.getElementById('ob-name').focus();
-    toast('Please enter your name to continue', 'err');
-    return;
+// ── Blockers ──────────────────────────────────────────────────
+async function syncBlockers(dashboard,week) {
+  const members=dashboard?.members||[];
+  members.forEach(m => {
+    (m.blockers||[]).forEach(text => {
+      if(!_blockers.find(b=>b.name===m.name&&b.text===text&&!b.resolved)) {
+        _blockers.unshift({id:Date.now()+Math.random(),name:m.name,dept:m.dept||'',text,week,addedWeek:week,resolved:false,resolvedAt:null});
+      }
+    });
+  });
+  // Auto-resolve if person reported no blockers this week
+  _blockers.forEach(b => {
+    if(b.resolved) return;
+    const mem=members.find(m=>m.name===b.name);
+    if(mem&&!(mem.blockers||[]).includes(b.text)){ b.resolved=true; b.resolvedAt=week; }
+  });
+  await window.fbBlk.save(_blockers);
+}
+async function loadBlockers() { _blockers=await window.fbBlk.get(); }
+function renderBlockers() {
+  const active=_blockers.filter(b=>!b.resolved);
+  const resolved=_blockers.filter(b=>b.resolved).slice(0,5);
+  const el=document.getElementById('bList');
+  let html='';
+  if(!active.length) { html='<div class="nodata" style="color:#34d399;padding:14px">✅ No active blockers — all clear!</div>'; }
+  else {
+    const sorted=[...active].sort((a,b)=>new Date(a._ts||0)-new Date(b._ts||0));
+    html+=sorted.map(b=>{
+      const old=b.addedWeek&&b.addedWeek!==getWeek();
+      return `<div class="brow" style="${old?'background:rgba(248,113,113,.06)':''}">
+        <div style="flex-shrink:0;min-width:130px">
+          <div class="bown">${b.name}</div>
+          <div class="bwk">${b.dept}</div>
+          <div style="font-size:10px;color:#f59e0b;margin-top:2px">Since: ${b.addedWeek||b.week}</div>
+          ${old?'<div style="font-size:10px;color:#f87171;font-weight:600;margin-top:1px">⚠️ Carried over</div>':'<div style="font-size:10px;color:#94a3b8;margin-top:1px">New this week</div>'}
+        </div>
+        <div class="btxt" style="flex:1;padding:0 10px">${b.text}</div>
+        <button onclick="resolveBlk('${b.id}')" style="background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.3);color:#34d399;padding:5px 12px;border-radius:5px;font-size:11px;cursor:pointer;white-space:nowrap;font-weight:600;flex-shrink:0;font-family:'Inter',sans-serif">✓ Resolve</button>
+      </div>`;
+    }).join('');
   }
+  if(resolved.length) {
+    html+=`<div style="margin-top:14px;font-size:10px;color:#34d399;letter-spacing:.5px;text-transform:uppercase;margin-bottom:7px">✓ Recently Resolved</div>`;
+    html+=resolved.map(b=>`<div style="display:flex;align-items:center;gap:10px;padding:7px 12px;border-radius:7px;background:rgba(52,211,153,.04);border:1px solid rgba(52,211,153,.1);margin-bottom:5px;opacity:.6">
+      <div style="flex:1;display:flex;align-items:center;gap:7px">
+        <span style="font-size:12px;font-weight:500;color:#34d399">${b.name}</span>
+        <span style="font-size:11px;color:#475569">${b.text}</span>
+      </div>
+      <span style="font-size:10px;color:#34d399;white-space:nowrap">✓ ${b.resolvedAt||'Resolved'}</span>
+      <button onclick="unresolveBlk('${b.id}')" style="background:transparent;border:1px solid #334155;color:#475569;padding:2px 7px;border-radius:4px;font-size:10px;cursor:pointer;font-family:'Inter',sans-serif">Reopen</button>
+    </div>`).join('');
+  }
+  el.innerHTML=html;
+  const sc=document.getElementById('dBlk'); if(sc) sc.textContent=active.length;
+}
+async function resolveBlk(id) {
+  const b=_blockers.find(b=>String(b.id)===String(id)); if(!b) return;
+  b.resolved=true; b.resolvedAt=getWeek();
+  await window.fbBlk.save(_blockers); renderBlockers(); renderDash();
+  toast('Blocker resolved ✓ — '+b.name,'ok'); addLog('Resolved: '+b.name+' — '+b.text.slice(0,40),'ok');
+}
+async function unresolveBlk(id) {
+  const b=_blockers.find(b=>String(b.id)===String(id)); if(!b) return;
+  b.resolved=false; b.resolvedAt=null;
+  await window.fbBlk.save(_blockers); renderBlockers(); toast('Blocker reopened','info');
+}
 
-  // Save config
-  localStorage.setItem('dn_cfg', JSON.stringify({
-    name:     name,
-    webhook1: document.getElementById('ob-wh1').value.trim(),
-    webhook2: document.getElementById('ob-wh2').value.trim(),
-    webhook3: document.getElementById('ob-wh3').value.trim(),
-    space1:   document.getElementById('ob-space1').value.trim(),
-    space2:   document.getElementById('ob-space2').value.trim(),
-    space3:   document.getElementById('ob-space3').value.trim(),
-    space4:   document.getElementById('ob-space4').value.trim(),
-  }));
+// ── Trends ────────────────────────────────────────────────────
+function renderTrends() {
+  const el=document.getElementById('trendChart');
+  if(_history.length<2){el.innerHTML='<div class="nodata">Trends appear after 2+ weeks</div>';return;}
+  const maxB=Math.max(..._history.map(h=>h.dashboard?.summary?.totalBlockers||0),1);
+  const maxW=Math.max(..._history.map(h=>h.dashboard?.summary?.totalWins||0),1);
+  el.innerHTML=_history.slice(0,6).reverse().map(h=>{
+    const b=h.dashboard?.summary?.totalBlockers||0, w=h.dashboard?.summary?.totalWins||0, rag=h.dashboard?.summary?.overallRAG||'G';
+    return `<div style="margin-bottom:12px">
+      <div style="display:flex;align-items:center;gap:7px;margin-bottom:5px">
+        <span class="rpill ${rag}">${rag}</span>
+        <span style="font-size:12px;color:#94a3b8">${h.week}</span>
+      </div>
+      <div class="tbar"><span class="tlabel">Blockers</span><div class="tbg"><div class="tbar-fill bl" style="width:${(b/maxB)*100}%"></div></div><span class="tval">${b}</span></div>
+      <div class="tbar"><span class="tlabel">Wins</span><div class="tbg"><div class="tbar-fill wn" style="width:${(w/maxW)*100}%"></div></div><span class="tval">${w}</span></div>
+    </div>`;
+  }).join('');
+}
 
-  // Save team members
-  if (obMembers.length) saveMembers(obMembers);
+// ── History table ─────────────────────────────────────────────
+function renderHistTable() {
+  const tb=document.getElementById('histBody');
+  if(!_history.length){tb.innerHTML='<tr><td colspan="8" class="nodata">No history yet</td></tr>';return;}
+  tb.innerHTML=_history.map((h,i)=>{
+    const s=h.dashboard?.summary||{}, rag=s.overallRAG||'G';
+    return `<tr>
+      <td style="color:#f1f5f9;font-weight:500">${h.week}</td>
+      <td><span style="font-size:10px;color:#64748b;text-transform:uppercase">${h.type}</span></td>
+      <td>${s.totalMembers||'—'}</td>
+      <td><span class="rpill ${rag}">${{G:'🟢 On Track',A:'🟡 At Risk',R:'🔴 Blocked'}[rag]||rag}</span></td>
+      <td style="color:#f87171">${s.totalBlockers||0}</td>
+      <td style="color:#34d399">${s.totalWins||0}</td>
+      <td style="font-size:10px;color:#475569">${h.owner||''}</td>
+      <td>
+        <button onclick="viewHistDash(${i})" style="background:transparent;border:1px solid #334155;color:#64748b;padding:3px 8px;border-radius:4px;font-size:10px;cursor:pointer">View</button>
+        <button onclick="delHist('${h.id}')" style="background:transparent;border:none;color:#475569;padding:3px 5px;font-size:10px;cursor:pointer">✕</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+function viewHistDash(i) {
+  const h=_history[i]; if(!h) return;
+  renderRAGGrid(h.dashboard?.members||[]);
+  document.getElementById('dagTitle').textContent='Team RAG Status — '+h.week;
+  document.getElementById('dashSub').textContent='Showing: '+h.week+' (history)';
+}
 
-  // Mark done and close
-  localStorage.setItem('dn_onboarding_done', 'true');
-  document.getElementById('onboarding').classList.add('done');
-  loadCfg();
-  renderMemberCards();
-  addLog('Setup complete — welcome! 🎉', 'ok');
-  toast('Welcome! You\'re all set 🎉', 'ok');
+// ── Views toggle ──────────────────────────────────────────────
+function closeAll() {
+  ['dashView','histView','teamView'].forEach(id=>{ document.getElementById(id).classList.remove('open'); });
+  ['dashBtn','histBtn','teamBtn'].forEach(id=>{ document.getElementById(id)?.classList.remove('on'); });
+}
+async function toggleDash() {
+  const isOpen=!document.getElementById('dashView').classList.contains('open');
+  closeAll();
+  if(isOpen) {
+    document.getElementById('dashView').classList.add('open');
+    document.getElementById('dashBtn').classList.add('on');
+    await loadHistData(); await loadBlockers();
+    fillWkFilter(); renderDash();
+  }
+}
+async function toggleHist() {
+  const isOpen=!document.getElementById('histView').classList.contains('open');
+  closeAll();
+  if(isOpen) {
+    document.getElementById('histView').classList.add('open');
+    document.getElementById('histBtn').classList.add('on');
+    await loadHistData(); renderHistList();
+  }
+}
+function toggleTeam() {
+  const isOpen=!document.getElementById('teamView').classList.contains('open');
+  closeAll();
+  if(isOpen) { document.getElementById('teamView').classList.add('open'); document.getElementById('teamBtn').classList.add('on'); renderMCards(); }
+}
+
+// ── Utilities ─────────────────────────────────────────────────
+function getWeek() {
+  const n=new Date(), day=n.getDay(), mon=new Date(n); mon.setDate(n.getDate()-((day+6)%7));
+  const fri=new Date(mon); fri.setDate(mon.getDate()+4);
+  const fmt=d=>d.toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+  return fmt(mon)+' – '+fmt(fri)+', '+fri.getFullYear();
+}
+
+function md(html) {
+  if(!html) return '';
+  return html.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\*(.*?)\*/g,'<em>$1</em>');
+}
+
+function htmlToPlain(html) {
+  if(!html) return '';
+  return html.replace(/<br\s*\/?>/gi,'\n').replace(/<\/p>/gi,'\n\n').replace(/<\/h[1-6]>/gi,'\n\n')
+    .replace(/<\/li>/gi,'\n').replace(/<li>/gi,'• ').replace(/<[^>]+>/g,'')
+    .replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&nbsp;/g,' ')
+    .replace(/\n{3,}/g,'\n\n').trim();
+}
+
+const delay = ms => new Promise(r => setTimeout(r,ms));
+
+let logCount=0;
+function addLog(msg,type='info') {
+  logCount++;
+  document.getElementById('logCnt').textContent=logCount+' events';
+  const el=document.getElementById('logE');
+  const now=new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  const row=document.createElement('div'); row.className='logr';
+  row.innerHTML=`<span class="logt">${now}</span><span class="logm ${type}">${msg}</span>`;
+  el.insertBefore(row,el.firstChild);
+  if(!document.getElementById('log').classList.contains('open')) document.getElementById('log').classList.add('open');
+}
+
+let toastTm;
+function toast(msg,type='info') {
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.className='show '+type;
+  clearTimeout(toastTm); toastTm=setTimeout(()=>el.className='',3000);
 }
 
 // ── Init ──────────────────────────────────────────────────────
 document.getElementById('input').addEventListener('input', function() {
-  document.getElementById('chars').textContent = this.value.length.toLocaleString() + ' chars';
+  document.getElementById('chars').textContent=this.value.length.toLocaleString()+' chars';
 });
-
-// Add shake animation
-const style = document.createElement('style');
-style.textContent = '@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}';
-document.head.appendChild(style);
-
-obCheckFirstTime();
-loadCfg();
-renderTab();
-addLog('DN Status Rollup ready', 'info');
 </script>
 </body>
 </html>
