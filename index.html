@@ -29,6 +29,7 @@ const db     = getFirestore(fbApp);
 const gprov  = new GoogleAuthProvider();
 gprov.setCustomParameters({ hd: 'datanimbus.com' });
 gprov.addScope('https://www.googleapis.com/auth/gmail.send');
+gprov.addScope('https://www.googleapis.com/auth/spreadsheets.readonly');
 
 // Auth state listener
 onAuthStateChanged(auth, user => {
@@ -916,19 +917,64 @@ async function sendChat() {
 }
 
 // ── Load from Chat ─────────────────────────────────────────────
-const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSjeyMCsgfBTjVM4x6QeFpAc2ta5fZkKbTHK9D5RLcSBD4eqFvXVHvdFBj1wF9xL6eYbKXxPqWSNKnz/pub?gid=559813449&single=true&output=csv';
+const SHEET_ID = '1avw1fBsRRIbwLbuVH89yfW7Ra6hDgqpN5GMF_IN5qvY';
 
 async function loadFromChat() {
   const btns=['loadChatBtn','lcBtnMain'].map(id=>document.getElementById(id)).filter(Boolean);
   btns.forEach(b=>{b.innerHTML='<span class="spin"></span> Loading...';b.disabled=true;});
   try {
-    // Route through Cloudflare to avoid CORS
-    const res  = await fetch(PROXY, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'fetch_sheet', url: SHEET_CSV_URL })
+    const token = window._accessToken;
+    if (!token) { toast('Sign out and sign in again to refresh permissions','err'); return; }
+
+    // Read Structured Updates sheet via Sheets API
+    const range    = 'Structured Updates!A1:H100';
+    const url      = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(range)}`;
+    const res      = await fetch(url, { headers: { Authorization: 'Bearer ' + token } });
+    const json     = await res.json();
+
+    if (json.error) throw new Error(json.error.message);
+
+    const rows    = json.values || [];
+    if (rows.length < 2) { toast('No data in Structured Updates sheet yet — run GAS testRun() first','err'); return; }
+
+    const headers = rows[0].map(h => h.toLowerCase().trim());
+    const nameIdx = headers.findIndex(h => h.includes('name'));
+    const deptIdx = headers.findIndex(h => h.includes('dept'));
+    const compIdx = headers.findIndex(h => h.includes('complet'));
+    const progIdx = headers.findIndex(h => h.includes('progress'));
+    const blkIdx  = headers.findIndex(h => h.includes('block'));
+    const winIdx  = headers.findIndex(h => h.includes('win'));
+
+    const dataRows = rows.slice(1).filter(r => r[nameIdx]);
+    if (!dataRows.length) { toast('No member data found in sheet','err'); return; }
+
+    dataRows.forEach(r => {
+      const name = r[nameIdx]; if (!name) return;
+      if (!_members.find(m => m.name.toLowerCase() === name.toLowerCase())) {
+        _members.push({ name, dept: r[deptIdx] || 'General' });
+      }
+      const id = name.replace(/\s+/g,'_');
+      _updates[id] = {
+        completed:  compIdx >= 0 ? (r[compIdx]||'') : '',
+        inprogress: progIdx >= 0 ? (r[progIdx]||'') : '',
+        blockers:   blkIdx  >= 0 ? (r[blkIdx] ||'') : '',
+        wins:       winIdx  >= 0 ? (r[winIdx]  ||'') : '',
+      };
     });
-    const text = await res.text();
+
+    await window.fbMem.save(_members);
+    await window.fbUpd.save(_updates);
+    renderMCards();
+    addLog('Loaded '+dataRows.length+' updates from Sheet ✓','ok');
+    toast(dataRows.length+' updates loaded ✓','ok');
+
+  } catch(e) {
+    addLog('Load failed: '+e.message,'err');
+    toast('Load failed: '+e.message,'err');
+  } finally {
+    btns.forEach(b=>{b.innerHTML=b.id==='loadChatBtn'?'📥 Load Now':'📥 Load from Chat';b.disabled=false;});
+  }
+}
 
     if (!text || text.trim().startsWith('<!')) {
       toast('Sheet not accessible — check it is published','err'); return;
