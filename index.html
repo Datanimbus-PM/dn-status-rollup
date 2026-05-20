@@ -757,29 +757,34 @@ async function sendViaGmail(to, subject, htmlBody) {
   const sender   = _cfg.name || window._user.displayName || 'DN Status Rollup';
   const boundary = 'DN_BOUNDARY_' + Date.now();
 
+  // Encode subject for UTF-8
+  const encSubject = '=?UTF-8?B?' + btoa(unescape(encodeURIComponent(subject))) + '?=';
+
   // Build MIME message with HTML
   const mime = [
     `From: ${sender} <${from}>`,
     `To: ${to}`,
-    `Subject: ${subject}`,
+    `Subject: ${encSubject}`,
     `MIME-Version: 1.0`,
     `Content-Type: multipart/alternative; boundary="${boundary}"`,
     ``,
     `--${boundary}`,
     `Content-Type: text/plain; charset=UTF-8`,
+    `Content-Transfer-Encoding: base64`,
     ``,
-    htmlToPlain(htmlBody),
+    btoa(unescape(encodeURIComponent(htmlToPlain(htmlBody)))),
     ``,
     `--${boundary}`,
     `Content-Type: text/html; charset=UTF-8`,
+    `Content-Transfer-Encoding: base64`,
     ``,
-    wrapEmailHtml(htmlBody, subject, sender),
+    btoa(unescape(encodeURIComponent(wrapEmailHtml(htmlBody, subject, sender)))),
     ``,
     `--${boundary}--`
   ].join('\r\n');
 
-  // Base64 encode
-  const encoded = btoa(unescape(encodeURIComponent(mime)))
+  // Base64url encode
+  const encoded = btoa(Array.from(new TextEncoder().encode(mime)).map(b=>String.fromCharCode(b)).join(''))
     .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 
   const res = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
@@ -919,7 +924,8 @@ async function loadFromChat() {
   try {
     const res=await fetch(PROXY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'chat_reader',spaces})});
     const data=await res.json();
-    if(!data||!data.length) { toast('No updates found this week','err'); return; }
+    if(data.error) { toast('Chat Reader: '+data.error,'err'); addLog('Chat Reader error: '+data.error,'err'); return; }
+    if(!data||!data.length) { toast('No updates found this week in your Chat spaces','err'); return; }
     data.forEach(p => {
       if(!p.name) return;
       if(!_members.find(m=>m.name.toLowerCase()===p.name.toLowerCase())) _members.push({name:p.name,dept:p.dept||'General'});
@@ -1248,7 +1254,7 @@ function getWeek() {
   const n=new Date(), day=n.getDay(), mon=new Date(n); mon.setDate(n.getDate()-((day+6)%7));
   const fri=new Date(mon); fri.setDate(mon.getDate()+4);
   const fmt=d=>d.toLocaleDateString('en-GB',{day:'numeric',month:'short'});
-  return fmt(mon)+' – '+fmt(fri)+', '+fri.getFullYear();
+  return fmt(mon)+' - '+fmt(fri)+' '+fri.getFullYear();
 }
 
 function md(html) {
