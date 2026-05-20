@@ -916,26 +916,71 @@ async function sendChat() {
 }
 
 // ── Load from Chat ─────────────────────────────────────────────
+const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSjeyMCsgfBTjVM4x6QeFpAc2ta5fZkKbTHK9D5RLcSBD4eqFvXVHvdFBj1wF9xL6eYbKXxPqWSNKnz/pub?gid=946903869&single=true&output=csv';
+
 async function loadFromChat() {
-  const cfg=getCfg(), spaces=cfg.spaces;
-  if(!spaces.length) { toast('Add Space IDs in ⚙ Config','err'); return; }
   const btns=['loadChatBtn','lcBtnMain'].map(id=>document.getElementById(id)).filter(Boolean);
   btns.forEach(b=>{b.innerHTML='<span class="spin"></span> Loading...';b.disabled=true;});
   try {
-    const res=await fetch(PROXY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'chat_reader',spaces})});
-    const data=await res.json();
-    if(data.error) { toast('Chat Reader: '+data.error,'err'); addLog('Chat Reader error: '+data.error,'err'); return; }
-    if(!data||!data.length) { toast('No updates found this week in your Chat spaces','err'); return; }
-    data.forEach(p => {
-      if(!p.name) return;
-      if(!_members.find(m=>m.name.toLowerCase()===p.name.toLowerCase())) _members.push({name:p.name,dept:p.dept||'General'});
-      const id=p.name.replace(/\s+/g,'_');
-      _updates[id]={completed:p.completed||'',inprogress:p.inProgress||'',blockers:p.blockers||'',wins:p.wins||''};
+    // Fetch CSV directly from published Google Sheet — no auth needed
+    const res  = await fetch(SHEET_CSV_URL);
+    const text = await res.text();
+
+    if (!text || text.trim().startsWith('<!')) {
+      toast('Sheet not accessible — check it is published','err'); return;
+    }
+
+    // Parse CSV
+    const rows = text.trim().split('\n').map(r => r.split(',').map(c => c.replace(/^"|"$/g,'').trim()));
+    const headers = rows[0].map(h => h.toLowerCase());
+
+    // Get column indexes
+    const wkIdx   = headers.findIndex(h => h.includes('week'));
+    const nameIdx = headers.findIndex(h => h.includes('name'));
+    const deptIdx = headers.findIndex(h => h.includes('dept'));
+    const compIdx = headers.findIndex(h => h.includes('complet'));
+    const progIdx = headers.findIndex(h => h.includes('progress') || h.includes('prog'));
+    const blkIdx  = headers.findIndex(h => h.includes('block'));
+    const winIdx  = headers.findIndex(h => h.includes('win'));
+
+    // Get this week's label
+    const weekLabel = getWeek();
+
+    // Filter to this week's data
+    const thisWeek = rows.slice(1).filter(r => r[wkIdx] && r[wkIdx].toLowerCase().includes(weekLabel.split(' ')[0].toLowerCase()));
+
+    // If no data for this week use all rows
+    const dataRows = thisWeek.length ? thisWeek : rows.slice(1).filter(r => r[nameIdx]);
+
+    if (!dataRows.length) { toast('No updates found in Sheet this week','err'); return; }
+
+    // Populate members and updates
+    dataRows.forEach(r => {
+      const name = r[nameIdx]; if (!name) return;
+      if (!_members.find(m => m.name.toLowerCase() === name.toLowerCase())) {
+        _members.push({ name, dept: r[deptIdx] || 'General' });
+      }
+      const id = name.replace(/\s+/g,'_');
+      _updates[id] = {
+        completed:  compIdx >= 0 ? r[compIdx] || '' : '',
+        inprogress: progIdx >= 0 ? r[progIdx] || '' : '',
+        blockers:   blkIdx  >= 0 ? r[blkIdx]  || '' : '',
+        wins:       winIdx  >= 0 ? r[winIdx]   || '' : '',
+      };
     });
-    await window.fbMem.save(_members); await window.fbUpd.save(_updates);
-    renderMCards(); addLog('Loaded '+data.length+' updates from Chat ✓','ok'); toast(data.length+' updates loaded ✓','ok');
-  } catch(e) { addLog('Chat load failed: '+e.message,'err'); toast('Chat load failed','err'); }
-  finally { btns.forEach(b=>{b.innerHTML=b.id==='loadChatBtn'?'📥 Load Now':'📥 Load from Chat';b.disabled=false;}); }
+
+    await window.fbMem.save(_members);
+    await window.fbUpd.save(_updates);
+    renderMCards();
+    addLog('Loaded '+dataRows.length+' updates from Sheet ✓','ok');
+    toast(dataRows.length+' updates loaded ✓','ok');
+
+  } catch(e) {
+    addLog('Load failed: '+e.message,'err');
+    toast('Load failed: '+e.message,'err');
+  } finally {
+    btns.forEach(b=>{b.innerHTML=b.id==='loadChatBtn'?'📥 Load Now':'📥 Load from Chat';b.disabled=false;});
+  }
 }
 
 // ── Team members ──────────────────────────────────────────────
