@@ -922,8 +922,12 @@ async function loadFromChat() {
   const btns=['loadChatBtn','lcBtnMain'].map(id=>document.getElementById(id)).filter(Boolean);
   btns.forEach(b=>{b.innerHTML='<span class="spin"></span> Loading...';b.disabled=true;});
   try {
-    // Fetch CSV directly from published Google Sheet — no auth needed
-    const res  = await fetch(SHEET_CSV_URL);
+    // Route through Cloudflare to avoid CORS
+    const res  = await fetch(PROXY, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'fetch_sheet', url: SHEET_CSV_URL })
+    });
     const text = await res.text();
 
     if (!text || text.trim().startsWith('<!')) {
