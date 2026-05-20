@@ -28,6 +28,7 @@ const auth   = getAuth(fbApp);
 const db     = getFirestore(fbApp);
 const gprov  = new GoogleAuthProvider();
 gprov.setCustomParameters({ hd: 'datanimbus.com' });
+gprov.addScope('https://www.googleapis.com/auth/gmail.send');
 
 // Auth state listener
 onAuthStateChanged(auth, user => {
@@ -56,7 +57,9 @@ onAuthStateChanged(auth, user => {
 window.doSignIn = async () => {
   try {
     document.getElementById('loginBtn').textContent = 'Signing in...';
-    await signInWithPopup(auth, gprov);
+    const result = await signInWithPopup(auth, gprov);
+    const credential = GoogleAuthProvider.credentialFromResult(result);
+    window._accessToken = credential.accessToken; // store for Gmail API
   } catch(e) {
     document.getElementById('loginBtn').textContent = 'Sign in with Google';
     document.getElementById('authErr').textContent = e.message;
@@ -571,7 +574,7 @@ textarea::placeholder{color:#334155}
         <input class="mi" id="emSubj"/>
       </div>
     </div>
-    <div class="mfoot"><button class="bcancel" onclick="closeEM()">Cancel</button><button class="bgo" onclick="confirmEM()">✉️ Open in Gmail</button></div>
+    <div class="mfoot"><button class="bcancel" onclick="closeEM()">Cancel</button><button class="bgo" onclick="confirmEM()">📧 Send Email</button></div>
   </div>
 </div>
 
@@ -745,8 +748,70 @@ RAG: G=on track, A=at risk, R=blocked.`;
   btn.disabled=false; btn.innerHTML='⚡ Generate All Reports';
 }
 
+// ── Gmail API direct send ─────────────────────────────────────
+async function sendViaGmail(to, subject, htmlBody) {
+  const token = window._accessToken;
+  if (!token) throw new Error('Not authenticated — please sign out and sign in again');
+
+  const from     = window._user.email;
+  const sender   = _cfg.name || window._user.displayName || 'DN Status Rollup';
+  const boundary = 'DN_BOUNDARY_' + Date.now();
+
+  // Build MIME message with HTML
+  const mime = [
+    `From: ${sender} <${from}>`,
+    `To: ${to}`,
+    `Subject: ${subject}`,
+    `MIME-Version: 1.0`,
+    `Content-Type: multipart/alternative; boundary="${boundary}"`,
+    ``,
+    `--${boundary}`,
+    `Content-Type: text/plain; charset=UTF-8`,
+    ``,
+    htmlToPlain(htmlBody),
+    ``,
+    `--${boundary}`,
+    `Content-Type: text/html; charset=UTF-8`,
+    ``,
+    wrapEmailHtml(htmlBody, subject, sender),
+    ``,
+    `--${boundary}--`
+  ].join('\r\n');
+
+  // Base64 encode
+  const encoded = btoa(unescape(encodeURIComponent(mime)))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+
+  const res = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
+    method:  'POST',
+    headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+    body:    JSON.stringify({ raw: encoded })
+  });
+
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.error?.message || 'Gmail API error ' + res.status);
+  }
+  return await res.json();
+}
+
+function wrapEmailHtml(body, subject, sender) {
+  return `<!DOCTYPE html><html><body style="margin:0;padding:0;font-family:'Segoe UI',Arial,sans-serif;background:#f4f6f9">
+  <div style="max-width:680px;margin:24px auto;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.08)">
+    <div style="background:linear-gradient(135deg,#0f172a,#1e3a5f);padding:22px 28px">
+      <div style="font-size:11px;color:rgba(255,255,255,.5);letter-spacing:1px;text-transform:uppercase;margin-bottom:5px">Datanimbus · Program Update</div>
+      <div style="color:#fff;font-size:19px;font-weight:700">${subject}</div>
+    </div>
+    <div style="padding:24px 28px;font-size:14px;line-height:1.8;color:#333">${body}</div>
+    <div style="background:#f8fafc;padding:12px 28px;border-top:1px solid #e8edf2;font-size:11px;color:#aaa;text-align:center">
+      Sent by ${sender} · DN Status Rollup
+    </div>
+  </div></body></html>`;
+}
+
 // ── Email ─────────────────────────────────────────────────────
 const EM = { mgmt:{label:'Management',fri:'Weekly Status Report',mon:'Week Kickoff — Management'}, client:{label:'Client',fri:'Weekly Progress Update',mon:'Week Ahead'}, team:{label:'Team',fri:'🎉 End-of-Week Rollup',mon:'🚀 Week Kickoff'} };
+
 function sendEmail(type) {
   if(!reports[type]) { toast('Generate first','err'); return; }
   _emType=type;
@@ -758,14 +823,33 @@ function sendEmail(type) {
   setTimeout(()=>document.getElementById('emTo').focus(),100);
 }
 function closeEM() { document.getElementById('emailModal').classList.remove('open'); _emType=null; }
-function confirmEM() {
+
+async function confirmEM() {
   const to=v('emTo'), subj=v('emSubj');
   if(!to) { toast('Enter an email address','err'); return; }
-  const body=htmlToPlain(_edits[_emType]||reports[_emType]);
-  window.open('https://mail.google.com/mail/?view=cm&fs=1&to='+encodeURIComponent(to)+'&su='+encodeURIComponent(subj)+'&body='+encodeURIComponent(body),'_blank');
-  closeEM();
-  const b=document.getElementById('s-'+_emType); b.innerHTML='✓ Opened'; b.className+=' sent';
-  addLog('Gmail opened → '+EM[_emType].label,'ok'); toast('Gmail opened ✓','ok');
+
+  const sendBtn = document.querySelector('#emailModal .bgo');
+  sendBtn.innerHTML = '<span class="spin"></span> Sending...';
+  sendBtn.disabled  = true;
+
+  try {
+    const content = _edits[_emType] || reports[_emType];
+    // Send to each recipient
+    const recipients = to.split(',').map(e=>e.trim()).filter(Boolean);
+    for (const recipient of recipients) {
+      await sendViaGmail(recipient, subj, content);
+    }
+    closeEM();
+    const b=document.getElementById('s-'+_emType); b.innerHTML='✓ Sent'; b.className+=' sent';
+    addLog('Email sent → '+EM[_emType].label+' ('+to+') ✓','ok');
+    toast('Email sent to '+to+' ✓','ok');
+  } catch(e) {
+    addLog('Email failed: '+e.message,'err');
+    toast('Failed: '+e.message,'err');
+  } finally {
+    sendBtn.innerHTML = '📧 Send Email';
+    sendBtn.disabled  = false;
+  }
 }
 
 // ── Send all ──────────────────────────────────────────────────
@@ -777,19 +861,42 @@ function sendAll() {
   setTimeout(()=>document.getElementById('saM').focus(),100);
 }
 function closeSA() { document.getElementById('saModal').classList.remove('open'); }
-function confirmSA() {
+async function confirmSA() {
   const es=[{t:'mgmt',to:v('saM')},{t:'client',to:v('saCl')},{t:'team',to:v('saTm')}];
   if(!es.some(e=>e.to)) { toast('Enter at least one email','err'); return; }
   localStorage.setItem('dn_sa',JSON.stringify({m:v('saM'),c:v('saCl'),t:v('saTm')}));
-  const isFri=mode==='friday', wk=getWeek(); let opened=0;
-  es.forEach(({t,to},i) => {
-    if(!to||!reports[t]) return;
+
+  const sendBtn = document.querySelector('#saModal .bgo');
+  sendBtn.innerHTML = '<span class="spin"></span> Sending...';
+  sendBtn.disabled  = true;
+
+  const isFri=mode==='friday', wk=getWeek();
+  let sent=0, failed=0;
+
+  for(const {t,to} of es) {
+    if(!to||!reports[t]) continue;
     const m=EM[t], subj='['+((_cfg.project||'DN')+' '+wk)+'] '+(isFri?m.fri:m.mon);
-    setTimeout(()=>window.open('https://mail.google.com/mail/?view=cm&fs=1&to='+encodeURIComponent(to)+'&su='+encodeURIComponent(subj)+'&body='+encodeURIComponent(htmlToPlain(_edits[t]||reports[t])),'_blank'),i*600);
-    const b=document.getElementById('s-'+t); b.innerHTML='✓ Opened'; b.className+=' sent';
-    addLog('Gmail → '+m.label+' ✓','ok'); opened++;
-  });
-  sendChat(); closeSA(); toast(opened+' Gmail window'+(opened>1?'s':'')+' opening + Chat 🎉','ok');
+    const content=_edits[t]||reports[t];
+    const recipients=to.split(',').map(e=>e.trim()).filter(Boolean);
+    try {
+      for(const r of recipients) await sendViaGmail(r, subj, content);
+      const b=document.getElementById('s-'+t); b.innerHTML='✓ Sent'; b.className+=' sent';
+      addLog('Email → '+m.label+' ✓','ok');
+      sent++;
+    } catch(e) {
+      addLog('Email → '+m.label+' FAILED: '+e.message,'err');
+      failed++;
+    }
+  }
+
+  sendChat();
+  closeSA();
+
+  sendBtn.innerHTML = '🚀 Open Gmail + Chat';
+  sendBtn.disabled  = false;
+
+  if(failed>0) toast(sent+' sent, '+failed+' failed — check log','err');
+  else toast(sent+' email'+(sent>1?'s':'')+' sent + Chat posted 🎉','ok');
 }
 
 // ── Chat ──────────────────────────────────────────────────────
