@@ -30,6 +30,7 @@ const gprov  = new GoogleAuthProvider();
 gprov.setCustomParameters({ hd: 'datanimbus.com' });
 gprov.addScope('https://www.googleapis.com/auth/gmail.send');
 gprov.addScope('https://www.googleapis.com/auth/spreadsheets.readonly');
+gprov.addScope('https://www.googleapis.com/auth/chat.messages.readonly');
 
 // Auth state listener
 onAuthStateChanged(auth, user => {
@@ -899,81 +900,160 @@ async function sendChat() {
   b.innerHTML='✓ Sent to '+n; b.className+=' sent'; toast('Chat sent to '+n+' space'+(n>1?'s':'')+' ✓','ok');
 }
 
-// ── Load from Chat (Google Sheets API) ────────────────────────
-const SHEET_ID = '1avw1fBsRRIbwLbuVH89yfW7Ra6hDgqpN5GMF_IN5qvY';
-
+// ── Load from Chat — calls Google Chat API directly ───────────
 async function loadFromChat() {
-  const btns=['loadChatBtn','lcBtnMain'].map(id=>document.getElementById(id)).filter(Boolean);
+  const btns = ['loadChatBtn','lcBtnMain'].map(id=>document.getElementById(id)).filter(Boolean);
   btns.forEach(b=>{b.innerHTML='<span class="spin"></span> Loading...';b.disabled=true;});
   try {
     const token = window._accessToken;
-    if (!token) { toast('Sign out and sign in again to refresh permissions','err'); return; }
+    if (!token) { toast('Sign out and sign in again to get Chat permissions','err'); return; }
 
-    const range = 'Structured Updates!A1:H100';
-    const url   = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(range)}`;
-    const res   = await fetch(url, { headers: { Authorization: 'Bearer ' + token } });
-    const json  = await res.json();
+    const cfg    = getCfg();
+    const spaces = cfg.spaces;
+    if (!spaces.length) { toast('Add Space IDs in ⚙ Config first','err'); return; }
 
-    if (json.error) throw new Error(json.error.message);
+    addLog('Fetching from ' + spaces.length + ' Chat space(s)...','info');
 
-    const rows    = json.values || [];
-    if (rows.length < 2) { toast('No data in Structured Updates sheet yet — run GAS testRun() first','err'); return; }
+    // Fetch messages from all configured spaces
+    const since = new Date();
+    since.setDate(since.getDate() - 7);
+    const sinceStr = since.toISOString();
 
-    const headers = rows[0].map(h => h.toLowerCase().trim());
-    const nameIdx = headers.findIndex(h => h.includes('name'));
-    const deptIdx = headers.findIndex(h => h.includes('dept'));
-    const compIdx = headers.findIndex(h => h.includes('complet'));
-    const progIdx = headers.findIndex(h => h.includes('progress'));
-    const blkIdx  = headers.findIndex(h => h.includes('block'));
-    const winIdx  = headers.findIndex(h => h.includes('win'));
+    const allMessages = [];
+    for (const spaceId of spaces) {
+      try {
+        let pageToken = null;
+        do {
+          let url = `https://chat.googleapis.com/v1/spaces/${spaceId}/messages?pageSize=100`;
+          if (pageToken) url += '&pageToken=' + encodeURIComponent(pageToken);
+          const res  = await fetch(url, { headers: { Authorization: 'Bearer ' + token } });
+          const data = await res.json();
+          if (data.error) { addLog('Space '+spaceId+': '+data.error.message,'err'); break; }
+          for (const m of (data.messages||[])) {
+            if ((m.createTime||'') < sinceStr) continue;
+            const text = (m.text||'').trim();
+            if (text.length < 10) continue;
+            allMessages.push({ sender: m.sender?.displayName||'Unknown', text });
+          }
+          pageToken = data.nextPageToken || null;
+        } while (pageToken);
+        addLog('Space ' + spaceId + ' ✓','ok');
+      } catch(e) { addLog('Space '+spaceId+' failed: '+e.message,'err'); }
+    }
 
-    const dataRows = rows.slice(1).filter(r => r[nameIdx]);
-    if (!dataRows.length) { toast('No member data found in sheet','err'); return; }
+    if (!allMessages.length) { toast('No messages found in the last 7 days','err'); return; }
 
-    dataRows.forEach(r => {
-      const name = r[nameIdx]; if (!name) return;
-      if (!_members.find(m => m.name.toLowerCase() === name.toLowerCase())) {
-        _members.push({ name, dept: r[deptIdx] || 'General' });
+    // Parse messages in-browser — no external API needed
+    const byPerson = {};
+    for (const msg of allMessages) {
+      const blocks = splitChatBlocks(msg.text, msg.sender);
+      for (const b of blocks) {
+        const key = b.name.toLowerCase().trim();
+        if (!byPerson[key]) byPerson[key] = { name: b.name, dept: b.dept, texts: [] };
+        byPerson[key].texts.push(b.text);
       }
-      const id = name.replace(/\s+/g,'_');
-      _updates[id] = {
-        completed:  compIdx >= 0 ? (r[compIdx]||'') : '',
-        inprogress: progIdx >= 0 ? (r[progIdx]||'') : '',
-        blockers:   blkIdx  >= 0 ? (r[blkIdx] ||'') : '',
-        wins:       winIdx  >= 0 ? (r[winIdx]  ||'') : '',
-      };
+    }
+
+    const parsed = Object.values(byPerson).map(p => {
+      const combined = p.texts.join('\n');
+      const f = extractChatFields(combined);
+      return { name: p.name, dept: p.dept||'General', ...f };
     });
+
+    if (!parsed.length) { toast('Could not parse any member updates','err'); return; }
+
+    // Merge into members + updates state
+    for (const p of parsed) {
+      if (!_members.find(m => m.name.toLowerCase() === p.name.toLowerCase())) {
+        _members.push({ name: p.name, dept: p.dept });
+      }
+      const id = p.name.replace(/\s+/g,'_');
+      _updates[id] = { completed: p.completed, inprogress: p.inprogress, blockers: p.blockers, wins: p.wins };
+    }
 
     await window.fbMem.save(_members);
     await window.fbUpd.save(_updates);
     renderMCards();
 
-    // Auto-compile into main textarea so user can generate immediately
-    const lines = _members.map(m => {
-      const id = m.name.replace(/\s+/g,'_'), u = _updates[id]||{};
-      if(!u.completed && !u.inprogress && !u.blockers && !u.wins) return null;
-      let t = `${m.name} (${m.dept}):`;
-      if(u.completed)  t += '\nCompleted: '   + u.completed;
-      if(u.inprogress) t += '\nIn Progress: ' + u.inprogress;
-      if(u.blockers)   t += '\nBlocker: '     + u.blockers;
-      if(u.wins)       t += '\nWin: '         + u.wins;
+    // Auto-compile into the main textarea
+    const lines = parsed.map(p => {
+      const u = p;
+      if (!u.completed && !u.inprogress && !u.blockers && !u.wins) return null;
+      let t = `${p.name} (${p.dept}):`;
+      if (u.completed)  t += '\nCompleted: '   + u.completed;
+      if (u.inprogress) t += '\nIn Progress: ' + u.inprogress;
+      if (u.blockers)   t += '\nBlocker: '     + u.blockers;
+      if (u.wins)       t += '\nWin: '         + u.wins;
       return t;
     }).filter(Boolean);
-    if(lines.length) {
+
+    if (lines.length) {
       const compiled = lines.join('\n\n');
       sv('input', compiled);
       document.getElementById('chars').textContent = compiled.length.toLocaleString() + ' chars';
     }
 
-    addLog('Loaded '+dataRows.length+' updates from Sheet ✓','ok');
-    toast(dataRows.length+' updates loaded — click ⚡ Generate All Reports!','ok');
+    addLog('Loaded ' + parsed.length + ' members from Chat ✓','ok');
+    toast(parsed.length + ' members loaded — click ⚡ Generate All Reports!','ok');
 
   } catch(e) {
-    addLog('Load failed: '+e.message,'err');
-    toast('Load failed: '+e.message,'err');
+    addLog('Load failed: ' + e.message,'err');
+    toast('Load failed: ' + e.message,'err');
   } finally {
     btns.forEach(b=>{b.innerHTML=b.id==='loadChatBtn'?'📥 Load Now':'📥 Load from Chat';b.disabled=false;});
   }
+}
+
+// Split a raw Chat message into per-person blocks
+function splitChatBlocks(text, defaultSender) {
+  const re = /([A-Z][a-zA-Z\s\-]+?)\s*\(([^)]+)\)\s*:/g;
+  const pos = [];
+  let m;
+  while ((m = re.exec(text)) !== null) {
+    pos.push({ index: m.index, name: m[1].trim(), dept: m[2].trim(), end: m.index + m[0].length });
+  }
+  if (!pos.length) return [{ name: defaultSender, dept: 'General', text: text.trim() }];
+  return pos.map((p, i) => ({
+    name: p.name, dept: p.dept,
+    text: text.slice(p.end, pos[i+1]?.index ?? text.length).trim()
+  }));
+}
+
+// Extract structured fields from a block of text using keywords
+function extractChatFields(text) {
+  const lines = text.split(/\n/).map(l => l.trim()).filter(l => l.length > 3);
+  const completed = [], inprogress = [], blockers = [], wins = [];
+  const labelRe = {
+    completed:  /^(completed?|done|finished?|shipped|delivered|deployed|resolved|closed|sent|signed off)\s*[:\-]/i,
+    inprogress: /^(in[- ]?progress|working on|ongoing|wip|currently)\s*[:\-]/i,
+    blockers:   /^(blocker?s?|blocked|issue|dependency|need|waiting|risk)\s*[:\-]/i,
+    wins:       /^(win|wins|achievement|highlight|success)\s*[:\-]/i,
+  };
+  const kwRe = {
+    blockers:   /\b(blocker|blocked|need|waiting|dependency|stuck|delayed|require[sd]?|approval needed|cannot proceed)\b/i,
+    wins:       /\b(win|won|approved|success|milestone|client (loved|confirmed|approved)|great response|praised|record)\b/i,
+    inprogress: /\b(in progress|ongoing|working on|continuing|currently|building|reviewing|investigating|underway|started)\b/i,
+    completed:  /\b(completed?|done|finished?|shipped|delivered|deployed|resolved|merged|launched|released)\b/i,
+  };
+  const clean = (l, re) => l.replace(re,'').replace(/^[:\-\s]+/,'').trim();
+  for (let line of lines) {
+    line = line.replace(/^[-•*]\s*/,'').trim();
+    if (!line) continue;
+    if      (labelRe.completed.test(line))  { completed.push(clean(line, labelRe.completed));   continue; }
+    else if (labelRe.inprogress.test(line)) { inprogress.push(clean(line, labelRe.inprogress)); continue; }
+    else if (labelRe.blockers.test(line))   { blockers.push(clean(line, labelRe.blockers));     continue; }
+    else if (labelRe.wins.test(line))       { wins.push(clean(line, labelRe.wins));             continue; }
+    else if (kwRe.blockers.test(line))      blockers.push(line);
+    else if (kwRe.wins.test(line))          wins.push(line);
+    else if (kwRe.inprogress.test(line))    inprogress.push(line);
+    else                                    completed.push(line);
+  }
+  return {
+    completed:  completed.join('. '),
+    inprogress: inprogress.join('. '),
+    blockers:   blockers.join('. '),
+    wins:       wins.join('. ')
+  };
 }
 
 // ── Team members ──────────────────────────────────────────────
