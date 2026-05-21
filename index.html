@@ -1157,22 +1157,43 @@ async function loadFromSources() {
         if (lData.error) throw new Error(lData.error.message);
         const ids = (lData.messages||[]).map(m=>m.id);
         addLog('Gmail: '+ids.length+' emails matched','info');
+        let emailsAdded = 0;
         for (const id of ids.slice(0,15)) {
           try {
             const mRes  = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/'+id+'?format=full',{headers:{Authorization:'Bearer '+token}});
             const mData = await mRes.json();
             const hdrs  = mData.payload?.headers||[];
             const from  = hdrs.find(h=>h.name==='From')?.value||'Unknown';
-            const sender= from.replace(/<.*>/,'').replace(/"/g,'').trim();
-            let body='';
-            const parts = mData.payload?.parts||[];
-            const tp    = parts.find(p=>p.mimeType==='text/plain')||(mData.payload?.mimeType==='text/plain'?mData.payload:null);
-            if (tp?.body?.data)              body=atob(tp.body.data.replace(/-/g,'+').replace(/_/g,'/'));
-            else if (mData.payload?.body?.data) body=atob(mData.payload.body.data.replace(/-/g,'+').replace(/_/g,'/'));
-            if (body.trim().length>20) allMessages.push({source:'gmail',sender,text:body.slice(0,1200)});
-          } catch(e2) {}
+            const subj  = hdrs.find(h=>h.name==='Subject')?.value||'';
+            const sender= from.replace(/<[^>]*>/,'').replace(/"/g,'').trim()||from;
+
+            // Recursive body extractor — handles nested multipart/mixed → multipart/alternative → text/plain
+            const decodeB64 = d => atob(d.replace(/-/g,'+').replace(/_/g,'/'));
+            function extractBody(payload) {
+              if (!payload) return '';
+              // Direct plain text
+              if (payload.mimeType==='text/plain' && payload.body?.data) return decodeB64(payload.body.data);
+              // Direct body (simple email)
+              if (payload.body?.data && !payload.parts) return decodeB64(payload.body.data);
+              // Recurse through parts — prefer text/plain, then recurse multipart
+              const parts = payload.parts||[];
+              for (const p of parts) { if (p.mimeType==='text/plain' && p.body?.data) return decodeB64(p.body.data); }
+              for (const p of parts) { if (p.mimeType?.startsWith('multipart/')) { const b=extractBody(p); if (b) return b; } }
+              for (const p of parts) { if (p.body?.data) return decodeB64(p.body.data); }
+              return '';
+            }
+
+            const body = extractBody(mData.payload).slice(0,1500);
+            if (body.trim().length > 20) {
+              allMessages.push({source:'gmail', sender, subject:subj, text: body});
+              emailsAdded++;
+              addLog('Gmail email from '+sender.split(' ')[0]+': '+body.length+' chars','info');
+            } else {
+              addLog('Gmail email from '+sender+': body empty ('+body.length+' chars) - skipped','err');
+            }
+          } catch(e2) { addLog('Gmail email parse error: '+e2.message,'err'); }
         }
-        addLog('Gmail: done','ok');
+        addLog('Gmail: '+emailsAdded+'/'+ids.length+' emails parsed successfully','ok');
       } catch(e) { addLog('Gmail failed: '+e.message,'err'); }
     }
 
