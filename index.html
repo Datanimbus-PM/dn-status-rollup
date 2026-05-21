@@ -947,8 +947,26 @@ async function loadFromChat() {
     await window.fbMem.save(_members);
     await window.fbUpd.save(_updates);
     renderMCards();
+
+    // Auto-compile into main textarea so user can generate immediately
+    const lines = _members.map(m => {
+      const id = m.name.replace(/\s+/g,'_'), u = _updates[id]||{};
+      if(!u.completed && !u.inprogress && !u.blockers && !u.wins) return null;
+      let t = `${m.name} (${m.dept}):`;
+      if(u.completed)  t += '\nCompleted: '   + u.completed;
+      if(u.inprogress) t += '\nIn Progress: ' + u.inprogress;
+      if(u.blockers)   t += '\nBlocker: '     + u.blockers;
+      if(u.wins)       t += '\nWin: '         + u.wins;
+      return t;
+    }).filter(Boolean);
+    if(lines.length) {
+      const compiled = lines.join('\n\n');
+      sv('input', compiled);
+      document.getElementById('chars').textContent = compiled.length.toLocaleString() + ' chars';
+    }
+
     addLog('Loaded '+dataRows.length+' updates from Sheet ✓','ok');
-    toast(dataRows.length+' updates loaded ✓','ok');
+    toast(dataRows.length+' updates loaded — click ⚡ Generate All Reports!','ok');
 
   } catch(e) {
     addLog('Load failed: '+e.message,'err');
