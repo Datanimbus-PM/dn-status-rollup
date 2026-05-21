@@ -495,7 +495,7 @@ textarea::placeholder{color:#334155}
       <div style="font-size:13px;font-weight:600;color:#22d3ee;margin-bottom:2px">📥 Load from Google Chat</div>
       <div style="font-size:11px;color:#475569">Pull this week's updates from your Chat spaces automatically</div>
     </div>
-    <button id="loadChatBtn" onclick="loadFromChat()"
+    <button id="loadChatBtn" onclick="loadFromSources()"
       style="background:#22d3ee;border:none;color:#000;padding:7px 14px;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer;font-family:'Inter',sans-serif">
       📥 Load Now
     </button>
@@ -526,7 +526,7 @@ textarea::placeholder{color:#334155}
     <div class="iwrap">
       <div class="ilabel">
         <span>Paste raw team updates below</span>
-        <button id="lcBtnMain" onclick="loadFromChat()"
+        <button id="lcBtnMain" onclick="loadFromSources()"
           style="background:rgba(34,211,238,.1);border:1px solid rgba(34,211,238,.3);color:#22d3ee;
                  font-family:'Inter',sans-serif;font-size:11px;padding:4px 9px;border-radius:5px;cursor:pointer;font-weight:500">
           📥 Load from Chat + Gmail
@@ -691,7 +691,23 @@ textarea::placeholder{color:#334155}
 
 <script>
 // ── Constants ─────────────────────────────────────────────────
-const PROXY = 'https://dn-status-rollup.datanimbus.workers.dev';
+const PROXY_DEFAULT = 'https://statusrollup.anitha.workers.dev';
+let   PROXY         = PROXY_DEFAULT; // overridden by admin setting in Firebase
+
+// Load admin-configured worker URL from Firebase (set once, works for all PMs)
+window.fbAdmin = {
+  get: async () => window.fbGet('admin/config'),
+  set: async d  => window.fbSet('admin/config', d)
+};
+async function loadAdminConfig() {
+  try {
+    const cfg = await window.fbAdmin.get();
+    if (cfg?.workerUrl) {
+      PROXY = cfg.workerUrl;
+      addLog('Worker URL loaded from admin config', 'info');
+    }
+  } catch(e) { /* use default */ }
+}
 
 // ── State ─────────────────────────────────────────────────────
 let mode='friday', tab='mgmt', editOn=true;
@@ -724,13 +740,14 @@ window.appInit = async user => {
   _pmName  = profile?.name || user.displayName || '';
   _projects = await window.fbProjects.get();
   if (!_projects.length) {
+    await loadAdminConfig();
     document.getElementById('onboardModal').classList.add('open');
     setTimeout(()=>document.getElementById('obName').focus(),300);
     return;
   }
   _activeProjectId = _projects[0].id;
   renderProjectTabs();
-  await loadProjectData(_activeProjectId);
+  await Promise.all([loadProjectData(_activeProjectId), loadAdminConfig()]);
   updateProjectLabel();
   renderTab();
   addLog('Ready - ' + _projects.length + ' project(s)', 'ok');
@@ -1095,7 +1112,7 @@ async function sendChat() {
   } catch(e) { addLog('Webhook failed: '+e.message,'err'); b.innerHTML='Chat'; b.disabled=false; }
 }
 
-// ── Load from Chat + Gmail + Gmail ────────────────────────────────────
+// ── Load from Chat + Gmail ──────────────────────────────────────────────
 async function loadFromSources() {
   const btns=['loadChatBtn','lcBtnMain'].map(id=>document.getElementById(id)).filter(Boolean);
   btns.forEach(b=>{b.innerHTML='<span class="spin" style="border-top-color:#22d3ee"></span> Loading...';b.disabled=true;});
@@ -1197,7 +1214,7 @@ async function loadFromSources() {
     toast(parsed.length+' members loaded from '+proj.name+' - click Generate!','ok');
 
   } catch(e) { addLog('Load failed: '+e.message,'err'); toast('Load failed: '+e.message,'err'); }
-  finally { btns.forEach(b=>{b.innerHTML=b.id==='loadChatBtn'?'Load Now':'Load from Chat + Gmail + Gmail';b.disabled=false;}); }
+  finally { btns.forEach(b=>{b.innerHTML=b.id==='loadChatBtn'?'Load Now':'Load from Chat + Gmail';b.disabled=false;}); }
 }
 
 
