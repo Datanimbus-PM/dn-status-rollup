@@ -47,7 +47,17 @@ onAuthStateChanged(auth, user => {
     document.getElementById('uName').textContent   = user.displayName || user.email;
     document.getElementById('uEmail').textContent  = user.email;
     document.getElementById('uMenuName').textContent = user.displayName || user.email;
-    window.appInit(user);
+    if (typeof window.appInit === 'function') {
+      window.appInit(user);
+    } else {
+      // Wait for regular script to finish loading
+      const interval = setInterval(() => {
+        if (typeof window.appInit === 'function') {
+          clearInterval(interval);
+          window.appInit(user);
+        }
+      }, 50);
+    }
   } else {
     window._user = null;
     document.getElementById('loginScreen').style.display = 'flex';
@@ -60,7 +70,7 @@ window.doSignIn = async () => {
     document.getElementById('loginBtn').textContent = 'Signing in...';
     const result = await signInWithPopup(auth, gprov);
     const credential = GoogleAuthProvider.credentialFromResult(result);
-    window._accessToken = credential.accessToken; // store for Gmail API
+    window._accessToken = credential.accessToken;
   } catch(e) {
     document.getElementById('loginBtn').textContent = 'Sign in with Google';
     document.getElementById('authErr').textContent = e.message;
@@ -69,7 +79,7 @@ window.doSignIn = async () => {
 };
 window.doSignOut = () => signOut(auth);
 
-// Firebase helpers — all data stored per user uid
+// Firebase helpers
 const up = () => `users/${window._user?.uid}`;
 window.fbSet  = async (path, data)  => setDoc(doc(db,path), {...data, _ts: Date.now()}, {merge:true});
 window.fbGet  = async (path)        => { const s=await getDoc(doc(db,path)); return s.exists()?s.data():null; };
@@ -753,15 +763,10 @@ RAG: G=on track, A=at risk, R=blocked.`;
 async function sendViaGmail(to, subject, htmlBody) {
   const token = window._accessToken;
   if (!token) throw new Error('Not authenticated — please sign out and sign in again');
-
   const from     = window._user.email;
   const sender   = _cfg.name || window._user.displayName || 'DN Status Rollup';
   const boundary = 'DN_BOUNDARY_' + Date.now();
-
-  // Encode subject for UTF-8
   const encSubject = '=?UTF-8?B?' + btoa(unescape(encodeURIComponent(subject))) + '?=';
-
-  // Build MIME message with HTML
   const mime = [
     `From: ${sender} <${from}>`,
     `To: ${to}`,
@@ -783,21 +788,14 @@ async function sendViaGmail(to, subject, htmlBody) {
     ``,
     `--${boundary}--`
   ].join('\r\n');
-
-  // Base64url encode
   const encoded = btoa(Array.from(new TextEncoder().encode(mime)).map(b=>String.fromCharCode(b)).join(''))
     .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-
   const res = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
     method:  'POST',
     headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
     body:    JSON.stringify({ raw: encoded })
   });
-
-  if (!res.ok) {
-    const err = await res.json();
-    throw new Error(err.error?.message || 'Gmail API error ' + res.status);
-  }
+  if (!res.ok) { const err = await res.json(); throw new Error(err.error?.message || 'Gmail API error ' + res.status); }
   return await res.json();
 }
 
@@ -833,18 +831,13 @@ function closeEM() { document.getElementById('emailModal').classList.remove('ope
 async function confirmEM() {
   const to=v('emTo'), subj=v('emSubj');
   if(!to) { toast('Enter an email address','err'); return; }
-
   const sendBtn = document.querySelector('#emailModal .bgo');
   sendBtn.innerHTML = '<span class="spin"></span> Sending...';
   sendBtn.disabled  = true;
-
   try {
     const content = _edits[_emType] || reports[_emType];
-    // Send to each recipient
     const recipients = to.split(',').map(e=>e.trim()).filter(Boolean);
-    for (const recipient of recipients) {
-      await sendViaGmail(recipient, subj, content);
-    }
+    for (const recipient of recipients) { await sendViaGmail(recipient, subj, content); }
     closeEM();
     const b=document.getElementById('s-'+_emType); b.innerHTML='✓ Sent'; b.className+=' sent';
     addLog('Email sent → '+EM[_emType].label+' ('+to+') ✓','ok');
@@ -871,14 +864,11 @@ async function confirmSA() {
   const es=[{t:'mgmt',to:v('saM')},{t:'client',to:v('saCl')},{t:'team',to:v('saTm')}];
   if(!es.some(e=>e.to)) { toast('Enter at least one email','err'); return; }
   localStorage.setItem('dn_sa',JSON.stringify({m:v('saM'),c:v('saCl'),t:v('saTm')}));
-
   const sendBtn = document.querySelector('#saModal .bgo');
   sendBtn.innerHTML = '<span class="spin"></span> Sending...';
   sendBtn.disabled  = true;
-
   const isFri=mode==='friday', wk=getWeek();
   let sent=0, failed=0;
-
   for(const {t,to} of es) {
     if(!to||!reports[t]) continue;
     const m=EM[t], subj='['+((_cfg.project||'DN')+' '+wk)+'] '+(isFri?m.fri:m.mon);
@@ -887,20 +877,13 @@ async function confirmSA() {
     try {
       for(const r of recipients) await sendViaGmail(r, subj, content);
       const b=document.getElementById('s-'+t); b.innerHTML='✓ Sent'; b.className+=' sent';
-      addLog('Email → '+m.label+' ✓','ok');
-      sent++;
-    } catch(e) {
-      addLog('Email → '+m.label+' FAILED: '+e.message,'err');
-      failed++;
-    }
+      addLog('Email → '+m.label+' ✓','ok'); sent++;
+    } catch(e) { addLog('Email → '+m.label+' FAILED: '+e.message,'err'); failed++; }
   }
-
   sendChat();
   closeSA();
-
   sendBtn.innerHTML = '🚀 Open Gmail + Chat';
   sendBtn.disabled  = false;
-
   if(failed>0) toast(sent+' sent, '+failed+' failed — check log','err');
   else toast(sent+' email'+(sent>1?'s':'')+' sent + Chat posted 🎉','ok');
 }
@@ -916,7 +899,7 @@ async function sendChat() {
   b.innerHTML='✓ Sent to '+n; b.className+=' sent'; toast('Chat sent to '+n+' space'+(n>1?'s':'')+' ✓','ok');
 }
 
-// ── Load from Chat ─────────────────────────────────────────────
+// ── Load from Chat (Google Sheets API) ────────────────────────
 const SHEET_ID = '1avw1fBsRRIbwLbuVH89yfW7Ra6hDgqpN5GMF_IN5qvY';
 
 async function loadFromChat() {
@@ -926,11 +909,10 @@ async function loadFromChat() {
     const token = window._accessToken;
     if (!token) { toast('Sign out and sign in again to refresh permissions','err'); return; }
 
-    // Read Structured Updates sheet via Sheets API
-    const range    = 'Structured Updates!A1:H100';
-    const url      = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(range)}`;
-    const res      = await fetch(url, { headers: { Authorization: 'Bearer ' + token } });
-    const json     = await res.json();
+    const range = 'Structured Updates!A1:H100';
+    const url   = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(range)}`;
+    const res   = await fetch(url, { headers: { Authorization: 'Bearer ' + token } });
+    const json  = await res.json();
 
     if (json.error) throw new Error(json.error.message);
 
@@ -959,63 +941,6 @@ async function loadFromChat() {
         inprogress: progIdx >= 0 ? (r[progIdx]||'') : '',
         blockers:   blkIdx  >= 0 ? (r[blkIdx] ||'') : '',
         wins:       winIdx  >= 0 ? (r[winIdx]  ||'') : '',
-      };
-    });
-
-    await window.fbMem.save(_members);
-    await window.fbUpd.save(_updates);
-    renderMCards();
-    addLog('Loaded '+dataRows.length+' updates from Sheet ✓','ok');
-    toast(dataRows.length+' updates loaded ✓','ok');
-
-  } catch(e) {
-    addLog('Load failed: '+e.message,'err');
-    toast('Load failed: '+e.message,'err');
-  } finally {
-    btns.forEach(b=>{b.innerHTML=b.id==='loadChatBtn'?'📥 Load Now':'📥 Load from Chat';b.disabled=false;});
-  }
-}
-
-    if (!text || text.trim().startsWith('<!')) {
-      toast('Sheet not accessible — check it is published','err'); return;
-    }
-
-    // Parse CSV
-    const rows = text.trim().split('\n').map(r => r.split(',').map(c => c.replace(/^"|"$/g,'').trim()));
-    const headers = rows[0].map(h => h.toLowerCase());
-
-    // Get column indexes
-    const wkIdx   = headers.findIndex(h => h.includes('week'));
-    const nameIdx = headers.findIndex(h => h.includes('name'));
-    const deptIdx = headers.findIndex(h => h.includes('dept'));
-    const compIdx = headers.findIndex(h => h.includes('complet'));
-    const progIdx = headers.findIndex(h => h.includes('progress') || h.includes('prog'));
-    const blkIdx  = headers.findIndex(h => h.includes('block'));
-    const winIdx  = headers.findIndex(h => h.includes('win'));
-
-    // Get this week's label
-    const weekLabel = getWeek();
-
-    // Filter to this week's data
-    const thisWeek = rows.slice(1).filter(r => r[wkIdx] && r[wkIdx].toLowerCase().includes(weekLabel.split(' ')[0].toLowerCase()));
-
-    // If no data for this week use all rows
-    const dataRows = thisWeek.length ? thisWeek : rows.slice(1).filter(r => r[nameIdx]);
-
-    if (!dataRows.length) { toast('No updates found in Sheet this week','err'); return; }
-
-    // Populate members and updates
-    dataRows.forEach(r => {
-      const name = r[nameIdx]; if (!name) return;
-      if (!_members.find(m => m.name.toLowerCase() === name.toLowerCase())) {
-        _members.push({ name, dept: r[deptIdx] || 'General' });
-      }
-      const id = name.replace(/\s+/g,'_');
-      _updates[id] = {
-        completed:  compIdx >= 0 ? r[compIdx] || '' : '',
-        inprogress: progIdx >= 0 ? r[progIdx] || '' : '',
-        blockers:   blkIdx  >= 0 ? r[blkIdx]  || '' : '',
-        wins:       winIdx  >= 0 ? r[winIdx]   || '' : '',
       };
     });
 
@@ -1210,7 +1135,6 @@ async function syncBlockers(dashboard,week) {
       }
     });
   });
-  // Auto-resolve if person reported no blockers this week
   _blockers.forEach(b => {
     if(b.resolved) return;
     const mem=members.find(m=>m.name===b.name);
@@ -1310,7 +1234,7 @@ function renderHistTable() {
 function viewHistDash(i) {
   const h=_history[i]; if(!h) return;
   renderRAGGrid(h.dashboard?.members||[]);
-  document.getElementById('dagTitle').textContent='Team RAG Status — '+h.week;
+  document.getElementById('ragTitle').textContent='Team RAG Status — '+h.week;
   document.getElementById('dashSub').textContent='Showing: '+h.week+' (history)';
 }
 
@@ -1351,12 +1275,10 @@ function getWeek() {
   const fmt=d=>d.toLocaleDateString('en-GB',{day:'numeric',month:'short'});
   return fmt(mon)+' - '+fmt(fri)+' '+fri.getFullYear();
 }
-
 function md(html) {
   if(!html) return '';
   return html.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\*(.*?)\*/g,'<em>$1</em>');
 }
-
 function htmlToPlain(html) {
   if(!html) return '';
   return html.replace(/<br\s*\/?>/gi,'\n').replace(/<\/p>/gi,'\n\n').replace(/<\/h[1-6]>/gi,'\n\n')
@@ -1364,7 +1286,6 @@ function htmlToPlain(html) {
     .replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&nbsp;/g,' ')
     .replace(/\n{3,}/g,'\n\n').trim();
 }
-
 const delay = ms => new Promise(r => setTimeout(r,ms));
 
 let logCount=0;
@@ -1378,7 +1299,6 @@ function addLog(msg,type='info') {
   el.insertBefore(row,el.firstChild);
   if(!document.getElementById('log').classList.contains('open')) document.getElementById('log').classList.add('open');
 }
-
 let toastTm;
 function toast(msg,type='info') {
   const el=document.getElementById('toast');
