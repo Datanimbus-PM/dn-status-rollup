@@ -29,7 +29,6 @@ const db     = getFirestore(fbApp);
 const gprov  = new GoogleAuthProvider();
 gprov.setCustomParameters({ hd: 'datanimbus.com' });
 gprov.addScope('https://www.googleapis.com/auth/gmail.send');
-gprov.addScope('https://www.googleapis.com/auth/spreadsheets.readonly');
 gprov.addScope('https://www.googleapis.com/auth/chat.messages.readonly');
 
 // Auth state listener
@@ -331,6 +330,26 @@ textarea::placeholder{color:#334155}
 #toast.ok{background:#0d2e1e;border:1px solid #34d399;color:#34d399}
 #toast.err{background:#2e0d0d;border:1px solid #f87171;color:#f87171}
 #toast.info{background:#0d1e2e;border:1px solid #22d3ee;color:#22d3ee}
+
+/* Onboarding wizard */
+#onboardModal{display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.85);backdrop-filter:blur(6px);align-items:center;justify-content:center;padding:16px}
+#onboardModal.open{display:flex}
+.ob-box{background:#1e293b;border:1px solid #f59e0b;border-radius:16px;width:100%;max-width:500px;overflow:hidden}
+.ob-head{background:linear-gradient(135deg,#0f172a,#1e3a5f);padding:22px 24px}
+.ob-title{font-size:18px;font-weight:700;color:#f1f5f9;margin-bottom:4px}
+.ob-sub{font-size:12px;color:#64748b}
+.ob-body{padding:20px 24px;display:flex;flex-direction:column;gap:12px}
+.ob-step{display:flex;gap:10px;align-items:flex-start}
+.ob-num{width:22px;height:22px;border-radius:50%;background:#f59e0b;color:#000;font-size:11px;font-weight:700;display:grid;place-items:center;flex-shrink:0;margin-top:2px}
+.ob-f{flex:1;display:flex;flex-direction:column;gap:4px}
+.ob-f label{font-size:10px;color:#64748b;letter-spacing:.5px;text-transform:uppercase}
+.ob-f input{background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;font-family:'Inter',sans-serif;font-size:13px;padding:9px 11px;outline:none;transition:.2s;width:100%}
+.ob-f input:focus{border-color:#f59e0b}
+.ob-f .ob-hint{font-size:10px;color:#475569;margin-top:2px;line-height:1.5}
+.ob-foot{padding:14px 24px;border-top:1px solid #334155;display:flex;justify-content:flex-end}
+.ob-go{background:#f59e0b;border:none;color:#000;padding:10px 28px;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer;font-family:'Inter',sans-serif}
+.ob-go:hover{background:#d97706}
+
 .spin{display:inline-block;width:11px;height:11px;border:2px solid rgba(0,0,0,.2);border-top-color:#000;border-radius:50%;animation:sp .6s linear infinite;vertical-align:middle;margin-right:4px}
 @keyframes sp{to{transform:rotate(360deg)}}
 @keyframes pulse-r{0%,100%{box-shadow:0 0 0 2px rgba(248,113,113,.15)}50%{box-shadow:0 0 0 5px rgba(248,113,113,.06)}}
@@ -590,12 +609,51 @@ textarea::placeholder{color:#334155}
   </div>
 </div>
 
+
+<!-- ONBOARDING WIZARD — shown to first-time users -->
+<div id="onboardModal" class="moverlay" style="z-index:500">
+  <div class="ob-box">
+    <div class="ob-head">
+      <div class="ob-title">👋 Welcome to DN Status Rollup</div>
+      <div class="ob-sub">Quick setup — takes 60 seconds. You won't see this again.</div>
+    </div>
+    <div class="ob-body">
+      <div class="ob-step">
+        <div class="ob-num">1</div>
+        <div class="ob-f">
+          <label>Your Name</label>
+          <input id="obName" placeholder="e.g. Anitha Kumar" />
+        </div>
+      </div>
+      <div class="ob-step">
+        <div class="ob-num">2</div>
+        <div class="ob-f">
+          <label>Project / Account Name</label>
+          <input id="obProject" placeholder="e.g. UPP, Project Alpha, XCRO" />
+        </div>
+      </div>
+      <div class="ob-step">
+        <div class="ob-num">3</div>
+        <div class="ob-f">
+          <label>Google Chat Space ID</label>
+          <input id="obSpace" placeholder="e.g. AAQAsAvqA-4" />
+          <div class="ob-hint">Open your Chat space in browser → the ID is at the end of the URL:<br>
+          chat.google.com/room/<strong style="color:#f59e0b">AAQAsAvqA-4</strong></div>
+        </div>
+      </div>
+    </div>
+    <div class="ob-foot">
+      <button class="ob-go" onclick="saveOnboarding()">Get Started →</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 </div><!-- /app -->
 
 <script>
 // ── Constants ─────────────────────────────────────────────────
-const PROXY = 'https://statusrollup.anitha.workers.dev';
+const PROXY = 'https://dn-status-rollup.datanimbus.workers.dev';
 
 // ── State ─────────────────────────────────────────────────────
 let mode='friday', tab='mgmt', editOn=true;
@@ -609,6 +667,7 @@ window.appInit = async user => {
   await Promise.all([loadCfg(), loadMembers(), loadUpdates(), loadEdits()]);
   renderTab();
   addLog('Ready ✓', 'ok');
+  await checkFirstRun();
 };
 
 // ── Config ────────────────────────────────────────────────────
@@ -1402,6 +1461,38 @@ function toast(msg,type='info') {
   const el=document.getElementById('toast');
   el.textContent=msg; el.className='show '+type;
   clearTimeout(toastTm); toastTm=setTimeout(()=>el.className='',3000);
+}
+
+
+// ── Onboarding wizard ─────────────────────────────────────────
+async function checkFirstRun() {
+  // Show wizard if this PM has never saved config before
+  const existing = await window.fbCfg.get();
+  if (!existing || !existing.name) {
+    document.getElementById('onboardModal').classList.add('open');
+    setTimeout(() => document.getElementById('obName').focus(), 300);
+  }
+}
+
+async function saveOnboarding() {
+  const name    = document.getElementById('obName').value.trim();
+  const project = document.getElementById('obProject').value.trim();
+  const space   = document.getElementById('obSpace').value.trim();
+
+  if (!name)    { document.getElementById('obName').focus();    return; }
+  if (!project) { document.getElementById('obProject').focus(); return; }
+  if (!space)   { document.getElementById('obSpace').focus();   return; }
+
+  // Save to config
+  _cfg = { name, project, s1: space, s2:'', s3:'', s4:'', w1:'', w2:'', w3:'' };
+  await window.fbCfg.save(_cfg);
+
+  // Populate config panel fields too
+  sv('cName', name); sv('cProject', project); sv('cS1', space);
+
+  document.getElementById('onboardModal').classList.remove('open');
+  toast('Welcome ' + name.split(' ')[0] + '! You're all set 🎉', 'ok');
+  addLog('First-time setup complete for ' + name, 'ok');
 }
 
 // ── Init ──────────────────────────────────────────────────────
