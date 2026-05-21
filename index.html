@@ -30,6 +30,7 @@ const gprov  = new GoogleAuthProvider();
 gprov.setCustomParameters({ hd: 'datanimbus.com' });
 gprov.addScope('https://www.googleapis.com/auth/gmail.send');
 gprov.addScope('https://www.googleapis.com/auth/chat.messages.readonly');
+gprov.addScope('https://www.googleapis.com/auth/gmail.readonly');
 
 // Auth state listener
 onAuthStateChanged(auth, user => {
@@ -85,7 +86,6 @@ window.fbSet  = async (path, data)  => setDoc(doc(db,path), {...data, _ts: Date.
 window.fbGet  = async (path)        => { const s=await getDoc(doc(db,path)); return s.exists()?s.data():null; };
 window.fbDel  = async (path)        => deleteDoc(doc(db,path));
 window.fbList = async (path,field)  => { const q=query(collection(db,path),orderBy(field||'_ts','desc')); const s=await getDocs(q); return s.docs.map(d=>({id:d.id,...d.data()})); };
-window.fbCfg  = { save: d=>window.fbSet(`${up()}/cfg/main`,d),       get: ()=>window.fbGet(`${up()}/cfg/main`) };
 window.fbMem  = { save: l=>window.fbSet(`${up()}/members/all`,{list:l}), get: async()=>{ const d=await window.fbGet(`${up()}/members/all`); return d?.list||[]; } };
 window.fbUpd  = { save: d=>window.fbSet(`${up()}/updates/cur`,{data:d}),  get: async()=>{ const d=await window.fbGet(`${up()}/updates/cur`);  return d?.data||{}; } };
 window.fbEdt  = { save: d=>window.fbSet(`${up()}/edits/cur`,{data:d}),    get: async()=>{ const d=await window.fbGet(`${up()}/edits/cur`);    return d?.data||{}; } };
@@ -141,8 +141,6 @@ header{background:#1e293b;border-bottom:1px solid #334155;padding:10px 16px;disp
 .um-btn:hover{border-color:#f87171;color:#f87171}
 
 /* Config */
-#cfgPanel{background:#1e293b;border-bottom:1px solid #334155;overflow:hidden;max-height:0;transition:max-height .3s}
-#cfgPanel.open{max-height:1000px}
 .cfg-inner{padding:18px 20px}
 .cfg-sec{font-size:10px;color:#f59e0b;letter-spacing:1px;text-transform:uppercase;grid-column:1/-1;margin-top:10px;padding-bottom:5px;border-bottom:1px solid #334155}
 .cfg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px}
@@ -350,6 +348,27 @@ textarea::placeholder{color:#334155}
 .ob-go{background:#f59e0b;border:none;color:#000;padding:10px 28px;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer;font-family:'Inter',sans-serif}
 .ob-go:hover{background:#d97706}
 
+
+/* Project tabs */
+.proj-tabs{display:flex;align-items:center;gap:4px;flex:1;overflow-x:auto;padding:8px 0;min-width:0;scrollbar-width:none}
+.proj-tabs::-webkit-scrollbar{display:none}
+.proj-tab{display:inline-flex;align-items:center;gap:4px;padding:4px 11px;border-radius:20px;border:1px solid #334155;background:transparent;color:#64748b;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;font-family:'Inter',sans-serif;transition:.15s}
+.proj-tab:hover{border-color:#f59e0b;color:#f59e0b}
+.proj-tab.active{background:rgba(245,158,11,.15);border-color:#f59e0b;color:#f59e0b}
+.proj-add{padding:4px 11px;border-radius:20px;border:1px dashed #334155;background:transparent;color:#475569;font-size:11px;cursor:pointer;white-space:nowrap;font-family:'Inter',sans-serif}
+.proj-add:hover{border-color:#22d3ee;color:#22d3ee}
+/* Project modal */
+#projModal .mbox{max-width:540px;max-height:90vh;overflow-y:auto}
+.msec{font-size:10px;color:#f59e0b;letter-spacing:1px;text-transform:uppercase;padding-bottom:5px;border-bottom:1px solid #334155;margin:4px 0}
+.mrow{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.mf{display:flex;flex-direction:column;gap:4px}
+.mf.full{grid-column:1/-1}
+.mf label{font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.5px}
+.mf input{background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;font-family:'Inter',sans-serif;font-size:12px;padding:8px 10px;outline:none;width:100%;transition:.2s}
+.mf input:focus{border-color:#f59e0b}
+.mf .hint{font-size:10px;color:#475569;margin-top:2px;line-height:1.5}
+.bdel{background:transparent;border:1px solid rgba(248,113,113,.3);color:#f87171;padding:7px 14px;border-radius:5px;font-size:12px;cursor:pointer;font-family:'Inter',sans-serif}
+
 .spin{display:inline-block;width:11px;height:11px;border:2px solid rgba(0,0,0,.2);border-top-color:#000;border-radius:50%;animation:sp .6s linear infinite;vertical-align:middle;margin-right:4px}
 @keyframes sp{to{transform:rotate(360deg)}}
 @keyframes pulse-r{0%,100%{box-shadow:0 0 0 2px rgba(248,113,113,.15)}50%{box-shadow:0 0 0 5px rgba(248,113,113,.06)}}
@@ -382,12 +401,12 @@ textarea::placeholder{color:#334155}
       <div class="logo-sub">Datanimbus · Automated Reporting</div>
     </div>
   </div>
+  <div class="proj-tabs" id="projTabs"><button class="proj-add" onclick="openProjectModal(null)">+ Add Project</button></div>
   <div class="hright">
-    <span class="badge fri" id="modeBadge">FRIDAY ROLLUP</span>
+    <span class="badge fri" id="modeBadge">FRIDAY</span>
     <button class="hbtn" id="dashBtn"  onclick="toggleDash()">📊 Dashboard</button>
     <button class="hbtn" id="histBtn"  onclick="toggleHist()">🗂 History</button>
     <button class="hbtn" id="teamBtn"  onclick="toggleTeam()">👥 Team</button>
-    <button class="hbtn" onclick="toggleCfg()">⚙ Config</button>
     <div class="upill" onclick="toggleUMenu()">
       <div class="uav" id="uAvatar">U</div>
       <div class="uname" id="uName">...</div>
@@ -402,29 +421,6 @@ textarea::placeholder{color:#334155}
   <button class="um-btn" onclick="window.doSignOut()">Sign out</button>
 </div>
 
-<!-- Config -->
-<div id="cfgPanel">
-  <div class="cfg-inner">
-    <div class="cfg-grid">
-      <div class="cfg-sec">Your Details</div>
-      <div class="cfg-f"><label>Your Name</label><input id="cName" placeholder="e.g. Anitha Kumar"/></div>
-      <div class="cfg-f"><label>Project Name</label><input id="cProject" placeholder="e.g. UPP / Project Alpha"/></div>
-      <div class="cfg-sec">Chat Space IDs (for pulling updates)</div>
-      <div class="cfg-f"><label>Space ID 1</label><input id="cS1" placeholder="e.g. AAQAsAvqA-4"/></div>
-      <div class="cfg-f"><label>Space ID 2</label><input id="cS2" placeholder="Space ID 2 (optional)"/></div>
-      <div class="cfg-f"><label>Space ID 3</label><input id="cS3" placeholder="Space ID 3 (optional)"/></div>
-      <div class="cfg-f"><label>Space ID 4</label><input id="cS4" placeholder="Space ID 4 (optional)"/></div>
-      <div class="cfg-sec">Chat Webhooks (for posting reports)</div>
-      <div class="cfg-f" style="grid-column:1/-1"><label>Webhook 1</label><input id="cW1" placeholder="https://chat.googleapis.com/v1/spaces/..."/></div>
-      <div class="cfg-f"><label>Webhook 2</label><input id="cW2" placeholder="Webhook 2 (optional)"/></div>
-      <div class="cfg-f"><label>Webhook 3</label><input id="cW3" placeholder="Webhook 3 (optional)"/></div>
-      <div class="cfg-note">Settings sync to your account automatically across all devices.</div>
-    </div>
-    <div class="cfg-acts">
-      <button class="bsave" onclick="saveCfg()">💾 Save Settings</button>
-      <button class="bclose" onclick="toggleCfg()">Close</button>
-    </div>
-  </div>
 </div>
 
 <!-- DASHBOARD -->
@@ -432,6 +428,7 @@ textarea::placeholder{color:#334155}
   <div class="fvh">
     <div><div class="fv-title">📊 Programme Dashboard</div><div class="fv-sub" id="dashSub">Loading...</div></div>
     <div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap">
+      <select id="projFilter" onchange="renderDash()" style="background:#1e293b;border:1px solid #334155;color:#94a3b8;padding:5px 9px;border-radius:6px;font-family:'Inter',sans-serif;font-size:11px;outline:none"><option value="all">All projects</option></select>
       <select id="wkFilter" onchange="renderDash()"
         style="background:#1e293b;border:1px solid #334155;color:#94a3b8;padding:5px 9px;border-radius:6px;font-family:'Inter',sans-serif;font-size:11px;outline:none">
         <option value="all">All weeks</option>
@@ -520,7 +517,7 @@ textarea::placeholder{color:#334155}
 <main>
   <div class="left">
     <div class="phead">
-      <span>Team Updates Input</span>
+      <span id="inputLabel">Team Updates Input</span>
       <div class="mtoggle">
         <button id="bFri" class="mfri" onclick="setMode('friday')">FRIDAY</button>
         <button id="bMon" onclick="setMode('monday')">MONDAY</button>
@@ -532,7 +529,7 @@ textarea::placeholder{color:#334155}
         <button id="lcBtnMain" onclick="loadFromChat()"
           style="background:rgba(34,211,238,.1);border:1px solid rgba(34,211,238,.3);color:#22d3ee;
                  font-family:'Inter',sans-serif;font-size:11px;padding:4px 9px;border-radius:5px;cursor:pointer;font-weight:500">
-          📥 Load from Chat
+          📥 Load from Chat + Gmail
         </button>
       </div>
       <textarea id="input" placeholder="Example:&#10;&#10;Anitha (PM): Completed Q3 roadmap. Win: Client approved Phase 2. No blockers.&#10;&#10;Raj (Engineering): Shipped OAuth. Blocker: Need Redis cluster from DevOps."></textarea>
@@ -575,6 +572,47 @@ textarea::placeholder{color:#334155}
     <span>Activity Log</span><span id="logCnt" style="color:#f59e0b;font-size:10px">0 events</span>
   </div>
   <div class="loge" id="logE"></div>
+</div>
+
+
+<!-- PROJECT CONFIG MODAL -->
+<div id="projModal" class="moverlay">
+  <div class="mbox">
+    <div class="mhead"><span class="mtitle" id="projModalTitle">Add Project</span><button class="mxbtn" onclick="closeProjectModal()">&#10005;</button></div>
+    <div class="mbody">
+      <div class="mrow">
+        <div class="mf"><label>Project Name</label><input id="pmProjName" placeholder="e.g. UPP, XCRO"/></div>
+        <div class="mf"><label>Client Name</label><input id="pmClient" placeholder="e.g. IBL, Internal"/></div>
+      </div>
+      <div class="msec" style="margin-top:10px">Google Chat Spaces</div>
+      <div class="mrow">
+        <div class="mf"><label>Space ID 1</label><input id="pmS1" placeholder="AAQAsAvqA-4"/></div>
+        <div class="mf"><label>Space ID 2</label><input id="pmS2" placeholder="Optional"/></div>
+        <div class="mf"><label>Space ID 3</label><input id="pmS3" placeholder="Optional"/></div>
+        <div class="mf"><label>Space ID 4</label><input id="pmS4" placeholder="Optional"/></div>
+      </div>
+      <div class="msec" style="margin-top:10px">Gmail</div>
+      <div class="mf full"><label>Email Search Query (optional)</label>
+        <input id="pmEmailQuery" placeholder="e.g. subject:UPP update OR from:team@datanimbus.com"/>
+        <div class="hint">Pulls matching emails from the last 7 days as extra update sources</div>
+      </div>
+      <div class="msec" style="margin-top:10px">Send To (pre-fills each week)</div>
+      <div class="mrow">
+        <div class="mf"><label>Management Email(s)</label><input id="pmMgmtEmail" placeholder="ceo@datanimbus.com"/></div>
+        <div class="mf"><label>Client Email(s)</label><input id="pmCliEmail" placeholder="pm@client.com"/></div>
+        <div class="mf full"><label>Team Email(s)</label><input id="pmTeamEmail" placeholder="team@datanimbus.com"/></div>
+      </div>
+      <div class="msec" style="margin-top:10px">Chat Webhook</div>
+      <div class="mf full"><label>Webhook URL (optional)</label><input id="pmWebhook" placeholder="https://chat.googleapis.com/v1/spaces/.../messages?key=..."/></div>
+    </div>
+    <div class="mfoot">
+      <button class="bdel" id="projDelBtn" onclick="deleteProject()" style="display:none">Delete Project</button>
+      <div style="display:flex;gap:7px">
+        <button class="bcancel" onclick="closeProjectModal()">Cancel</button>
+        <button class="bgo" onclick="saveProject()">Save Project</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- SEND ALL MODAL -->
@@ -658,33 +696,130 @@ const PROXY = 'https://dn-status-rollup.datanimbus.workers.dev';
 // ── State ─────────────────────────────────────────────────────
 let mode='friday', tab='mgmt', editOn=true;
 let reports={mgmt:null,client:null,team:null,chat:null};
-let _cfg={}, _members=[], _updates={}, _edits={}, _history=[], _blockers=[];
-let _emType=null, _rvEntry=null, _rvTab='mgmt';
+let _pmName='', _projects=[], _activeProjectId=null;
+let _members=[], _updates={}, _edits={}, _history=[], _blockers=[];
+let _emType=null, _rvEntry=null, _rvTab='mgmt', _editingProjectId=null;
+const PROJ_COLORS=['#f59e0b','#22d3ee','#34d399','#a78bfa','#f87171','#fb923c'];
+const genId = () => Math.random().toString(36).slice(2,9);
+const activeProject = () => _projects.find(p=>p.id===_activeProjectId)||_projects[0]||null;
+
+// ── Firebase project helpers ──────────────────────────────────
+window.fbProjects = {
+  save: l => window.fbSet(`users/${window._user?.uid}/projects/list`,{list:l}),
+  get:  async()=>{ const d=await window.fbGet(`users/${window._user?.uid}/projects/list`); return d?.list||[]; }
+};
+window.fbMemP  = pid=>({ save:l=>window.fbSet(`users/${window._user?.uid}/proj_${pid}/members`,{list:l}),  get:async()=>{ const d=await window.fbGet(`users/${window._user?.uid}/proj_${pid}/members`); return d?.list||[]; }});
+window.fbUpdP  = pid=>({ save:d=>window.fbSet(`users/${window._user?.uid}/proj_${pid}/updates`,{data:d}),  get:async()=>{ const d=await window.fbGet(`users/${window._user?.uid}/proj_${pid}/updates`); return d?.data||{}; }});
+window.fbEdtP  = pid=>({ save:d=>window.fbSet(`users/${window._user?.uid}/proj_${pid}/edits`,{data:d}),    get:async()=>{ const d=await window.fbGet(`users/${window._user?.uid}/proj_${pid}/edits`); return d?.data||{}; }});
+window.fbBlkP  = pid=>({ save:l=>window.fbSet(`users/${window._user?.uid}/proj_${pid}/blockers`,{list:l}), get:async()=>{ const d=await window.fbGet(`users/${window._user?.uid}/proj_${pid}/blockers`); return d?.list||[]; }});
+window.fbProfile = {
+  save: d=>window.fbSet(`users/${window._user?.uid}/profile/main`,d),
+  get:  ()=>window.fbGet(`users/${window._user?.uid}/profile/main`)
+};
 
 // ── App init ──────────────────────────────────────────────────
 window.appInit = async user => {
   addLog('Signed in: ' + user.email, 'info');
-  await Promise.all([loadCfg(), loadMembers(), loadUpdates(), loadEdits()]);
+  const profile = await window.fbProfile.get();
+  _pmName  = profile?.name || user.displayName || '';
+  _projects = await window.fbProjects.get();
+  if (!_projects.length) {
+    document.getElementById('onboardModal').classList.add('open');
+    setTimeout(()=>document.getElementById('obName').focus(),300);
+    return;
+  }
+  _activeProjectId = _projects[0].id;
+  renderProjectTabs();
+  await loadProjectData(_activeProjectId);
+  updateProjectLabel();
   renderTab();
-  addLog('Ready ✓', 'ok');
-  await checkFirstRun();
+  addLog('Ready - ' + _projects.length + ' project(s)', 'ok');
 };
 
-// ── Config ────────────────────────────────────────────────────
-async function saveCfg() {
-  _cfg = { name:v('cName'), project:v('cProject'), s1:v('cS1'), s2:v('cS2'), s3:v('cS3'), s4:v('cS4'), w1:v('cW1'), w2:v('cW2'), w3:v('cW3') };
-  await window.fbCfg.save(_cfg);
-  toast('Settings saved ✓', 'ok'); addLog('Config saved to Firebase', 'info'); toggleCfg();
+// ── Project helpers ───────────────────────────────────────────
+async function loadProjectData(pid) {
+  [_members, _updates, _edits] = await Promise.all([
+    window.fbMemP(pid).get(),
+    window.fbUpdP(pid).get(),
+    window.fbEdtP(pid).get()
+  ]);
 }
-async function loadCfg() {
-  _cfg = await window.fbCfg.get() || {};
-  const m = { cName:'name', cProject:'project', cS1:'s1', cS2:'s2', cS3:'s3', cS4:'s4', cW1:'w1', cW2:'w2', cW3:'w3' };
-  Object.entries(m).forEach(([id,k]) => { if(_cfg[k]) sv(id,_cfg[k]); });
+function updateProjectLabel() {
+  const p = activeProject();
+  const el = document.getElementById('inputLabel');
+  if (el && p) el.textContent = p.name + ' (' + p.client + ') Updates';
 }
-function getCfg() {
-  return { ..._cfg, proxy:PROXY, spaces:[_cfg.s1,_cfg.s2,_cfg.s3,_cfg.s4].filter(Boolean), webhooks:[_cfg.w1,_cfg.w2,_cfg.w3].filter(Boolean) };
+async function setActiveProject(id) {
+  _activeProjectId = id;
+  reports={mgmt:null,client:null,team:null,chat:null}; _edits={};
+  renderProjectTabs(); resetReportTabs();
+  await loadProjectData(id);
+  updateProjectLabel();
+  renderMCards(); renderTab();
+  addLog('Switched to: ' + (activeProject()?.name||id), 'info');
 }
-function toggleCfg() { document.getElementById('cfgPanel').classList.toggle('open'); }
+function renderProjectTabs() {
+  const el = document.getElementById('projTabs'); if (!el) return;
+  el.innerHTML = _projects.map((p,i)=>{
+    const color = PROJ_COLORS[i%PROJ_COLORS.length];
+    const act   = p.id===_activeProjectId;
+    return `<button class="proj-tab${act?' active':''}" onclick="setActiveProject('${p.id}')"
+      style="${act?'border-color:'+color+';color:'+color+';background:'+color+'22':''}">
+      <span style="width:6px;height:6px;border-radius:50%;background:${color};display:inline-block;margin-right:4px;flex-shrink:0"></span>${p.name}
+      <span onclick="event.stopPropagation();openProjectModal('${p.id}')" title="Edit" style="margin-left:4px;opacity:.5;font-size:10px;cursor:pointer">&#9881;</span>
+    </button>`;
+  }).join('') + '<button class="proj-add" onclick="openProjectModal(null)">+ Add Project</button>';
+}
+
+// ── Project modal ─────────────────────────────────────────────
+function openProjectModal(id) {
+  _editingProjectId = id;
+  const p = id ? _projects.find(x=>x.id===id) : null;
+  document.getElementById('projModalTitle').textContent = p ? 'Edit Project' : 'Add Project';
+  document.getElementById('projDelBtn').style.display  = p ? 'inline-block' : 'none';
+  sv('pmProjName',   p?.name||'');     sv('pmClient', p?.client||'');
+  sv('pmS1', p?.spaces?.[0]||'');     sv('pmS2', p?.spaces?.[1]||'');
+  sv('pmS3', p?.spaces?.[2]||'');     sv('pmS4', p?.spaces?.[3]||'');
+  sv('pmEmailQuery', p?.emailQuery||'');
+  sv('pmMgmtEmail',  p?.mgmtEmail||'');
+  sv('pmCliEmail',   p?.clientEmail||'');
+  sv('pmTeamEmail',  p?.teamEmail||'');
+  sv('pmWebhook',    p?.webhook||'');
+  document.getElementById('projModal').classList.add('open');
+  setTimeout(()=>document.getElementById('pmProjName').focus(),200);
+}
+function closeProjectModal() { document.getElementById('projModal').classList.remove('open'); _editingProjectId=null; }
+async function saveProject() {
+  const name = v('pmProjName'); if (!name) { document.getElementById('pmProjName').focus(); return; }
+  const proj = {
+    id:          _editingProjectId || genId(),
+    name,
+    client:      v('pmClient') || 'Internal',
+    spaces:      [v('pmS1'),v('pmS2'),v('pmS3'),v('pmS4')].filter(Boolean),
+    emailQuery:  v('pmEmailQuery'),
+    mgmtEmail:   v('pmMgmtEmail'),
+    clientEmail: v('pmCliEmail'),
+    teamEmail:   v('pmTeamEmail'),
+    webhook:     v('pmWebhook'),
+  };
+  _projects = _editingProjectId ? _projects.map(p=>p.id===_editingProjectId?proj:p) : [..._projects, proj];
+  await window.fbProjects.save(_projects);
+  closeProjectModal();
+  if (!_activeProjectId) { _activeProjectId=proj.id; await loadProjectData(proj.id); }
+  renderProjectTabs(); updateProjectLabel();
+  toast('Project saved: ' + proj.name, 'ok');
+}
+async function deleteProject() {
+  if (!confirm('Delete this project?')) return;
+  _projects = _projects.filter(p=>p.id!==_editingProjectId);
+  await window.fbProjects.save(_projects);
+  closeProjectModal();
+  _activeProjectId = _projects[0]?.id||null;
+  if (_activeProjectId) await loadProjectData(_activeProjectId);
+  renderProjectTabs(); updateProjectLabel(); toast('Project deleted','info');
+}
+
+// Config is now handled per-project via the project modal
 
 // ── UI helpers ────────────────────────────────────────────────
 const v = id => document.getElementById(id)?.value?.trim()||'';
@@ -766,14 +901,14 @@ async function loadEdits() { _edits = await window.fbEdt.get()||{}; }
 async function generate() {
   const inp=v('input');
   if (!inp) { toast('Paste team updates first','err'); return; }
-  const cfg=getCfg();
+  const proj=activeProject(); if(!proj){toast('No project - add one first','err');return;}
   const btn=document.getElementById('genBtn');
   btn.disabled=true; btn.innerHTML='<span class="spin"></span>Generating...';
   document.getElementById('output').innerHTML='<div class="ph"><div style="font-size:28px;animation:sp 1s linear infinite;display:inline-block">⚡</div><p style="margin-top:10px">Claude is generating reports...</p></div>';
   const week=getWeek(), isFri=mode==='friday';
-  const sender=_cfg.name||window._user?.displayName||'DN Team';
-  const project=_cfg.project||'DN Programme';
-  const system=`You are writing status reports for ${project} at Datanimbus.
+  const sender=_pmName||window._user?.displayName||'DN Team';
+  const project=proj.name+'  (Client: '+proj.client+')';
+  const system=`You are writing status reports for the ${project} project at Datanimbus.
 Return ONLY a raw JSON object, no markdown, no code blocks:
 {"mgmt":"...","client":"...","team":"...","chat":"...","dashboard":{}}
 Rules:
@@ -800,7 +935,7 @@ RAG: G=on track, A=at risk, R=blocked.`;
       });
       document.getElementById('sendAll').disabled=false;
       if(parsed.dashboard) {
-        await saveHist(parsed.dashboard,week,mode,{mgmt:parsed.mgmt,client:parsed.client,team:parsed.team,chat:parsed.chat});
+        await saveHist(parsed.dashboard,week,mode,{mgmt:parsed.mgmt,client:parsed.client,team:parsed.team,chat:parsed.chat},activeProject());
         await syncBlockers(parsed.dashboard,week);
         renderDash();
       }
@@ -882,7 +1017,7 @@ function sendEmail(type) {
   const m=EM[type], isFri=mode==='friday';
   sv('emTitle','Send '+m.label+' Email');
   sv('emSubj','['+((_cfg.project||'DN')+' '+getWeek())+'] '+(isFri?m.fri:m.mon));
-  sv('emTo','');
+  const _prefill=_emType==='mgmt'?activeProject()?.mgmtEmail:_emType==='client'?activeProject()?.clientEmail:activeProject()?.teamEmail; sv('emTo',_prefill||'');
   document.getElementById('emailModal').classList.add('open');
   setTimeout(()=>document.getElementById('emTo').focus(),100);
 }
@@ -915,7 +1050,7 @@ async function confirmEM() {
 function sendAll() {
   if(!reports.mgmt&&!reports.client&&!reports.team) { toast('Generate first','err'); return; }
   const s=JSON.parse(localStorage.getItem('dn_sa')||'{}');
-  sv('saM',s.m||''); sv('saCl',s.c||''); sv('saTm',s.t||'');
+  const _p=activeProject(); sv('saM',_p?.mgmtEmail||''); sv('saCl',_p?.clientEmail||''); sv('saTm',_p?.teamEmail||'');
   document.getElementById('saModal').classList.add('open');
   setTimeout(()=>document.getElementById('saM').focus(),100);
 }
@@ -948,155 +1083,180 @@ async function confirmSA() {
   else toast(sent+' email'+(sent>1?'s':'')+' sent + Chat posted 🎉','ok');
 }
 
-// ── Chat ──────────────────────────────────────────────────────
+// ── Chat ──────────────────────────────────────────────────────────
 async function sendChat() {
-  const cfg=getCfg(), whs=cfg.webhooks, c=_edits.chat||reports.chat;
+  const proj=activeProject(), wh=proj?.webhook, c=_edits.chat||reports.chat;
   if(!c) { toast('Generate first','err'); return; }
-  if(!whs.length) { toast('Add webhooks in ⚙ Config','err'); return; }
+  if(!wh) { toast('Add a webhook in project settings (gear icon on tab)','err'); return; }
   const b=document.getElementById('s-chat'); b.innerHTML='<span class="spin" style="border-top-color:#22d3ee"></span>'; b.disabled=true;
-  let n=0;
-  for(const u of whs) { try{ await fetch(u,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:c}),mode:'no-cors'}); n++; addLog('Chat webhook '+n+' ✓','ok'); }catch(e){addLog('Webhook failed: '+e.message,'err');} }
-  b.innerHTML='✓ Sent to '+n; b.className+=' sent'; toast('Chat sent to '+n+' space'+(n>1?'s':'')+' ✓','ok');
+  try {
+    await fetch(wh,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:c}),mode:'no-cors'});
+    b.innerHTML='Sent'; b.className+=' sent'; addLog('Chat posted to '+proj.name,'ok'); toast('Chat posted','ok');
+  } catch(e) { addLog('Webhook failed: '+e.message,'err'); b.innerHTML='Chat'; b.disabled=false; }
 }
 
-// ── Load from Chat — calls Google Chat API directly ───────────
-async function loadFromChat() {
-  const btns = ['loadChatBtn','lcBtnMain'].map(id=>document.getElementById(id)).filter(Boolean);
-  btns.forEach(b=>{b.innerHTML='<span class="spin"></span> Loading...';b.disabled=true;});
+// ── Load from Chat + Gmail + Gmail ────────────────────────────────────
+async function loadFromSources() {
+  const btns=['loadChatBtn','lcBtnMain'].map(id=>document.getElementById(id)).filter(Boolean);
+  btns.forEach(b=>{b.innerHTML='<span class="spin" style="border-top-color:#22d3ee"></span> Loading...';b.disabled=true;});
   try {
     const token = window._accessToken;
-    if (!token) { toast('Sign out and sign in again to get Chat permissions','err'); return; }
+    if (!token) { toast('Sign out and sign in again','err'); return; }
+    const proj  = activeProject();
+    if (!proj)  { toast('Add a project first in + Add Project','err'); return; }
 
-    const cfg    = getCfg();
-    const spaces = cfg.spaces;
-    if (!spaces.length) { toast('Add Space IDs in ⚙ Config first','err'); return; }
-
-    addLog('Fetching from ' + spaces.length + ' Chat space(s)...','info');
-
-    // Fetch messages from all configured spaces
-    const since = new Date();
-    since.setDate(since.getDate() - 7);
+    const allMessages = [], since = new Date();
+    since.setDate(since.getDate()-7);
     const sinceStr = since.toISOString();
 
-    const allMessages = [];
-    for (const spaceId of spaces) {
+    // Chat spaces
+    for (const spaceId of (proj.spaces||[])) {
       try {
-        let pageToken = null;
+        let pageToken=null;
         do {
-          let url = `https://chat.googleapis.com/v1/spaces/${spaceId}/messages?pageSize=100`;
-          if (pageToken) url += '&pageToken=' + encodeURIComponent(pageToken);
-          const res  = await fetch(url, { headers: { Authorization: 'Bearer ' + token } });
+          let url='https://chat.googleapis.com/v1/spaces/'+spaceId+'/messages?pageSize=100';
+          if (pageToken) url+='&pageToken='+encodeURIComponent(pageToken);
+          const res  = await fetch(url,{headers:{Authorization:'Bearer '+token}});
           const data = await res.json();
           if (data.error) { addLog('Space '+spaceId+': '+data.error.message,'err'); break; }
           for (const m of (data.messages||[])) {
-            if ((m.createTime||'') < sinceStr) continue;
-            const text = (m.text||'').trim();
-            if (text.length < 10) continue;
-            allMessages.push({ sender: m.sender?.displayName||'Unknown', text });
+            if ((m.createTime||'')<sinceStr) continue;
+            const text=(m.text||'').trim();
+            if (text.length<10) continue;
+            allMessages.push({source:'chat',sender:m.sender?.displayName||'Unknown',text});
           }
-          pageToken = data.nextPageToken || null;
-        } while (pageToken);
-        addLog('Space ' + spaceId + ' ✓','ok');
-      } catch(e) { addLog('Space '+spaceId+' failed: '+e.message,'err'); }
+          pageToken=data.nextPageToken||null;
+        } while(pageToken);
+        addLog('Chat: '+spaceId+' done','ok');
+      } catch(e) { addLog('Chat space error: '+e.message,'err'); }
     }
 
-    if (!allMessages.length) { toast('No messages found in the last 7 days','err'); return; }
+    // Gmail
+    if (proj.emailQuery) {
+      try {
+        const q      = encodeURIComponent(proj.emailQuery+' newer_than:7d');
+        const lRes   = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=25&q='+q,{headers:{Authorization:'Bearer '+token}});
+        const lData  = await lRes.json();
+        if (lData.error) throw new Error(lData.error.message);
+        const ids = (lData.messages||[]).map(m=>m.id);
+        addLog('Gmail: '+ids.length+' emails matched','info');
+        for (const id of ids.slice(0,15)) {
+          try {
+            const mRes  = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/'+id+'?format=full',{headers:{Authorization:'Bearer '+token}});
+            const mData = await mRes.json();
+            const hdrs  = mData.payload?.headers||[];
+            const from  = hdrs.find(h=>h.name==='From')?.value||'Unknown';
+            const sender= from.replace(/<.*>/,'').replace(/"/g,'').trim();
+            let body='';
+            const parts = mData.payload?.parts||[];
+            const tp    = parts.find(p=>p.mimeType==='text/plain')||(mData.payload?.mimeType==='text/plain'?mData.payload:null);
+            if (tp?.body?.data)              body=atob(tp.body.data.replace(/-/g,'+').replace(/_/g,'/'));
+            else if (mData.payload?.body?.data) body=atob(mData.payload.body.data.replace(/-/g,'+').replace(/_/g,'/'));
+            if (body.trim().length>20) allMessages.push({source:'gmail',sender,text:body.slice(0,1200)});
+          } catch(e2) {}
+        }
+        addLog('Gmail: done','ok');
+      } catch(e) { addLog('Gmail failed: '+e.message,'err'); }
+    }
 
-    // Parse messages in-browser — no external API needed
-    const byPerson = {};
+    if (!allMessages.length) { toast('No messages found in last 7 days','err'); return; }
+
+    const byPerson={};
     for (const msg of allMessages) {
-      const blocks = splitChatBlocks(msg.text, msg.sender);
-      for (const b of blocks) {
-        const key = b.name.toLowerCase().trim();
-        if (!byPerson[key]) byPerson[key] = { name: b.name, dept: b.dept, texts: [] };
+      for (const b of splitChatBlocks(msg.text,msg.sender)) {
+        const key=b.name.toLowerCase().trim();
+        if (!byPerson[key]) byPerson[key]={name:b.name,dept:b.dept,texts:[]};
         byPerson[key].texts.push(b.text);
       }
     }
-
-    const parsed = Object.values(byPerson).map(p => {
-      const combined = p.texts.join('\n');
-      const f = extractChatFields(combined);
-      return { name: p.name, dept: p.dept||'General', ...f };
-    });
-
+    const parsed=Object.values(byPerson).map(p=>{ const c=p.texts.join('\n'); return {name:p.name,dept:p.dept||'General',...extractChatFields(c)}; });
     if (!parsed.length) { toast('Could not parse any member updates','err'); return; }
 
-    // Merge into members + updates state
+    _members=[]; _updates={};
     for (const p of parsed) {
-      if (!_members.find(m => m.name.toLowerCase() === p.name.toLowerCase())) {
-        _members.push({ name: p.name, dept: p.dept });
-      }
-      const id = p.name.replace(/\s+/g,'_');
-      _updates[id] = { completed: p.completed, inprogress: p.inprogress, blockers: p.blockers, wins: p.wins };
+      _members.push({name:p.name,dept:p.dept});
+      const id=p.name.replace(/\s+/g,'_');
+      _updates[id]={completed:p.completed,inprogress:p.inprogress,blockers:p.blockers,wins:p.wins};
     }
+    await window.fbMemP(_activeProjectId).save(_members);
+    await window.fbUpdP(_activeProjectId).save(_updates);
 
-    await window.fbMem.save(_members);
-    await window.fbUpd.save(_updates);
-    renderMCards();
-
-    // Auto-compile into the main textarea
-    const lines = parsed.map(p => {
-      const u = p;
-      if (!u.completed && !u.inprogress && !u.blockers && !u.wins) return null;
-      let t = `${p.name} (${p.dept}):`;
-      if (u.completed)  t += '\nCompleted: '   + u.completed;
-      if (u.inprogress) t += '\nIn Progress: ' + u.inprogress;
-      if (u.blockers)   t += '\nBlocker: '     + u.blockers;
-      if (u.wins)       t += '\nWin: '         + u.wins;
+    const lines=parsed.map(p=>{
+      if (!p.completed&&!p.inprogress&&!p.blockers&&!p.wins) return null;
+      let t=p.name+' ('+p.dept+'):';
+      if (p.completed)  t+='\nCompleted: '+p.completed;
+      if (p.inprogress) t+='\nIn Progress: '+p.inprogress;
+      if (p.blockers)   t+='\nBlocker: '+p.blockers;
+      if (p.wins)       t+='\nWin: '+p.wins;
       return t;
     }).filter(Boolean);
+    if (lines.length) { const c=lines.join('\n\n'); sv('input',c); document.getElementById('chars').textContent=c.length.toLocaleString()+' chars'; }
 
-    if (lines.length) {
-      const compiled = lines.join('\n\n');
-      sv('input', compiled);
-      document.getElementById('chars').textContent = compiled.length.toLocaleString() + ' chars';
-    }
+    const cc=allMessages.filter(m=>m.source==='chat').length, ec=allMessages.filter(m=>m.source==='gmail').length;
+    addLog('Loaded '+parsed.length+' members ('+cc+' chat, '+ec+' email)','ok');
+    toast(parsed.length+' members loaded from '+proj.name+' - click Generate!','ok');
 
-    addLog('Loaded ' + parsed.length + ' members from Chat ✓','ok');
-    toast(parsed.length + ' members loaded — click ⚡ Generate All Reports!','ok');
-
-  } catch(e) {
-    addLog('Load failed: ' + e.message,'err');
-    toast('Load failed: ' + e.message,'err');
-  } finally {
-    btns.forEach(b=>{b.innerHTML=b.id==='loadChatBtn'?'📥 Load Now':'📥 Load from Chat';b.disabled=false;});
-  }
+  } catch(e) { addLog('Load failed: '+e.message,'err'); toast('Load failed: '+e.message,'err'); }
+  finally { btns.forEach(b=>{b.innerHTML=b.id==='loadChatBtn'?'Load Now':'Load from Chat + Gmail + Gmail';b.disabled=false;}); }
 }
 
-// Split a raw Chat message into per-person blocks
+
+// ── Onboarding ────────────────────────────────────────────────
+async function saveOnboarding() {
+  const name    = document.getElementById('obName')?.value.trim() || '';
+  const project = document.getElementById('obProject')?.value.trim() || '';
+  const client  = document.getElementById('obClient')?.value.trim() || 'Internal';
+  const space   = document.getElementById('obSpace')?.value.trim() || '';
+  if (!name)    { document.getElementById('obName').focus();    return; }
+  if (!project) { document.getElementById('obProject').focus(); return; }
+  if (!space)   { document.getElementById('obSpace').focus();   return; }
+  _pmName = name;
+  await window.fbProfile.save({name});
+  const proj = {id:genId(), name:project, client, spaces:[space], emailQuery:'', mgmtEmail:'', clientEmail:'', teamEmail:'', webhook:''};
+  _projects = [proj];
+  await window.fbProjects.save(_projects);
+  _activeProjectId = proj.id;
+  document.getElementById('onboardModal').classList.remove('open');
+  renderProjectTabs();
+  updateProjectLabel();
+  renderTab();
+  toast('Welcome ' + name.split(' ')[0] + '! All set.', 'ok');
+  addLog('Setup complete for ' + name, 'ok');
+}
+
+// ── Message parsing helpers ────────────────────────────────────
 function splitChatBlocks(text, defaultSender) {
   const re = /([A-Z][a-zA-Z\s\-]+?)\s*\(([^)]+)\)\s*:/g;
-  const pos = [];
-  let m;
+  const pos = []; let m;
   while ((m = re.exec(text)) !== null) {
     pos.push({ index: m.index, name: m[1].trim(), dept: m[2].trim(), end: m.index + m[0].length });
   }
   if (!pos.length) return [{ name: defaultSender, dept: 'General', text: text.trim() }];
   return pos.map((p, i) => ({
-    name: p.name, dept: p.dept,
-    text: text.slice(p.end, pos[i+1]?.index ?? text.length).trim()
+    name: p.name,
+    dept: p.dept,
+    text: text.slice(p.end, pos[i+1]?.index || text.length).trim()
   }));
 }
 
-// Extract structured fields from a block of text using keywords
 function extractChatFields(text) {
-  const lines = text.split(/\n/).map(l => l.trim()).filter(l => l.length > 3);
+  const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 3);
   const completed = [], inprogress = [], blockers = [], wins = [];
   const labelRe = {
-    completed:  /^(completed?|done|finished?|shipped|delivered|deployed|resolved|closed|sent|signed off)\s*[:\-]/i,
+    completed:  /^(completed?|done|finished?|shipped|delivered|deployed|resolved|closed|sent)\s*[:\-]/i,
     inprogress: /^(in[- ]?progress|working on|ongoing|wip|currently)\s*[:\-]/i,
     blockers:   /^(blocker?s?|blocked|issue|dependency|need|waiting|risk)\s*[:\-]/i,
     wins:       /^(win|wins|achievement|highlight|success)\s*[:\-]/i,
   };
   const kwRe = {
-    blockers:   /\b(blocker|blocked|need|waiting|dependency|stuck|delayed|require[sd]?|approval needed|cannot proceed)\b/i,
-    wins:       /\b(win|won|approved|success|milestone|client (loved|confirmed|approved)|great response|praised|record)\b/i,
+    blockers:   /\b(blocker|blocked|need|waiting|dependency|stuck|delayed|requires?|approval needed|cannot proceed)\b/i,
+    wins:       /\b(win|won|approved|success|milestone|client (loved|confirmed|approved)|praised|record)\b/i,
     inprogress: /\b(in progress|ongoing|working on|continuing|currently|building|reviewing|investigating|underway|started)\b/i,
     completed:  /\b(completed?|done|finished?|shipped|delivered|deployed|resolved|merged|launched|released)\b/i,
   };
-  const clean = (l, re) => l.replace(re,'').replace(/^[:\-\s]+/,'').trim();
+  const clean = (l, re) => l.replace(re, '').replace(/^[:\-\s]+/, '').trim();
   for (let line of lines) {
-    line = line.replace(/^[-•*]\s*/,'').trim();
+    line = line.replace(/^[-*]\s*/, '').trim();
     if (!line) continue;
     if      (labelRe.completed.test(line))  { completed.push(clean(line, labelRe.completed));   continue; }
     else if (labelRe.inprogress.test(line)) { inprogress.push(clean(line, labelRe.inprogress)); continue; }
@@ -1116,20 +1276,20 @@ function extractChatFields(text) {
 }
 
 // ── Team members ──────────────────────────────────────────────
-async function loadMembers() { _members=await window.fbMem.get(); renderMCards(); }
-async function loadUpdates() { _updates=await window.fbUpd.get(); }
+async function loadMembers() { _members=await window.fbMemP(_activeProjectId).get(); renderMCards(); }
+async function loadUpdates() { _updates=await window.fbUpdP(_activeProjectId).get(); }
 async function addMember() {
   const name=v('nmName'), dept=v('nmDept');
   if(!name){toast('Enter a name','err');return;}
   if(_members.find(m=>m.name.toLowerCase()===name.toLowerCase())){toast('Already exists','err');return;}
   _members.push({name,dept:dept||'General'});
-  await window.fbMem.save(_members);
+  await window.fbMemP(_activeProjectId).save(_members);
   sv('nmName',''); sv('nmDept','');
   renderMCards(); toast(name+' added ✓','ok');
 }
 async function removeMember(n) {
   _members=_members.filter(m=>m.name!==n);
-  await window.fbMem.save(_members); renderMCards();
+  await window.fbMemP(_activeProjectId).save(_members); renderMCards();
 }
 function renderMCards() {
   const el=document.getElementById('mCards');
@@ -1154,7 +1314,7 @@ let updTm;
 function saveUpd(id,field,val) {
   if(!_updates[id]) _updates[id]={};
   _updates[id][field]=val;
-  clearTimeout(updTm); updTm=setTimeout(()=>window.fbUpd.save(_updates),700);
+  clearTimeout(updTm); updTm=setTimeout(()=>window.fbUpdP(_activeProjectId).save(_updates),700);
 }
 function compileUpdates() {
   if(!_members.length){toast('No members yet','err');return;}
@@ -1175,12 +1335,12 @@ function compileUpdates() {
 }
 async function clearUpdates() {
   if(!confirm('Clear all update fields?')) return;
-  _updates={}; await window.fbUpd.save({}); renderMCards(); toast('Cleared ✓','info');
+  _updates={}; await window.fbUpdP(_activeProjectId).save({}); renderMCards(); toast('Cleared ✓','info');
 }
 
 // ── History ────────────────────────────────────────────────────
-async function saveHist(dashboard,week,type,rpts) {
-  const entry={week,type,dashboard,reports:rpts||{},owner:window._user?.email,savedAt:new Date().toISOString()};
+async function saveHist(dashboard,week,type,rpts,proj) {
+  const entry={week,type,projectId:_activeProjectId,projectName:proj?.name,clientName:proj?.client,dashboard,reports:rpts||{},owner:window._user?.email,savedAt:new Date().toISOString()};
   await window.fbHist.save(entry);
   _history=await window.fbHist.list();
 }
@@ -1299,7 +1459,7 @@ async function syncBlockers(dashboard,week) {
   });
   await window.fbBlk.save(_blockers);
 }
-async function loadBlockers() { _blockers=await window.fbBlk.get(); }
+async function loadBlockers() { _blockers=await window.fbBlkP(_activeProjectId).get(); }
 function renderBlockers() {
   const active=_blockers.filter(b=>!b.resolved);
   const resolved=_blockers.filter(b=>b.resolved).slice(0,5);
@@ -1464,36 +1624,7 @@ function toast(msg,type='info') {
 }
 
 
-// ── Onboarding wizard ─────────────────────────────────────────
-async function checkFirstRun() {
-  // Show wizard if this PM has never saved config before
-  const existing = await window.fbCfg.get();
-  if (!existing || !existing.name) {
-    document.getElementById('onboardModal').classList.add('open');
-    setTimeout(() => document.getElementById('obName').focus(), 300);
-  }
-}
 
-async function saveOnboarding() {
-  const name    = document.getElementById('obName').value.trim();
-  const project = document.getElementById('obProject').value.trim();
-  const space   = document.getElementById('obSpace').value.trim();
-
-  if (!name)    { document.getElementById('obName').focus();    return; }
-  if (!project) { document.getElementById('obProject').focus(); return; }
-  if (!space)   { document.getElementById('obSpace').focus();   return; }
-
-  // Save to config
-  _cfg = { name, project, s1: space, s2:'', s3:'', s4:'', w1:'', w2:'', w3:'' };
-  await window.fbCfg.save(_cfg);
-
-  // Populate config panel fields too
-  sv('cName', name); sv('cProject', project); sv('cS1', space);
-
-  document.getElementById('onboardModal').classList.remove('open');
-  toast('Welcome ' + name.split(' ')[0] + '! All set ✨', 'ok');
-  addLog('First-time setup complete for ' + name, 'ok');
-}
 
 // ── Init ──────────────────────────────────────────────────────
 document.getElementById('input').addEventListener('input', function() {
