@@ -1069,7 +1069,29 @@ RAG: G=on track, A=at risk, R=blocked.`;
       if (!window._anthropicKey) {
         throw new Error('Anthropic API key not found. Ask your admin to add anthropicKey to Firestore admin/config document.');
       }
-      const res=await fetch(PROXY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:4000,apiKey:window._anthropicKey,system,messages:[{role:'user',content:`Week:${week}\nType:${isFri?'Friday':'Monday'}\nSender:${sender}\nProject:${project}\n\nUpdates:\n${inp}`}]})});
+      // 45 second timeout - if Worker hangs, abort and show Demo Mode
+      const controller = new AbortController();
+      const timeoutId  = setTimeout(() => {
+        controller.abort();
+        addLog('Request timed out after 45s — try Demo Mode', 'err');
+      }, 45000);
+      let res;
+      try {
+        res = await fetch(PROXY, {
+          method: 'POST',
+          signal: controller.signal,
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({
+            model: 'claude-haiku-4-5-20251001',
+            max_tokens: 2500,
+            apiKey: window._anthropicKey,
+            system,
+            messages: [{role:'user', content:`Week:${week}\nType:${isFri?'Friday':'Monday'}\nSender:${sender}\nProject:${project}\n\nUpdates:\n${inp}`}]
+          })
+        });
+      } finally {
+        clearTimeout(timeoutId);
+      }
       if(!res.ok) { const e=await res.json(); throw new Error('API '+res.status+': '+(e.error?.message||JSON.stringify(e))); }
       const data=await res.json();
       if(data.error) throw new Error(data.error.message||JSON.stringify(data.error));
