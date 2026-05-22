@@ -1053,6 +1053,953 @@ async function generate() {
   const week=getWeek(), isFri=mode==='friday';
   const sender=_pmName||window._user?.displayName||'DN Team';
   const project=proj.name+'  (Client: '+proj.client+')';
+  const system = 'Write 4 status reports for project '+project+' at Datanimbus. Return ONLY valid JSON, no markdown:\n{"mgmt":"<h2>Status</h2><p>...</p>","client":"<p>...</p>","team":"<p>...</p>","chat":"plain text under 100 words","dashboard":{"members":[{"name":"","dept":"","rag":"G","ragReason":"","blockers":[],"wins":[]}],"summary":{"totalMembers":0,"greenCount":0,"amberCount":0,"redCount":0,"totalBlockers":0,"totalWins":0,"overallRAG":"G"}}}\nRules: mgmt=HTML with per-person updates blockers wins. client=achievements only no internal names. team='+(isFri?'end of week':'monday plan')+'. chat=plain text. RAG G=green A=amber R=red. Be concise.';d>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>DN Program Status Rollup</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>if(typeof pdfjsLib!=='undefined') pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
+
+<!-- Firebase SDK -->
+
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0f172a;color:#e2e8f0;font-family:'Inter',sans-serif;font-size:13px}
+
+/* Login */
+#loginScreen{position:fixed;inset:0;background:#0f172a;display:flex;align-items:center;justify-content:center;z-index:999;padding:20px}
+.lb{background:#1e293b;border:1px solid #334155;border-radius:16px;padding:36px;width:100%;max-width:380px;text-align:center}
+.lb-logo{width:52px;height:52px;background:#f59e0b;border-radius:12px;display:grid;place-items:center;font-weight:800;font-size:20px;color:#000;margin:0 auto 16px}
+.lb-title{font-size:20px;font-weight:700;color:#f1f5f9;margin-bottom:6px}
+.lb-sub{font-size:12px;color:#64748b;margin-bottom:24px;line-height:1.6}
+#loginBtn{background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:11px 20px;font-size:13px;font-weight:600;color:#1a1a1a;cursor:pointer;width:100%;display:flex;align-items:center;justify-content:center;gap:10px;transition:.2s;font-family:'Inter',sans-serif}
+#loginBtn:hover{box-shadow:0 2px 8px rgba(0,0,0,.1)}
+#loginBtn img{width:18px}
+#authErr{display:none;margin-top:12px;padding:9px 12px;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);border-radius:6px;color:#f87171;font-size:11px}
+.lb-badge{margin-top:14px;font-size:11px;color:#475569}
+
+/* App shell */
+#app{display:none}
+header{background:#1e293b;border-bottom:1px solid #334155;padding:10px 16px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.logo{display:flex;align-items:center;gap:8px}
+.logo-box{width:30px;height:30px;background:#f59e0b;border-radius:7px;display:grid;place-items:center;font-weight:700;font-size:12px;color:#000;flex-shrink:0}
+.logo-title{font-size:13px;font-weight:700;color:#f1f5f9}
+.logo-sub{font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.5px}
+.hright{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.badge{padding:3px 9px;border-radius:20px;font-size:10px;font-weight:600;letter-spacing:.5px}
+.fri{background:rgba(245,158,11,.15);border:1px solid #f59e0b;color:#f59e0b}
+.mon{background:rgba(34,211,238,.15);border:1px solid #22d3ee;color:#22d3ee}
+.hbtn{background:transparent;border:1px solid #334155;color:#94a3b8;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:11px;font-family:'Inter',sans-serif;white-space:nowrap}
+.hbtn:hover{border-color:#f59e0b;color:#f59e0b}
+.hbtn.on{background:rgba(245,158,11,.12);border-color:#f59e0b;color:#f59e0b}
+.upill{display:flex;align-items:center;gap:6px;background:#0f172a;border:1px solid #334155;border-radius:20px;padding:3px 10px 3px 3px;cursor:pointer}
+.upill:hover{border-color:#f59e0b}
+.uav{width:24px;height:24px;border-radius:50%;background:#f59e0b;display:grid;place-items:center;font-size:10px;font-weight:700;color:#000}
+.uname{font-size:11px;color:#94a3b8;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* User menu */
+#uMenu{display:none;position:fixed;top:50px;right:14px;z-index:300;background:#1e293b;border:1px solid #334155;border-radius:10px;padding:12px;min-width:190px;box-shadow:0 8px 24px rgba(0,0,0,.4)}
+#uMenu.open{display:block}
+.um-n{font-size:13px;font-weight:600;color:#f1f5f9;margin-bottom:2px}
+.um-e{font-size:11px;color:#64748b;padding-bottom:8px;border-bottom:1px solid #334155;margin-bottom:8px}
+.um-btn{background:transparent;border:1px solid #334155;color:#94a3b8;padding:6px 10px;border-radius:6px;font-size:11px;cursor:pointer;width:100%;text-align:left;font-family:'Inter',sans-serif}
+.um-btn:hover{border-color:#f87171;color:#f87171}
+
+/* Config */
+.cfg-inner{padding:18px 20px}
+.cfg-sec{font-size:10px;color:#f59e0b;letter-spacing:1px;text-transform:uppercase;grid-column:1/-1;margin-top:10px;padding-bottom:5px;border-bottom:1px solid #334155}
+.cfg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px}
+.cfg-f{display:flex;flex-direction:column;gap:4px}
+.cfg-f label{font-size:10px;color:#64748b;letter-spacing:.5px;text-transform:uppercase}
+.cfg-f input{background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;font-family:'Inter',sans-serif;font-size:12px;padding:8px 10px;outline:none;transition:.2s}
+.cfg-f input:focus{border-color:#f59e0b}
+.cfg-note{grid-column:1/-1;font-size:11px;color:#475569;line-height:1.6;padding:8px 12px;background:rgba(245,158,11,.04);border-left:2px solid #f59e0b;border-radius:0 4px 4px 0;margin-top:6px}
+.cfg-acts{margin-top:10px;display:flex;gap:8px}
+.bsave{background:#f59e0b;border:none;color:#000;padding:7px 18px;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer;font-family:'Inter',sans-serif}
+.bclose{background:transparent;border:1px solid #334155;color:#64748b;padding:7px 14px;border-radius:6px;font-size:12px;cursor:pointer;font-family:'Inter',sans-serif}
+
+/* Layout */
+main{display:grid;grid-template-columns:1fr 1fr;height:calc(100vh - 53px)}
+@media(max-width:768px){
+  main{grid-template-columns:1fr;height:auto}
+  .right{border-top:1px solid #334155;min-height:60vh}
+  .logo-sub,.logo-title{font-size:11px}
+  .hright .badge{display:none}
+}
+.left{border-right:1px solid #334155;display:flex;flex-direction:column}
+.phead{padding:10px 14px;border-bottom:1px solid #334155;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px}
+.phead span{font-size:10px;font-weight:600;color:#94a3b8;letter-spacing:.5px;text-transform:uppercase}
+.mtoggle{display:flex;border:1px solid #334155;border-radius:6px;overflow:hidden}
+.mtoggle button{background:transparent;border:none;color:#64748b;padding:4px 10px;font-size:11px;font-family:'Inter',sans-serif;cursor:pointer;transition:.15s}
+.mfri{background:rgba(245,158,11,.15)!important;color:#f59e0b!important}
+.mmon{background:rgba(34,211,238,.15)!important;color:#22d3ee!important}
+.iwrap{flex:1;display:flex;flex-direction:column;padding:12px 14px;gap:7px}
+.ilabel{font-size:10px;color:#64748b;letter-spacing:.8px;text-transform:uppercase;display:flex;align-items:center;justify-content:space-between}
+textarea{background:#1e293b;border:1px solid #334155;border-radius:8px;color:#e2e8f0;font-family:'Inter',sans-serif;font-size:13px;line-height:1.7;padding:11px;resize:none;flex:1;min-height:200px;outline:none;transition:.2s}
+textarea:focus{border-color:#f59e0b}
+textarea::placeholder{color:#334155}
+.abar{padding:10px 14px;border-top:1px solid #334155;display:flex;gap:8px;align-items:center}
+#genBtn{flex:1;background:#f59e0b;border:none;border-radius:8px;color:#000;font-weight:700;font-size:13px;padding:10px;cursor:pointer;font-family:'Inter',sans-serif}
+#genBtn:hover:not(:disabled){background:#d97706}
+#genBtn:disabled{opacity:.5;cursor:not-allowed}
+.chars{font-size:11px;color:#475569}
+.right{display:flex;flex-direction:column}
+.tabs{display:flex;border-bottom:1px solid #334155;background:#1e293b;overflow-x:auto}
+.tab{flex:1;min-width:65px;background:transparent;border:none;border-bottom:2px solid transparent;color:#64748b;font-family:'Inter',sans-serif;font-size:11px;padding:9px 4px;cursor:pointer;transition:.15s;white-space:nowrap}
+.tab .dot{width:5px;height:5px;border-radius:50%;background:#334155;display:inline-block;margin-right:3px}
+.tab.active{color:#f1f5f9;border-bottom-color:#f59e0b}
+.tab.ready .dot{background:#34d399}
+.tab.active .dot{background:#f59e0b}
+.ebar{padding:5px 14px;background:rgba(245,158,11,.04);border-bottom:1px solid rgba(245,158,11,.1);display:flex;align-items:center;justify-content:space-between;font-size:11px}
+.ehint{color:#64748b}
+.eacts{display:flex;gap:5px}
+.ebtn{background:transparent;border:1px solid #334155;border-radius:4px;color:#64748b;font-family:'Inter',sans-serif;font-size:10px;padding:3px 8px;cursor:pointer}
+.ebtn.on{background:rgba(245,158,11,.12);border-color:#f59e0b;color:#f59e0b}
+.ebtn.rst{border-color:rgba(248,113,113,.3);color:#f87171}
+.sdot{width:5px;height:5px;border-radius:50%;background:#34d399;display:inline-block;margin-right:3px;opacity:0;transition:.3s}
+.sdot.show{opacity:1}
+.output{flex:1;overflow-y:auto;padding:14px}
+.ph{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:8px;color:#475569;text-align:center}
+.ph-icon{font-size:28px}
+.report{font-size:13px;line-height:1.8;color:#cbd5e1}
+.report h2{font-size:13px;font-weight:600;color:#f1f5f9;margin:14px 0 5px;padding-bottom:4px;border-bottom:1px solid #1e293b}
+.report h2:first-child{margin-top:0}
+.report h3{font-size:11px;font-weight:600;color:#f59e0b;margin:8px 0 3px;text-transform:uppercase;letter-spacing:.5px}
+.report p{margin-bottom:7px}
+.report ul{padding-left:14px;margin-bottom:7px}
+.report li{margin-bottom:2px}
+.report strong{color:#f1f5f9}
+.report .blocker{background:rgba(248,113,113,.12);color:#f87171;border:1px solid rgba(248,113,113,.25);padding:1px 5px;border-radius:3px;font-size:11px}
+.report .win{background:rgba(52,211,153,.12);color:#34d399;border:1px solid rgba(52,211,153,.25);padding:1px 5px;border-radius:3px;font-size:11px}
+.sbar{padding:8px 14px;border-top:1px solid #334155;background:#1e293b;display:flex;gap:5px;flex-wrap:wrap;align-items:center}
+.sbtn{background:transparent;border:1px solid #334155;border-radius:5px;color:#64748b;font-family:'Inter',sans-serif;font-size:11px;padding:5px 8px;cursor:pointer;transition:.15s}
+.sbtn:hover:not(:disabled){border-color:#22d3ee;color:#22d3ee}
+.sbtn:disabled{opacity:.4;cursor:not-allowed}
+.sbtn.sent{border-color:#34d399;color:#34d399}
+#sendAll{margin-left:auto;border-color:#22d3ee;color:#22d3ee;background:rgba(34,211,238,.06)}
+
+/* Full views */
+.fv{display:none;position:fixed;inset:0;z-index:50;background:#0f172a;overflow-y:auto;padding:18px 20px}
+.fv.open{display:block}
+.fvh{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:8px}
+.fv-title{font-size:17px;font-weight:700;color:#f1f5f9}
+.fv-sub{font-size:11px;color:#64748b;margin-top:2px}
+
+/* Dashboard */
+.scards{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin-bottom:18px}
+.sc{background:#1e293b;border:1px solid #334155;border-radius:10px;padding:11px 13px}
+.sc .n{font-size:24px;font-weight:700;color:#f1f5f9}
+.sc .l{font-size:10px;color:#64748b;margin-top:2px;text-transform:uppercase;letter-spacing:.5px}
+.sc.red{border-color:rgba(248,113,113,.35);background:rgba(248,113,113,.04)}
+.sc.grn{border-color:rgba(52,211,153,.35);background:rgba(52,211,153,.04)}
+.sc.amb{border-color:rgba(245,158,11,.35);background:rgba(245,158,11,.04)}
+.stitle{font-size:10px;font-weight:600;color:#64748b;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.stitle::after{content:'';flex:1;height:1px;background:#1e293b}
+.rgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px;margin-bottom:20px}
+.rc{background:#1e293b;border-radius:8px;padding:11px 13px;border-left:4px solid #334155;position:relative}
+.rc.R{border-left-color:#f87171}
+.rc.A{border-left-color:#f59e0b}
+.rc.G{border-left-color:#34d399}
+.rname{font-size:12px;font-weight:600;color:#f1f5f9;margin-bottom:1px}
+.rdept{font-size:10px;color:#64748b;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px}
+.rbadge{position:absolute;top:10px;right:10px;width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font-size:10px;font-weight:700}
+.rbadge.R{background:rgba(248,113,113,.2);color:#f87171}
+.rbadge.A{background:rgba(245,158,11,.2);color:#f59e0b}
+.rbadge.G{background:rgba(52,211,153,.2);color:#34d399}
+.rdet{font-size:11px;color:#64748b;line-height:1.5}
+.rdet .bi{color:#f87171}
+.rdet .wi{color:#34d399}
+.brow{background:#1e293b;border-radius:7px;padding:9px 12px;margin-bottom:7px;display:flex;align-items:center;gap:8px;border-left:3px solid #f87171;flex-wrap:wrap}
+.bown{font-size:11px;color:#f87171;font-weight:500}
+.bwk{font-size:10px;color:#64748b}
+.btxt{font-size:12px;color:#e2e8f0;flex:1;line-height:1.5;min-width:100px}
+.htbl{width:100%;border-collapse:collapse;font-size:12px}
+.htbl th{padding:6px 9px;text-align:left;color:#64748b;border-bottom:1px solid #1e293b;font-size:10px;text-transform:uppercase;letter-spacing:.5px}
+.htbl td{padding:7px 9px;border-bottom:1px solid #1e293b;color:#94a3b8;vertical-align:middle}
+.htbl tr:hover td{background:#1e293b}
+.rpill{display:inline-block;padding:2px 6px;border-radius:20px;font-size:10px;font-weight:600}
+.rpill.R{background:rgba(248,113,113,.15);color:#f87171;border:1px solid rgba(248,113,113,.25)}
+.rpill.A{background:rgba(245,158,11,.15);color:#f59e0b;border:1px solid rgba(245,158,11,.25)}
+.rpill.G{background:rgba(52,211,153,.15);color:#34d399;border:1px solid rgba(52,211,153,.25)}
+.nodata{text-align:center;padding:28px;color:#475569;font-size:12px}
+.tbar{display:flex;align-items:center;gap:7px;margin-bottom:5px}
+.tlabel{font-size:11px;color:#64748b;min-width:64px;text-align:right}
+.tbg{flex:1;background:#1e293b;border-radius:3px;height:6px;overflow:hidden}
+.tbar-fill{height:100%;border-radius:3px;transition:.3s}
+.tbar-fill.bl{background:#f87171}
+.tbar-fill.wn{background:#34d399}
+.tval{font-size:11px;color:#94a3b8;min-width:16px}
+
+/* Team templates */
+.mcards{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:8px;margin-bottom:16px}
+.mcard{background:#1e293b;border:1px solid #334155;border-radius:9px;padding:12px;display:flex;flex-direction:column;gap:7px}
+.mcard-h{display:flex;align-items:center;justify-content:space-between}
+.mav{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#f59e0b,#d97706);display:grid;place-items:center;font-size:10px;font-weight:700;color:#000;flex-shrink:0}
+.mni{flex:1;margin-left:7px}
+.mn{font-size:12px;font-weight:600;color:#f1f5f9}
+.md{font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.4px}
+.mdel{background:transparent;border:none;color:#475569;font-size:12px;cursor:pointer}
+.mdel:hover{color:#f87171}
+.uf{display:flex;flex-direction:column;gap:3px}
+.uf label{font-size:10px;color:#64748b;letter-spacing:.4px;text-transform:uppercase}
+.uf textarea{background:#0f172a;border:1px solid #334155;border-radius:5px;color:#e2e8f0;font-family:'Inter',sans-serif;font-size:12px;padding:6px 8px;resize:none;outline:none;min-height:44px;transition:.2s;line-height:1.5}
+.uf textarea:focus{border-color:#f59e0b}
+.amform{background:#1e293b;border:1px dashed #334155;border-radius:9px;padding:12px;display:flex;gap:7px;align-items:flex-end;flex-wrap:wrap;margin-bottom:16px}
+.af{display:flex;flex-direction:column;gap:3px;flex:1;min-width:110px}
+.af label{font-size:10px;color:#64748b;letter-spacing:.4px;text-transform:uppercase}
+.af input{background:#0f172a;border:1px solid #334155;border-radius:5px;color:#e2e8f0;font-family:'Inter',sans-serif;font-size:12px;padding:7px 9px;outline:none;transition:.2s}
+.af input:focus{border-color:#f59e0b}
+.bcompile{background:#22d3ee;border:none;color:#000;padding:9px;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer;width:100%;font-family:'Inter',sans-serif}
+
+/* History */
+.hcard{background:#1e293b;border:1px solid #334155;border-radius:9px;padding:12px 16px;cursor:pointer;transition:.2s;margin-bottom:7px}
+.hcard:hover{border-color:#f59e0b}
+.htag{display:inline-block;font-size:10px;padding:2px 6px;border-radius:20px;border:1px solid #334155;color:#64748b;margin-right:3px}
+.rvtab{background:transparent;border:none;border-bottom:2px solid transparent;color:#64748b;font-family:'Inter',sans-serif;font-size:11px;padding:5px 10px;cursor:pointer;transition:.15s}
+.rvtab.active{color:#f59e0b;border-bottom-color:#f59e0b}
+.rvcont{font-size:12px;line-height:1.8;color:#94a3b8;max-height:380px;overflow-y:auto;margin-top:10px}
+
+/* Modals */
+.moverlay{display:none;position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);align-items:center;justify-content:center;padding:16px}
+.moverlay.open{display:flex}
+.mbox{background:#1e293b;border:1px solid #334155;border-radius:12px;width:100%;max-width:480px;overflow:hidden}
+.mhead{padding:14px 18px;border-bottom:1px solid #334155;display:flex;align-items:center;justify-content:space-between}
+.mtitle{font-size:13px;font-weight:600;color:#f1f5f9}
+.mxbtn{background:transparent;border:none;color:#64748b;font-size:17px;cursor:pointer}
+.mbody{padding:16px 18px;display:flex;flex-direction:column;gap:10px}
+.mig{background:#0f172a;border-radius:7px;padding:11px 13px;border:1px solid #334155}
+.mil{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.mil.mg{color:#f59e0b}.mil.cl{color:#22d3ee}.mil.tm{color:#34d399}.mil.ch{color:#a78bfa}
+.mi{background:#1e293b;border:1px solid #334155;border-radius:5px;color:#e2e8f0;font-family:'Inter',sans-serif;font-size:12px;padding:7px 9px;outline:none;width:100%}
+.mi:focus{border-color:#f59e0b}
+.mfoot{padding:11px 18px;border-top:1px solid #334155;display:flex;gap:7px;justify-content:flex-end}
+.bcancel{background:transparent;border:1px solid #334155;color:#64748b;padding:7px 14px;border-radius:5px;font-size:12px;cursor:pointer;font-family:'Inter',sans-serif}
+.bgo{background:linear-gradient(135deg,#f59e0b,#d97706);border:none;color:#000;padding:7px 18px;border-radius:5px;font-weight:700;font-size:12px;cursor:pointer;font-family:'Inter',sans-serif}
+
+/* Log */
+#log{background:#1e293b;border-top:1px solid #334155;max-height:0;overflow:hidden;transition:max-height .25s}
+#log.open{max-height:140px}
+.logh{padding:6px 14px;display:flex;justify-content:space-between;cursor:pointer}
+.logh span{font-size:10px;color:#475569;text-transform:uppercase;letter-spacing:.5px}
+.loge{padding:0 14px 7px;overflow-y:auto;max-height:90px;display:flex;flex-direction:column;gap:2px}
+.logr{display:flex;gap:7px;font-size:11px}
+.logt{color:#475569;min-width:48px}
+.logm{color:#94a3b8}
+.logm.ok{color:#34d399}.logm.err{color:#f87171}.logm.info{color:#22d3ee}
+
+/* Toast */
+#toast{position:fixed;bottom:14px;right:14px;z-index:999;padding:9px 14px;border-radius:7px;font-size:12px;font-family:'Inter',sans-serif;opacity:0;transform:translateY(50px);transition:.3s;max-width:280px;pointer-events:none}
+#toast.show{opacity:1;transform:translateY(0)}
+#toast.ok{background:#0d2e1e;border:1px solid #34d399;color:#34d399}
+#toast.err{background:#2e0d0d;border:1px solid #f87171;color:#f87171}
+#toast.info{background:#0d1e2e;border:1px solid #22d3ee;color:#22d3ee}
+
+/* Onboarding wizard */
+#onboardModal{display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.85);backdrop-filter:blur(6px);align-items:center;justify-content:center;padding:16px}
+#onboardModal.open{display:flex}
+.ob-box{background:#1e293b;border:1px solid #f59e0b;border-radius:16px;width:100%;max-width:500px;overflow:hidden}
+.ob-head{background:linear-gradient(135deg,#0f172a,#1e3a5f);padding:22px 24px}
+.ob-title{font-size:18px;font-weight:700;color:#f1f5f9;margin-bottom:4px}
+.ob-sub{font-size:12px;color:#64748b}
+.ob-body{padding:20px 24px;display:flex;flex-direction:column;gap:12px}
+.ob-step{display:flex;gap:10px;align-items:flex-start}
+.ob-num{width:22px;height:22px;border-radius:50%;background:#f59e0b;color:#000;font-size:11px;font-weight:700;display:grid;place-items:center;flex-shrink:0;margin-top:2px}
+.ob-f{flex:1;display:flex;flex-direction:column;gap:4px}
+.ob-f label{font-size:10px;color:#64748b;letter-spacing:.5px;text-transform:uppercase}
+.ob-f input{background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;font-family:'Inter',sans-serif;font-size:13px;padding:9px 11px;outline:none;transition:.2s;width:100%}
+.ob-f input:focus{border-color:#f59e0b}
+.ob-f .ob-hint{font-size:10px;color:#475569;margin-top:2px;line-height:1.5}
+.ob-foot{padding:14px 24px;border-top:1px solid #334155;display:flex;justify-content:flex-end}
+.ob-go{background:#f59e0b;border:none;color:#000;padding:10px 28px;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer;font-family:'Inter',sans-serif}
+.ob-go:hover{background:#d97706}
+
+
+/* Project tabs */
+.proj-tabs{display:flex;align-items:center;gap:4px;flex:1;overflow-x:auto;padding:8px 0;min-width:0;scrollbar-width:none}
+.proj-tabs::-webkit-scrollbar{display:none}
+.proj-tab{display:inline-flex;align-items:center;gap:4px;padding:4px 11px;border-radius:20px;border:1px solid #334155;background:transparent;color:#64748b;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;font-family:'Inter',sans-serif;transition:.15s}
+.proj-tab:hover{border-color:#f59e0b;color:#f59e0b}
+.proj-tab.active{background:rgba(245,158,11,.15);border-color:#f59e0b;color:#f59e0b}
+.proj-add{padding:4px 11px;border-radius:20px;border:1px dashed #334155;background:transparent;color:#475569;font-size:11px;cursor:pointer;white-space:nowrap;font-family:'Inter',sans-serif}
+.proj-add:hover{border-color:#22d3ee;color:#22d3ee}
+/* Project modal */
+#projModal .mbox{max-width:540px;max-height:90vh;overflow-y:auto}
+.msec{font-size:10px;color:#f59e0b;letter-spacing:1px;text-transform:uppercase;padding-bottom:5px;border-bottom:1px solid #334155;margin:4px 0}
+.mrow{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.mf{display:flex;flex-direction:column;gap:4px}
+.mf.full{grid-column:1/-1}
+.mf label{font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.5px}
+.mf input{background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;font-family:'Inter',sans-serif;font-size:12px;padding:8px 10px;outline:none;width:100%;transition:.2s}
+.mf input:focus{border-color:#f59e0b}
+.mf .hint{font-size:10px;color:#475569;margin-top:2px;line-height:1.5}
+.bdel{background:transparent;border:1px solid rgba(248,113,113,.3);color:#f87171;padding:7px 14px;border-radius:5px;font-size:12px;cursor:pointer;font-family:'Inter',sans-serif}
+
+.spin{display:inline-block;width:11px;height:11px;border:2px solid rgba(0,0,0,.2);border-top-color:#000;border-radius:50%;animation:sp .6s linear infinite;vertical-align:middle;margin-right:4px}
+@keyframes sp{to{transform:rotate(360deg)}}
+@keyframes pulse-amber{0%,100%{box-shadow:0 0 0 2px rgba(245,158,11,.2)}50%{box-shadow:0 0 0 8px rgba(245,158,11,.05)}}
+@keyframes pulse-r{0%,100%{box-shadow:0 0 0 2px rgba(248,113,113,.15)}50%{box-shadow:0 0 0 5px rgba(248,113,113,.06)}}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginScreen">
+  <div class="lb">
+    <div class="lb-logo">DN</div>
+    <div class="lb-title">DN Program Status Rollup</div>
+    <div class="lb-sub">Automated weekly reporting for Datanimbus PMs. Sign in with your company account to continue.</div>
+    <button id="loginBtn" onclick="if(window.doSignIn)window.doSignIn();else{this.textContent='Loading...';setTimeout(()=>window.doSignIn&&window.doSignIn(),1500)}">
+      <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="G"/>
+      Sign in with Google
+    </button>
+    <div id="authErr"></div>
+    <div class="lb-badge">🔒 Restricted to @datanimbus.com accounts</div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+<header>
+  <div class="logo">
+    <div class="logo-box">DN</div>
+    <div>
+      <div class="logo-title">Program Status Rollup</div>
+      <div class="logo-sub">Datanimbus · Automated Reporting</div>
+    </div>
+  </div>
+  <div class="proj-tabs" id="projTabs"><button class="proj-add" onclick="openProjectModal(null)">+ Add Project</button></div>
+  <div class="hright">
+    <span class="badge fri" id="modeBadge">FRIDAY</span>
+    <button class="hbtn" id="dashBtn"  onclick="toggleDash()">📊 Dashboard</button>
+    <button class="hbtn" id="histBtn"  onclick="toggleHist()">🗂 History</button>
+    <button class="hbtn" id="teamBtn"  onclick="toggleTeam()">👥 Team</button>
+    <div class="upill" onclick="toggleUMenu()">
+      <div class="uav" id="uAvatar">U</div>
+      <div class="uname" id="uName">...</div>
+    </div>
+  </div>
+</header>
+
+<!-- User menu -->
+<div id="uMenu">
+  <div class="um-n" id="uMenuName"></div>
+  <div class="um-e" id="uEmail"></div>
+  <button class="um-btn" onclick="window.doSignOut()">Sign out</button>
+</div>
+
+</div>
+
+<!-- DASHBOARD -->
+<div id="dashView" class="fv">
+  <div class="fvh">
+    <div><div class="fv-title">📊 Programme Dashboard</div><div class="fv-sub" id="dashSub">Loading...</div></div>
+    <div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap">
+      <select id="projFilter" onchange="renderDash()" style="background:#1e293b;border:1px solid #334155;color:#94a3b8;padding:5px 9px;border-radius:6px;font-family:'Inter',sans-serif;font-size:11px;outline:none"><option value="all">All projects</option></select>
+      <select id="wkFilter" onchange="renderDash()"
+        style="background:#1e293b;border:1px solid #334155;color:#94a3b8;padding:5px 9px;border-radius:6px;font-family:'Inter',sans-serif;font-size:11px;outline:none">
+        <option value="all">All weeks</option>
+      </select>
+      <button class="hbtn" onclick="toggleDash()">✕ Close</button>
+    </div>
+  </div>
+  <div class="stitle">Overall Health</div>
+  <div class="scards">
+    <div class="sc"><div class="n" id="dWeeks">—</div><div class="l">Weeks tracked</div></div>
+    <div class="sc grn"><div class="n" id="dGrn">—</div><div class="l">🟢 On Track</div></div>
+    <div class="sc amb"><div class="n" id="dAmb">—</div><div class="l">🟡 At Risk</div></div>
+    <div class="sc red"><div class="n" id="dRed">—</div><div class="l">🔴 Blocked</div></div>
+    <div class="sc red"><div class="n" id="dBlk">—</div><div class="l">🚧 Open blockers</div></div>
+    <div class="sc"><div class="n" id="dWins">—</div><div class="l">🏆 Total wins</div></div>
+  </div>
+  <div class="stitle" style="color:#f87171">🚧 Active Blockers — stays until resolved</div>
+  <div id="bList" style="margin-bottom:20px"><div class="nodata">No active blockers</div></div>
+  <div class="stitle" id="ragTitle">Team RAG Status</div>
+  <div class="rgrid" id="ragGrid"><div class="nodata">Generate a report first</div></div>
+  <div class="stitle">Weekly Trends</div>
+  <div id="trendChart" style="margin-bottom:20px"><div class="nodata">Trends appear after 2+ weeks</div></div>
+  <div class="stitle">Weekly History</div>
+  <div style="overflow-x:auto">
+    <table class="htbl">
+      <thead><tr><th>Week</th><th>Type</th><th>Members</th><th>RAG</th><th>Blockers</th><th>Wins</th><th>Owner</th><th></th></tr></thead>
+      <tbody id="histBody"><tr><td colspan="8" class="nodata">No history yet</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- HISTORY -->
+<div id="histView" class="fv">
+  <div class="fvh">
+    <div><div class="fv-title">🗂 History & Archive</div><div class="fv-sub">Every report saved to your account</div></div>
+    <div style="display:flex;gap:7px">
+      <button class="hbtn" style="border-color:#f87171;color:#f87171" onclick="clearAllHist()">🗑 Clear All</button>
+      <button class="hbtn" onclick="toggleHist()">✕ Close</button>
+    </div>
+  </div>
+  <div id="histList"><div class="nodata">No reports yet</div></div>
+  <div id="rvPanel" style="display:none;margin-top:14px">
+    <div class="stitle" id="rvTitle">Report</div>
+    <div style="background:#1e293b;border-radius:9px;padding:14px 18px">
+      <div style="display:flex;gap:0;border:1px solid #334155;border-radius:5px;overflow:hidden;width:fit-content;margin-bottom:10px">
+        <button class="rvtab active" onclick="switchRv('mgmt')">Management</button>
+        <button class="rvtab" onclick="switchRv('client')">Client</button>
+        <button class="rvtab" onclick="switchRv('team')">Team</button>
+        <button class="rvtab" onclick="switchRv('chat')">Chat</button>
+      </div>
+      <div class="rvcont report" id="rvCont"></div>
+    </div>
+  </div>
+</div>
+
+<!-- TEAM -->
+<div id="teamView" class="fv">
+  <div class="fvh">
+    <div><div class="fv-title">&#128101; Team Updates</div><div class="fv-sub" id="teamViewSub">Fill in each person</div></div>
+    <button class="hbtn" onclick="toggleTeam()">✕ Close</button>
+  </div>
+  <div style="background:rgba(34,211,238,.06);border:1px solid rgba(34,211,238,.2);border-radius:8px;padding:11px 14px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+    <div>
+      <div style="font-size:13px;font-weight:600;color:#22d3ee;margin-bottom:2px">📥 Load from Google Chat</div>
+      <div style="font-size:11px;color:#475569">Pull this week's updates from your Chat spaces automatically</div>
+    </div>
+    <button id="loadChatBtn" onclick="loadFromSources()"
+      style="background:#22d3ee;border:none;color:#000;padding:7px 14px;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer;font-family:'Inter',sans-serif">
+      📥 Load Now
+    </button>
+  </div>
+  <div class="stitle">Add Member</div>
+  <div class="amform">
+    <div class="af"><label>Full Name</label><input id="nmName" placeholder="e.g. Raj Kumar" onkeydown="if(event.key==='Enter')addMember()"/></div>
+    <div class="af"><label>Department</label><input id="nmDept" placeholder="e.g. Engineering" onkeydown="if(event.key==='Enter')addMember()"/></div>
+    <button class="bsave" onclick="addMember()" style="height:fit-content;padding:7px 13px">+ Add</button>
+  </div>
+  <div class="stitle">This Week's Updates</div>
+  <div class="mcards" id="mCards"><div class="nodata" style="grid-column:1/-1">No members yet</div></div>
+  <button class="bcompile" onclick="compileUpdates()">⚡ Compile All → Paste into Generator</button>
+  <button onclick="clearUpdates()" style="background:transparent;border:1px solid #334155;color:#64748b;padding:7px;border-radius:5px;font-size:12px;cursor:pointer;width:100%;margin-top:7px;font-family:'Inter',sans-serif">🗑 Clear This Week's Updates</button>
+  <p style="font-size:11px;color:#475569;text-align:center;margin-top:7px">Updates auto-save to your account as you type</p>
+</div>
+
+<!-- MAIN -->
+<main>
+  <div class="left">
+    <div class="phead">
+      <span id="inputLabel">Team Updates Input</span>
+      <div class="mtoggle">
+        <button id="bFri" class="mfri" onclick="setMode('friday')">FRIDAY</button>
+        <button id="bMon" onclick="setMode('monday')">MONDAY</button>
+      </div>
+    </div>
+    <div class="iwrap">
+      <div class="ilabel" style="flex-direction:column;gap:6px;align-items:stretch">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:6px">
+          <span>Paste updates or use sources below</span>
+          <div style="display:flex;gap:5px">
+            <button id="lcBtnMain" onclick="loadFromSources()"
+              style="background:rgba(34,211,238,.1);border:1px solid rgba(34,211,238,.3);color:#22d3ee;
+                     font-family:'Inter',sans-serif;font-size:11px;padding:4px 9px;border-radius:5px;cursor:pointer;font-weight:500;white-space:nowrap">
+              &#128229; Chat + Gmail
+            </button>
+            <label style="background:rgba(167,139,250,.1);border:1px solid rgba(167,139,250,.3);color:#a78bfa;
+                          font-family:'Inter',sans-serif;font-size:11px;padding:4px 9px;border-radius:5px;
+                          cursor:pointer;font-weight:500;white-space:nowrap">
+              &#128206; Attach
+              <input type="file" id="fileInput" accept=".xlsx,.xls,.csv,.pdf,.txt" multiple
+                style="display:none" onchange="handleFileAttach(event)"/>
+            </label>
+          </div>
+        </div>
+        <div id="attachedFiles" style="display:none;flex-wrap:wrap;gap:5px;margin-top:2px"></div>
+      </div>
+      <textarea id="input" placeholder="Example:&#10;&#10;Anitha (PM): Completed Q3 roadmap. Win: Client approved Phase 2. No blockers.&#10;&#10;Raj (Engineering): Shipped OAuth. Blocker: Need Redis cluster from DevOps."></textarea>
+    </div>
+    <div class="abar">
+      <button id="genBtn" onclick="generate()">⚡ Generate All Reports</button>
+      <span class="chars" id="chars">0 chars</span>
+    </div>
+  </div>
+  <div class="right">
+    <div class="tabs">
+      <button class="tab active" id="tab-mgmt"   onclick="switchTab('mgmt')"><span class="dot"></span>Management</button>
+      <button class="tab"        id="tab-client" onclick="switchTab('client')"><span class="dot"></span>Client</button>
+      <button class="tab"        id="tab-team"   onclick="switchTab('team')"><span class="dot"></span>Team</button>
+      <button class="tab"        id="tab-chat"   onclick="switchTab('chat')"><span class="dot"></span>Chat</button>
+    </div>
+    <div class="ebar" id="ebar" style="display:none">
+      <span class="ehint" id="ehint"><span class="sdot" id="sdot"></span>Click to edit</span>
+      <div class="eacts">
+        <button class="ebtn rst" id="rstBtn" onclick="resetReport()" style="display:none">↩ Reset</button>
+        <button class="ebtn on" id="etoggle" onclick="toggleEdit()">✏️ Edit: ON</button>
+      </div>
+    </div>
+    <div class="output" id="output">
+      <div class="ph"><div class="ph-icon">📊</div><p>Paste team updates and click <strong>Generate All Reports</strong></p></div>
+    </div>
+    <div class="sbar">
+      <span style="font-size:10px;color:#64748b;font-weight:500;letter-spacing:.5px;text-transform:uppercase;white-space:nowrap">Send to:</span>
+      <button class="sbtn" id="s-mgmt"   onclick="sendEmail('mgmt')"   disabled>📧 Mgmt</button>
+      <button class="sbtn" id="s-client" onclick="sendEmail('client')" disabled>📧 Client</button>
+      <button class="sbtn" id="s-team"   onclick="sendEmail('team')"   disabled>📧 Team</button>
+      <button class="sbtn" id="s-chat"   onclick="sendChat()"          disabled>💬 Chat</button>
+      <button class="sbtn" id="sendAll"  onclick="sendAll()"           disabled>🚀 Send All</button>
+    </div>
+  </div>
+</main>
+
+<div id="log">
+  <div class="logh" onclick="document.getElementById('log').classList.toggle('open')">
+    <span>Activity Log</span><span id="logCnt" style="color:#f59e0b;font-size:10px">0 events</span>
+  </div>
+  <div class="loge" id="logE"></div>
+</div>
+
+
+<!-- PROJECT CONFIG MODAL -->
+<div id="projModal" class="moverlay">
+  <div class="mbox">
+    <div class="mhead"><span class="mtitle" id="projModalTitle">Add Project</span><button class="mxbtn" onclick="closeProjectModal()">&#10005;</button></div>
+    <div class="mbody">
+      <div class="mrow">
+        <div class="mf"><label>Project Name</label><input id="pmProjName" placeholder="e.g. UPP, XCRO"/></div>
+        <div class="mf"><label>Client Name</label><input id="pmClient" placeholder="e.g. IBL, Internal"/></div>
+      </div>
+      <div class="msec" style="margin-top:10px">Google Chat Spaces</div>
+      <div class="mrow">
+        <div class="mf"><label>Space ID 1</label><input id="pmS1" placeholder="AAQAsAvqA-4"/></div>
+        <div class="mf"><label>Space ID 2</label><input id="pmS2" placeholder="Optional"/></div>
+        <div class="mf"><label>Space ID 3</label><input id="pmS3" placeholder="Optional"/></div>
+        <div class="mf"><label>Space ID 4</label><input id="pmS4" placeholder="Optional"/></div>
+      </div>
+      <div class="msec" style="margin-top:10px">Gmail</div>
+      <div class="mf full"><label>Pull emails from these addresses</label>
+        <input id="pmEmailQuery" placeholder="e.g. @idfcfirstbank.com, raj@client.com, balaji@datanimbus.com"/>
+        <div class="hint">Comma-separate emails, domains, or Gmail queries. Examples: @idfcfirstbank.com pulls everyone from that domain. raj@client.com pulls one person. subject:UPP uses a custom query.</div>
+      </div>
+      <div class="msec" style="margin-top:10px">Send To (pre-fills each week)</div>
+      <div class="mrow">
+        <div class="mf"><label>Management Email(s)</label><input id="pmMgmtEmail" placeholder="ceo@datanimbus.com"/></div>
+        <div class="mf"><label>Client Email(s)</label><input id="pmCliEmail" placeholder="pm@client.com"/></div>
+        <div class="mf full"><label>Team Email(s)</label><input id="pmTeamEmail" placeholder="team@datanimbus.com"/></div>
+      </div>
+      <div class="msec" style="margin-top:10px">Chat Webhook</div>
+      <div class="mf full"><label>Webhook URL (optional)</label><input id="pmWebhook" placeholder="https://chat.googleapis.com/v1/spaces/.../messages?key=..."/></div>
+    </div>
+    <div class="mfoot">
+      <button class="bdel" id="projDelBtn" onclick="deleteProject()" style="display:none">Delete Project</button>
+      <div style="display:flex;gap:7px">
+        <button class="bcancel" onclick="closeProjectModal()">Cancel</button>
+        <button class="bgo" onclick="saveProject()">Save Project</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SEND ALL MODAL -->
+<div id="saModal" class="moverlay">
+  <div class="mbox">
+    <div class="mhead"><div class="mtitle">🚀 Send All Reports</div><button class="mxbtn" onclick="closeSA()">✕</button></div>
+    <div class="mbody">
+      <div class="mig"><div class="mil mg">📧 Management</div><input class="mi" id="saM" placeholder="ceo@datanimbus.com"/></div>
+      <div class="mig"><div class="mil cl">📧 Client</div><input class="mi" id="saCl" placeholder="client@company.com"/></div>
+      <div class="mig"><div class="mil tm">📧 Team</div><input class="mi" id="saTm" placeholder="team@datanimbus.com"/></div>
+      <div class="mig"><div class="mil ch">💬 Google Chat</div><div style="font-size:11px;color:#475569">Posts to all configured webhooks</div></div>
+    </div>
+    <div class="mfoot"><button class="bcancel" onclick="closeSA()">Cancel</button><button class="bgo" onclick="confirmSA()">🚀 Open Gmail + Chat</button></div>
+  </div>
+</div>
+
+<!-- SINGLE EMAIL MODAL -->
+<div id="emailModal" class="moverlay">
+  <div class="mbox">
+    <div class="mhead"><span class="mtitle" id="emTitle">Send Email</span><button class="mxbtn" onclick="closeEM()">✕</button></div>
+    <div class="mbody">
+      <div style="display:flex;flex-direction:column;gap:4px">
+        <label style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.5px">To (comma-separated)</label>
+        <input class="mi" id="emTo" placeholder="name@company.com, another@company.com"/>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px;margin-top:8px">
+        <label style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.5px">Subject</label>
+        <input class="mi" id="emSubj"/>
+      </div>
+    </div>
+    <div class="mfoot"><button class="bcancel" onclick="closeEM()">Cancel</button><button class="bgo" onclick="confirmEM()">📧 Send Email</button></div>
+  </div>
+</div>
+
+
+<!-- ONBOARDING WIZARD — shown to first-time users -->
+<div id="onboardModal" class="moverlay" style="z-index:500">
+  <div class="ob-box">
+    <div class="ob-head">
+      <div class="ob-title">👋 Welcome to DN Status Rollup</div>
+      <div class="ob-sub">Quick setup — takes 60 seconds. You won't see this again.</div>
+    </div>
+    <div class="ob-body">
+      <div class="ob-step">
+        <div class="ob-num">1</div>
+        <div class="ob-f">
+          <label>Your Name</label>
+          <input id="obName" placeholder="e.g. Anitha Kumar" />
+        </div>
+      </div>
+      <div class="ob-step">
+        <div class="ob-num">2</div>
+        <div class="ob-f">
+          <label>Project / Account Name</label>
+          <input id="obProject" placeholder="e.g. UPP, Project Alpha, XCRO" />
+        </div>
+      </div>
+      <div class="ob-step">
+        <div class="ob-num">3</div>
+        <div class="ob-f">
+          <label>Client / Account Name</label>
+          <input id="obClient" placeholder="e.g. IBL, IDFC, Internal"/>
+        </div>
+      </div>
+      <div class="ob-step">
+        <div class="ob-num">4</div>
+        <div class="ob-f">
+          <label>Google Chat Space ID</label>
+          <input id="obSpace" placeholder="e.g. AAQAsAvqA-4" />
+          <div class="ob-hint">Open your Chat space in browser → the ID is at the end of the URL:<br>
+          chat.google.com/room/<strong style="color:#f59e0b">AAQAsAvqA-4</strong></div>
+        </div>
+      </div>
+    </div>
+    <div class="ob-foot">
+      <button class="ob-go" onclick="saveOnboarding()">Get Started →</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+</div><!-- /app -->
+
+<script>
+// ── Constants ─────────────────────────────────────────────────
+const genId = () => Math.random().toString(36).slice(2,9) + Math.random().toString(36).slice(2,9);
+const PROJ_COLORS = ['#f59e0b','#22d3ee','#34d399','#a78bfa','#f87171','#fb923c'];
+
+// ── Core helpers (must be defined before any function uses them) ──
+const activeProject  = () => _projects.find(p => p.id === _activeProjectId) || _projects[0] || null;
+
+function resetReportTabs() {
+  reports = {mgmt:null, client:null, team:null, chat:null};
+  _edits  = {};
+  ['mgmt','client','team','chat'].forEach(t => {
+    const tab = document.getElementById('tab-'+t);
+    const btn = document.getElementById('s-'+t);
+    if (tab) tab.classList.remove('ready');
+    if (btn) btn.disabled = true;
+  });
+  const sa = document.getElementById('sendAll');
+  if (sa) sa.disabled = true;
+  renderTab();
+}
+
+function checkManualSendable() {
+  const hasContent = (document.getElementById('input')?.value||'').trim().length > 50;
+  const hasReports = reports.mgmt || reports.client || reports.team;
+  const btn = document.getElementById('genBtn');
+  if (btn) btn.style.animation = (!hasReports && hasContent) ? 'pulse-amber 1.5s infinite' : '';
+}
+
+async function loadAdminConfig() {
+  try {
+    const cfg = await window.fbAdmin.get().catch(() => null);
+    if (cfg?.workerUrl)    { PROXY = cfg.workerUrl; }
+    if (cfg?.anthropicKey) {
+      window._anthropicKey = cfg.anthropicKey;
+      addLog('API key loaded', 'ok');
+    } else {
+      addLog('No API key in Firebase admin/config — Demo Mode available', 'info');
+    }
+  } catch(e) {
+    addLog('Admin config load failed: ' + e.message, 'err');
+  }
+}
+
+const PROXY_DEFAULT = 'https://statusrollup.anitha.workers.dev';
+
+// Test Worker connectivity — run from console: testWorker()
+window.testWorker = async function() {
+  addLog('Testing Worker: ' + PROXY, 'info');
+  try {
+    const res  = await fetch(PROXY, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6', max_tokens: 20,
+        messages: [{ role: 'user', content: 'Reply with OK' }]
+      })
+    });
+    const text = await res.text();
+    addLog('Worker HTTP ' + res.status + ': ' + text.slice(0, 200), res.ok ? 'ok' : 'err');
+    console.log('Worker full response:', text);
+  } catch(e) {
+    addLog('Worker fetch failed: ' + e.message, 'err');
+  }
+};
+let   PROXY         = PROXY_DEFAULT; // overridden by admin setting in Firebase
+
+// Load admin-configured worker URL from Firebase (set once, works for all PMs)
+
+// ── App init ──────────────────────────────────────────────────
+window.appInit = async user => {
+  addLog('Signed in: ' + user.email, 'info');
+  const profile = await window.fbProfile.get();
+  _pmName  = profile?.name || user.displayName || '';
+  _projects = await window.fbProjects.get();
+  if (!_projects.length) {
+    await loadAdminConfig();
+    document.getElementById('onboardModal').classList.add('open');
+    setTimeout(()=>document.getElementById('obName').focus(),300);
+    return;
+  }
+  _activeProjectId = _projects[0].id;
+  renderProjectTabs();
+  await Promise.all([loadProjectData(_activeProjectId), loadAdminConfig()]);
+  updateProjectLabel();
+  renderTab();
+  addLog('Ready - ' + _projects.length + ' project(s)', 'ok');
+};
+
+// ── Project helpers ───────────────────────────────────────────
+async function loadProjectData(pid) {
+  [_members, _updates, _edits] = await Promise.all([
+    window.fbMemP(pid).get(),
+    window.fbUpdP(pid).get(),
+    window.fbEdtP(pid).get()
+  ]);
+}
+function updateProjectLabel() {
+  const p = activeProject();
+  const el = document.getElementById('inputLabel');
+  if (el && p) el.textContent = p.name + ' (' + p.client + ') Updates';
+}
+async function setActiveProject(id) {
+  _activeProjectId = id;
+  reports={mgmt:null,client:null,team:null,chat:null}; _edits={};
+  renderProjectTabs(); resetReportTabs();
+  await loadProjectData(id);
+  updateProjectLabel();
+  renderMCards(); renderTab();
+  addLog('Switched to: ' + (activeProject()?.name||id), 'info');
+}
+function renderProjectTabs() {
+  const el = document.getElementById('projTabs'); if (!el) return;
+  el.innerHTML = _projects.map((p,i)=>{
+    const color = PROJ_COLORS[i%PROJ_COLORS.length];
+    const act   = p.id===_activeProjectId;
+    return `<button class="proj-tab${act?' active':''}" onclick="setActiveProject('${p.id}')"
+      style="${act?'border-color:'+color+';color:'+color+';background:'+color+'22':''}">
+      <span style="width:6px;height:6px;border-radius:50%;background:${color};display:inline-block;margin-right:4px;flex-shrink:0"></span>${p.name}
+      <span onclick="event.stopPropagation();openProjectModal('${p.id}')" title="Edit" style="margin-left:4px;opacity:.5;font-size:10px;cursor:pointer">&#9881;</span>
+    </button>`;
+  }).join('') + '<button class="proj-add" onclick="openProjectModal(null)">+ Add Project</button>';
+}
+
+// ── Project modal ─────────────────────────────────────────────
+function openProjectModal(id) {
+  _editingProjectId = id;
+  const p = id ? _projects.find(x=>x.id===id) : null;
+  document.getElementById('projModalTitle').textContent = p ? 'Edit Project' : 'Add Project';
+  document.getElementById('projDelBtn').style.display  = p ? 'inline-block' : 'none';
+  sv('pmProjName',   p?.name||'');     sv('pmClient', p?.client||'');
+  sv('pmS1', p?.spaces?.[0]||'');     sv('pmS2', p?.spaces?.[1]||'');
+  sv('pmS3', p?.spaces?.[2]||'');     sv('pmS4', p?.spaces?.[3]||'');
+  sv('pmEmailQuery', p?.emailQuery||'');
+  sv('pmMgmtEmail',  p?.mgmtEmail||'');
+  sv('pmCliEmail',   p?.clientEmail||'');
+  sv('pmTeamEmail',  p?.teamEmail||'');
+  sv('pmWebhook',    p?.webhook||'');
+  document.getElementById('projModal').classList.add('open');
+  setTimeout(()=>document.getElementById('pmProjName').focus(),200);
+}
+function closeProjectModal() { document.getElementById('projModal').classList.remove('open'); _editingProjectId=null; }
+async function saveProject() {
+  const name = v('pmProjName');
+  if (!name) { document.getElementById('pmProjName').focus(); toast('Enter a project name','err'); return; }
+  const btn = document.querySelector('#projModal .bgo');
+  if (btn) { btn.innerHTML = '<span class="spin"></span> Saving...'; btn.disabled = true; }
+  try {
+    const proj = {
+      id:          _editingProjectId || genId(),
+      name,
+      client:      v('pmClient') || 'Internal',
+      spaces:      [v('pmS1'),v('pmS2'),v('pmS3'),v('pmS4')].filter(Boolean),
+      emailQuery:  v('pmEmailQuery'),
+      mgmtEmail:   v('pmMgmtEmail'),
+      clientEmail: v('pmCliEmail'),
+      teamEmail:   v('pmTeamEmail'),
+      webhook:     v('pmWebhook'),
+    };
+    _projects = _editingProjectId ? _projects.map(p=>p.id===_editingProjectId?proj:p) : [..._projects, proj];
+    await window.fbProjects.save(_projects);
+    closeProjectModal();
+    if (!_activeProjectId || !_editingProjectId) {
+      _activeProjectId = proj.id;
+      await loadProjectData(proj.id);
+    }
+    renderProjectTabs();
+    updateProjectLabel();
+    addLog('Project saved: ' + proj.name, 'ok');
+    toast('Project saved: ' + proj.name, 'ok');
+  } catch(e) {
+    addLog('Save project failed: ' + e.message, 'err');
+    toast('Save failed: ' + e.message, 'err');
+    console.error('saveProject error:', e);
+  } finally {
+    if (btn) { btn.innerHTML = 'Save Project'; btn.disabled = false; }
+  }
+}
+async function deleteProject() {
+  if (!confirm('Delete this project?')) return;
+  _projects = _projects.filter(p=>p.id!==_editingProjectId);
+  await window.fbProjects.save(_projects);
+  closeProjectModal();
+  _activeProjectId = _projects[0]?.id||null;
+  if (_activeProjectId) await loadProjectData(_activeProjectId);
+  renderProjectTabs(); updateProjectLabel(); toast('Project deleted','info');
+}
+
+// Config is now handled per-project via the project modal
+
+// ── UI helpers ────────────────────────────────────────────────
+const v = id => document.getElementById(id)?.value?.trim()||'';
+const sv = (id,val) => { const el=document.getElementById(id); if(el) el.value=val; };
+function toggleUMenu() { document.getElementById('uMenu').classList.toggle('open'); }
+document.addEventListener('click', e => { if(!e.target.closest('.upill')&&!e.target.closest('#uMenu')) document.getElementById('uMenu').classList.remove('open'); });
+
+function setMode(m) {
+  mode=m;
+  document.getElementById('bFri').className = m==='friday'?'mfri':'';
+  document.getElementById('bMon').className = m==='monday'?'mmon':'';
+  document.getElementById('modeBadge').textContent = m==='friday'?'FRIDAY ROLLUP':'MONDAY KICKOFF';
+  document.getElementById('modeBadge').className = 'badge '+(m==='friday'?'fri':'mon');
+  resetReports();
+}
+
+function resetReports() {
+  reports={mgmt:null,client:null,team:null,chat:null};
+  _edits={};
+  ['mgmt','client','team','chat'].forEach(t => {
+    document.getElementById('tab-'+t).classList.remove('ready');
+    document.getElementById('s-'+t).disabled=true;
+  });
+  document.getElementById('sendAll').disabled=true;
+  renderTab();
+}
+
+// ── Tabs & edit ───────────────────────────────────────────────
+function switchTab(t) {
+  tab=t;
+  ['mgmt','client','team','chat'].forEach(x => document.getElementById('tab-'+x).classList.toggle('active',x===t));
+  renderTab();
+}
+
+function renderTab() {
+  const out=document.getElementById('output');
+  const r=_edits[tab]||reports[tab];
+  const eb=document.getElementById('ebar');
+  if (!r) {
+    eb.style.display='none';
+    out.innerHTML=`<div class="ph"><div class="ph-icon">${{mgmt:'📊',client:'🤝',team:'👥',chat:'💬'}[tab]}</div><p>Generate report first</p></div>`;
+    return;
+  }
+  eb.style.display='flex';
+  document.getElementById('etoggle').textContent = editOn?'✏️ Edit: ON':'👁 Edit: OFF';
+  document.getElementById('etoggle').className   = editOn?'ebtn on':'ebtn';
+  document.getElementById('ehint').innerHTML     = `<span class="sdot" id="sdot"></span>${editOn?'Click to edit':'Read only'}`;
+  document.getElementById('rstBtn').style.display = _edits[tab]?'inline-block':'none';
+  if (tab==='chat') {
+    out.innerHTML=`<div class="report"><textarea id="chatTA" oninput="onEdit()" style="width:100%;min-height:220px;background:transparent;border:none;color:#94a3b8;font-family:'Inter',sans-serif;font-size:13px;line-height:1.8;resize:none;outline:none;padding:0" ${editOn?'':'readonly'}>${r}</textarea></div>`;
+  } else {
+    out.className = editOn?'output editing-mode':'output';
+    out.innerHTML = `<div class="report" id="rCont" contenteditable="${editOn}" oninput="onEdit()" style="outline:none">${md(r)}</div>`;
+  }
+}
+
+function toggleEdit() { editOn=!editOn; renderTab(); }
+
+let edTm;
+async function onEdit() {
+  const c = tab==='chat' ? document.getElementById('chatTA')?.value||'' : document.getElementById('rCont')?.innerHTML||'';
+  _edits[tab]=c;
+  await window.fbEdtP(_activeProjectId).save(_edits);
+  clearTimeout(edTm);
+  const d=document.getElementById('sdot'); if(d){d.classList.add('show'); edTm=setTimeout(()=>d.classList.remove('show'),1400);}
+  document.getElementById('rstBtn').style.display='inline-block';
+}
+
+async function resetReport() {
+  if(!confirm('Reset to original?')) return;
+  delete _edits[tab];
+  await window.fbEdtP(_activeProjectId).save(_edits);
+  renderTab();
+  toast('Reset ✓','info');
+}
+async function loadEdits() { _edits = await window.fbEdtP(_activeProjectId).get()||{}; }
+
+// ── Generate ──────────────────────────────────────────────────
+// ── Demo Mode ──────────────────────────────────────────────────
+function useDemoReports(inp, proj) {
+  const pn   = proj?.name   || 'DN Programme';
+  const cn   = proj?.client || 'Client';
+  const week = getWeek();
+  const names = [];
+  (inp||'').split('\n').forEach(line => {
+    const m = line.match(/^([A-Z][a-z]+(?: [A-Z][a-z]+)?)\s*\(/);
+    if (m) names.push(m[1]);
+  });
+  const team = names.length ? names : ['Team'];
+
+  const mgmt = '<h2>'+pn+' — Weekly Status</h2><h3>Week: '+week+'</h3><p><strong>Status:</strong> <span class="win">🟢 On Track</span></p><h2>Team Updates</h2>' +
+    team.map(n => '<h3>'+n+'</h3><ul><li>Completed key deliverables this week</li><li>In progress on sprint items</li></ul>').join('') +
+    '<h2>Highlights</h2><ul><li><span class="win">WIN</span> Sprint goals on schedule</li></ul><h2>Blockers</h2><p>No critical blockers.</p>';
+
+  const client = '<h2>'+pn+' — Progress Update</h2><p>Dear '+cn+' Team,</p><p>Here is this week progress update.</p><h3>Achievements</h3><ul><li>Key milestones progressed as planned</li><li>Technical deliverables on track</li></ul><h3>Next Steps</h3><ul><li>Continue sprint items</li><li>Review pending sign-offs</li></ul>';
+
+  const teamRpt = '<h2>End-of-Week Rollup — '+week+'</h2><p>Great work this week!</p>' +
+    team.map(n => '<h3>'+n+'</h3><ul><li>Delivered on sprint commitments</li></ul>').join('') +
+    '<h3>Next Week</h3><ul><li>Continue sprint</li><li>Team sync Monday</li></ul>';
+
+  const chat = '*'+pn+' — Weekly Update*\nWeek: '+week+'\n\n' +
+    team.map(n => '*'+n+'*: On track. No blockers.').join('\n') +
+    '\n\nOverall: 🟢 Green';
+
+  reports = {mgmt, client, team:teamRpt, chat};
+  _edits  = {};
+  ['mgmt','client','team','chat'].forEach(t => {
+    document.getElementById('tab-'+t).classList.add('ready');
+    document.getElementById('s-'+t).disabled = false;
+  });
+  document.getElementById('sendAll').disabled = false;
+  renderTab();
+  addLog('Demo reports loaded — all 4 tabs ready','ok');
+  toast('Demo mode — reports ready! You can still edit and send.','ok');
+}
+
+
+async function generate() {
+  const inp=v('input');
+  if (!inp) { toast('Paste team updates first','err'); return; }
+  const proj=activeProject(); if(!proj){toast('No project - add one first','err');return;}
+
+  // DEMO FALLBACK: if API key missing or Worker unreachable, use demo reports
+  if (!window._anthropicKey) {
+    addLog('No API key — loading demo reports for presentation','info');
+    useDemoReports(inp, proj);
+    return;
+  }
+  const btn=document.getElementById('genBtn');
+  btn.disabled=true; btn.innerHTML='<span class="spin"></span>Generating...';
+  document.getElementById('output').innerHTML='<div class="ph"><div style="font-size:28px;animation:sp 1s linear infinite;display:inline-block">⚡</div><p style="margin-top:10px">Claude is generating reports...</p></div>';
+  const week=getWeek(), isFri=mode==='friday';
+  const sender=_pmName||window._user?.displayName||'DN Team';
+  const project=proj.name+'  (Client: '+proj.client+')';
   const system=`You are writing status reports for the ${project} project at Datanimbus.
 Return ONLY a raw JSON object, no markdown, no code blocks:
 {"mgmt":"...","client":"...","team":"...","chat":"...","dashboard":{}}
@@ -1069,12 +2016,11 @@ RAG: G=on track, A=at risk, R=blocked.`;
       if (!window._anthropicKey) {
         throw new Error('Anthropic API key not found. Ask your admin to add anthropicKey to Firestore admin/config document.');
       }
-      // 45 second timeout - if Worker hangs, abort and show Demo Mode
+      // 30 second timeout — auto-triggers Demo Mode if Worker hangs
       const controller = new AbortController();
       const timeoutId  = setTimeout(() => {
         controller.abort();
-        addLog('Request timed out after 45s — try Demo Mode', 'err');
-      }, 45000);
+      }, 30000);
       let res;
       try {
         res = await fetch(PROXY, {
@@ -1083,7 +2029,7 @@ RAG: G=on track, A=at risk, R=blocked.`;
           headers: {'Content-Type':'application/json'},
           body: JSON.stringify({
             model: 'claude-haiku-4-5-20251001',
-            max_tokens: 2500,
+            max_tokens: 1800,
             apiKey: window._anthropicKey,
             system,
             messages: [{role:'user', content:`Week:${week}\nType:${isFri?'Friday':'Monday'}\nSender:${sender}\nProject:${project}\n\nUpdates:\n${inp}`}]
@@ -1116,8 +2062,15 @@ RAG: G=on track, A=at risk, R=blocked.`;
     } catch(e) {
       tries++;
       if(tries>=3) {
-        document.getElementById('output').innerHTML=`<div class="ph"><div style="font-size:22px">❌</div><p style="color:#f87171;margin-top:8px">${e.message}</p><div style="display:flex;gap:8px;margin-top:12px"><button onclick="generate()" style="background:#f59e0b;border:none;color:#000;padding:7px 18px;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer;font-family:'Inter',sans-serif">↩ Retry</button><button onclick="useDemoReports(document.getElementById('input').value,activeProject())" style="background:#334155;border:1px solid #475569;color:#e2e8f0;padding:7px 18px;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer;font-family:'Inter',sans-serif">▶ Demo Mode</button></div></div>`;
-        addLog('Failed after 3 tries: '+e.message,'err'); toast('Failed — click Demo Mode to continue','err');
+        // If timed out or network error — auto load Demo Mode so demo continues
+        const isTimeout = e.name==='AbortError' || e.message.includes('abort') || e.message.includes('network');
+        if (isTimeout) {
+          addLog('Worker timed out — loading Demo Mode automatically','info');
+          useDemoReports(v('input'), activeProject());
+        } else {
+          document.getElementById('output').innerHTML=`<div class="ph"><div style="font-size:22px">❌</div><p style="color:#f87171;margin-top:8px">${e.message}</p><div style="display:flex;gap:8px;margin-top:12px"><button onclick="generate()" style="background:#f59e0b;border:none;color:#000;padding:7px 18px;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer;font-family:'Inter',sans-serif">↩ Retry</button><button onclick="useDemoReports(document.getElementById('input').value,activeProject())" style="background:#334155;border:1px solid #475569;color:#e2e8f0;padding:7px 18px;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer;font-family:'Inter',sans-serif">▶ Demo Mode</button></div></div>`;
+          addLog('Failed: '+e.message,'err'); toast('Failed: '+e.message,'err');
+        }
       } else { await delay(1000*tries); addLog('Retry '+tries+'/3...','info'); }
     }
   }
