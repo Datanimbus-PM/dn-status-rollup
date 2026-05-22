@@ -41,7 +41,7 @@ window.fbDel  = async (p)     => deleteDoc(doc(db,p));
 window.fbList = async (p,f)   => { const q=query(collection(db,p),orderBy(f||'_ts','desc')); const s=await getDocs(q); return s.docs.map(d=>({id:d.id,...d.data()})); };
 
 const up = () => `users/${window._user?.uid}`;
-window.fbAdmin    = { get: async()=>window.fbGet(`${up()}/admin/config`).catch(()=>null), set:d=>window.fbSet(`${up()}/admin/config`,d) };
+window.fbAdmin    = { get: async()=>window.fbGet('admin/config').catch(()=>null), set:d=>window.fbSet('admin/config',d) };
 window.fbProjects = { save:l=>window.fbSet(`${up()}/projects/list`,{list:l}), get:async()=>{ const d=await window.fbGet(`${up()}/projects/list`); return d?.list||[]; } };
 window.fbProfile  = { save:d=>window.fbSet(`${up()}/profile/main`,d), get:()=>window.fbGet(`${up()}/profile/main`) };
 window.fbMemP  = p=>({ save:l=>window.fbSet(`${up()}/proj_${p}/members`,{list:l}),   get:async()=>{ const d=await window.fbGet(`${up()}/proj_${p}/members`);  return d?.list||[]; } });
@@ -68,7 +68,7 @@ onAuthStateChanged(auth, user => {
       try { const t=sessionStorage.getItem('dn_gtoken'); if(t) window._accessToken=t; } catch(e){}
     }
     document.getElementById('loginScreen').style.display='none';
-    document.getElementById('app').style.display='block';
+    document.getElementById('app').style.display='flex';
     document.getElementById('uAvatar').textContent=(user.displayName||'U').split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2);
     document.getElementById('uName').textContent=user.displayName||user.email;
     document.getElementById('uEmail').textContent=user.email;
@@ -109,8 +109,9 @@ body{background:#0f172a;color:#e2e8f0;font-family:'Inter',sans-serif;font-size:1
 #loginBtn img{width:18px}
 #authErr{display:none;margin-top:12px;padding:9px 12px;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);border-radius:6px;color:#f87171;font-size:11px}
 .lb-badge{margin-top:14px;font-size:11px;color:#475569}
-#app{display:none}
-header{background:#1e293b;border-bottom:1px solid #334155;padding:0 14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-height:52px}
+#app{display:none;flex-direction:column;height:100vh;overflow:hidden}
+#app.visible{display:flex}
+header{background:#1e293b;border-bottom:1px solid #334155;padding:0 14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-height:52px;flex-shrink:0}
 .logo{display:flex;align-items:center;gap:8px;padding:10px 0;flex-shrink:0}
 .logo-box{width:30px;height:30px;background:#f59e0b;border-radius:7px;display:grid;place-items:center;font-weight:700;font-size:12px;color:#000}
 .logo-title{font-size:13px;font-weight:700;color:#f1f5f9}
@@ -139,7 +140,7 @@ header{background:#1e293b;border-bottom:1px solid #334155;padding:0 14px;display
 .um-e{font-size:11px;color:#64748b;padding-bottom:8px;border-bottom:1px solid #334155;margin-bottom:8px}
 .um-btn{background:transparent;border:1px solid #334155;color:#94a3b8;padding:6px 10px;border-radius:6px;font-size:11px;cursor:pointer;width:100%;text-align:left;font-family:'Inter',sans-serif}
 .um-btn:hover{border-color:#f87171;color:#f87171}
-main{display:grid;grid-template-columns:1fr 1fr;height:calc(100vh - 52px)}
+main{display:grid;grid-template-columns:1fr 1fr;flex:1;min-height:0;overflow:hidden}
 @media(max-width:768px){main{grid-template-columns:1fr;height:auto}.right{border-top:1px solid #334155;min-height:60vh}}
 .left{border-right:1px solid #334155;display:flex;flex-direction:column}
 .phead{padding:10px 14px;border-bottom:1px solid #334155;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px}
@@ -294,7 +295,7 @@ textarea::placeholder{color:#334155}
 .ob-hint{font-size:10px;color:#475569;margin-top:3px;line-height:1.5}
 .ob-foot{padding:14px 24px;border-top:1px solid #334155;display:flex;justify-content:flex-end}
 .ob-go{background:#f59e0b;border:none;color:#000;padding:10px 28px;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer;font-family:'Inter',sans-serif}
-#log{background:#1e293b;border-top:1px solid #334155;max-height:0;overflow:hidden;transition:max-height .25s}
+#log{background:#1e293b;border-top:1px solid #334155;max-height:0;overflow:hidden;transition:max-height .25s;flex-shrink:0;position:relative;z-index:10}
 #log.open{max-height:140px}
 .logh{padding:6px 14px;display:flex;justify-content:space-between;cursor:pointer}
 .logh span{font-size:10px;color:#475569;text-transform:uppercase;letter-spacing:.5px}
@@ -930,7 +931,26 @@ async function generate() {
   const week=getWeek(), isFri=mode==='friday';
   const sender=_pmName||window._user?.displayName||'DN Team';
   const project=proj.name+' (Client: '+proj.client+')';
-  const system='Write 4 status reports for project '+project+' at Datanimbus. Return ONLY valid JSON no markdown:\n{"mgmt":"<h2>Status</h2><p>...</p>","client":"<p>...</p>","team":"<p>...</p>","chat":"plain text under 100 words","dashboard":{"members":[{"name":"","dept":"","rag":"G","ragReason":"","blockers":[],"wins":[]}],"summary":{"totalMembers":0,"greenCount":0,"amberCount":0,"redCount":0,"totalBlockers":0,"totalWins":0,"overallRAG":"G"}}}\nRules: mgmt=HTML per-person with blockers and wins. client=achievements only no internal names. team='+(isFri?'end of week recap':'monday plan')+'. chat=plain text. RAG G=green A=amber R=red. Be concise.';
+  const system = `You are writing professional weekly status reports for the ${project} project at Datanimbus.
+Return ONLY a raw JSON object with no markdown, no code fences, no extra text:
+{"mgmt":"...","client":"...","team":"...","chat":"...","dashboard":{}}
+
+MGMT REPORT (HTML): Write a detailed management report. Include:
+- H2 heading per team member with their name and department
+- Bullet list of what they completed this week
+- Bullet list of what is in progress
+- Any blockers marked as <span class='blocker'>BLOCKER: description</span>
+- Any wins marked as <span class='win'>WIN: description</span>
+- Overall project summary at the top with RAG status
+
+CLIENT REPORT (HTML): Professional client-facing update. Only achievements and next steps. No internal names or technical jargon. 2-3 paragraphs.
+
+TEAM REPORT (HTML): ${isFri ? 'Warm end-of-week recap celebrating wins and setting context for next week.' : 'Energetic Monday kickoff with focus areas and goals for the week.'}
+
+CHAT (plain text): Concise 150-word summary with *bold* names. Include blockers and wins.
+
+DASHBOARD JSON: {"members":[{"name":"","dept":"","rag":"G","ragReason":"short reason","blockers":["blocker text"],"wins":["win text"],"completed":["item"],"inProgress":["item"]}],"summary":{"totalMembers":0,"greenCount":0,"amberCount":0,"redCount":0,"totalBlockers":0,"totalWins":0,"overallRAG":"G"}}
+RAG: G=on track, A=at risk/has blockers, R=blocked/critical issue.`;
   let tries=0;
   while(tries<3) {
     try {
@@ -938,7 +958,7 @@ async function generate() {
       const tid=setTimeout(()=>controller.abort(),30000);
       let res;
       try {
-        res=await fetch(PROXY,{method:'POST',signal:controller.signal,headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:1800,apiKey:window._anthropicKey,system,messages:[{role:'user',content:'Week:'+week+'\nType:'+(isFri?'Friday':'Monday')+'\nSender:'+sender+'\nProject:'+project+'\n\nUpdates:\n'+inp}]})});
+        res=await fetch(PROXY,{method:'POST',signal:controller.signal,headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:4000,apiKey:window._anthropicKey,system,messages:[{role:'user',content:'Week:'+week+'\nType:'+(isFri?'Friday':'Monday')+'\nSender:'+sender+'\nProject:'+project+'\n\nUpdates:\n'+inp}]})});
       } finally { clearTimeout(tid); }
       if(!res.ok){const e=await res.json();throw new Error('API '+res.status+': '+(e.error?.message||JSON.stringify(e)));}
       const data=await res.json();
