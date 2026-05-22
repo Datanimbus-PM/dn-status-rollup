@@ -141,19 +141,19 @@ header{background:#1e293b;border-bottom:1px solid #334155;padding:0 14px;display
 .um-btn{background:transparent;border:1px solid #334155;color:#94a3b8;padding:6px 10px;border-radius:6px;font-size:11px;cursor:pointer;width:100%;text-align:left;font-family:'Inter',sans-serif}
 .um-btn:hover{border-color:#f87171;color:#f87171}
 main{display:grid;grid-template-columns:1fr 1fr;flex:1;min-height:0;overflow:hidden}
-@media(max-width:768px){main{grid-template-columns:1fr;height:auto}.right{border-top:1px solid #334155;min-height:60vh}}
-.left{border-right:1px solid #334155;display:flex;flex-direction:column}
+@media(max-width:768px){main{grid-template-columns:1fr;height:auto}.right{display:flex;flex-direction:column;overflow:hidden;min-height:0}}
+.left{border-right:1px solid #334155;display:flex;flex-direction:column;overflow:hidden;min-height:0}
 .phead{padding:10px 14px;border-bottom:1px solid #334155;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px}
 .phead span{font-size:10px;font-weight:600;color:#94a3b8;letter-spacing:.5px;text-transform:uppercase}
 .mtoggle{display:flex;border:1px solid #334155;border-radius:6px;overflow:hidden}
 .mtoggle button{background:transparent;border:none;color:#64748b;padding:4px 10px;font-size:11px;font-family:'Inter',sans-serif;cursor:pointer}
 .mfri{background:rgba(245,158,11,.15)!important;color:#f59e0b!important}
 .mmon{background:rgba(34,211,238,.15)!important;color:#22d3ee!important}
-.iwrap{flex:1;display:flex;flex-direction:column;padding:12px 14px;gap:7px;overflow:hidden}
+.iwrap{flex:1;display:flex;flex-direction:column;padding:12px 14px;gap:7px;overflow:hidden;min-height:0}
 .ilabel{font-size:10px;color:#64748b;letter-spacing:.8px;text-transform:uppercase;display:flex;flex-direction:column;gap:6px;align-items:stretch}
 .ilabel-top{display:flex;align-items:center;justify-content:space-between;gap:6px}
 .src-btns{display:flex;gap:5px}
-textarea{background:#1e293b;border:1px solid #334155;border-radius:8px;color:#e2e8f0;font-family:'Inter',sans-serif;font-size:13px;line-height:1.7;padding:11px;resize:none;flex:1;min-height:150px;outline:none;transition:.2s}
+textarea{background:#1e293b;border:1px solid #334155;border-radius:8px;color:#e2e8f0;font-family:'Inter',sans-serif;font-size:13px;line-height:1.7;padding:11px;resize:none;flex:1;min-height:0;outline:none;transition:.2s}
 textarea:focus{border-color:#f59e0b}
 textarea::placeholder{color:#334155}
 .abar{padding:10px 14px;border-top:1px solid #334155;display:flex;gap:8px;align-items:center}
@@ -173,7 +173,7 @@ textarea::placeholder{color:#334155}
 .ebtn{background:transparent;border:1px solid #334155;border-radius:4px;color:#64748b;font-family:'Inter',sans-serif;font-size:10px;padding:3px 8px;cursor:pointer}
 .ebtn.on{background:rgba(245,158,11,.12);border-color:#f59e0b;color:#f59e0b}
 .ebtn.rst{border-color:rgba(248,113,113,.3);color:#f87171}
-.output{flex:1;overflow-y:auto;padding:14px}
+.output{flex:1;overflow-y:auto;padding:14px;min-height:0}
 .ph{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:8px;color:#475569;text-align:center}
 .ph-icon{font-size:28px}
 .report{font-size:13px;line-height:1.8;color:#cbd5e1}
