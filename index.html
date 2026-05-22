@@ -734,6 +734,46 @@ textarea::placeholder{color:#334155}
 // ── Constants ─────────────────────────────────────────────────
 const genId = () => Math.random().toString(36).slice(2,9) + Math.random().toString(36).slice(2,9);
 const PROJ_COLORS = ['#f59e0b','#22d3ee','#34d399','#a78bfa','#f87171','#fb923c'];
+
+// ── Core helpers (must be defined before any function uses them) ──
+const activeProject  = () => _projects.find(p => p.id === _activeProjectId) || _projects[0] || null;
+
+function resetReportTabs() {
+  reports = {mgmt:null, client:null, team:null, chat:null};
+  _edits  = {};
+  ['mgmt','client','team','chat'].forEach(t => {
+    const tab = document.getElementById('tab-'+t);
+    const btn = document.getElementById('s-'+t);
+    if (tab) tab.classList.remove('ready');
+    if (btn) btn.disabled = true;
+  });
+  const sa = document.getElementById('sendAll');
+  if (sa) sa.disabled = true;
+  renderTab();
+}
+
+function checkManualSendable() {
+  const hasContent = (document.getElementById('input')?.value||'').trim().length > 50;
+  const hasReports = reports.mgmt || reports.client || reports.team;
+  const btn = document.getElementById('genBtn');
+  if (btn) btn.style.animation = (!hasReports && hasContent) ? 'pulse-amber 1.5s infinite' : '';
+}
+
+async function loadAdminConfig() {
+  try {
+    const cfg = await window.fbAdmin.get().catch(() => null);
+    if (cfg?.workerUrl)    { PROXY = cfg.workerUrl; }
+    if (cfg?.anthropicKey) {
+      window._anthropicKey = cfg.anthropicKey;
+      addLog('API key loaded', 'ok');
+    } else {
+      addLog('No API key in Firebase admin/config — Demo Mode available', 'info');
+    }
+  } catch(e) {
+    addLog('Admin config load failed: ' + e.message, 'err');
+  }
+}
+
 const PROXY_DEFAULT = 'https://statusrollup.anitha.workers.dev';
 
 // Test Worker connectivity — run from console: testWorker()
