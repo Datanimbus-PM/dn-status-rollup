@@ -103,6 +103,52 @@ window.fbHist = {
   list: ()=>window.fbList(`${up()}/history`,'_ts'),
   del:  id=>window.fbDel(`${up()}/history/${id}`)
 };
+
+
+// ── Per-project Firebase helpers (need fbGet/fbSet from module scope) ──
+window.fbAdmin = {
+  // Reads from users/{uid}/admin/config — matches where data is in Firestore
+  get: async () => window.fbGet(`users/${window._user?.uid}/admin/config`).catch(() => null),
+  set: async d  => window.fbSet(`users/${window._user?.uid}/admin/config`, d)
+};
+async function loadAdminConfig() {
+  try {
+    const cfg = await window.fbAdmin.get().catch(() => null);
+    if (cfg?.workerUrl) { PROXY = cfg.workerUrl; }
+    if (cfg?.anthropicKey) {
+      window._anthropicKey = cfg.anthropicKey;
+      addLog('API key loaded from admin config', 'ok');
+    } else {
+      addLog('No API key in admin config — add anthropicKey to Firestore admin/config', 'err');
+    }
+  } catch(e) {
+    addLog('Admin config load failed: ' + e.message, 'err');
+  }
+}
+
+// ── State ─────────────────────────────────────────────────────
+let mode='friday', tab='mgmt', editOn=true;
+let reports={mgmt:null,client:null,team:null,chat:null};
+let _pmName='', _projects=[], _activeProjectId=null;
+let _members=[], _updates={}, _edits={}, _history=[], _blockers=[];
+let _emType=null, _rvEntry=null, _rvTab='mgmt', _editingProjectId=null;
+const PROJ_COLORS=['#f59e0b','#22d3ee','#34d399','#a78bfa','#f87171','#fb923c'];
+const genId = () => Math.random().toString(36).slice(2,9);
+const activeProject = () => _projects.find(p=>p.id===_activeProjectId)||_projects[0]||null;
+
+// ── Firebase project helpers ──────────────────────────────────
+window.fbProjects = {
+  save: l => window.fbSet(`users/${window._user?.uid}/projects/list`,{list:l}),
+  get:  async()=>{ const d=await window.fbGet(`users/${window._user?.uid}/projects/list`); return d?.list||[]; }
+};
+window.fbMemP  = pid=>({ save:l=>window.fbSet(`users/${window._user?.uid}/proj_${pid}/members`,{list:l}),  get:async()=>{ const d=await window.fbGet(`users/${window._user?.uid}/proj_${pid}/members`); return d?.list||[]; }});
+window.fbUpdP  = pid=>({ save:d=>window.fbSet(`users/${window._user?.uid}/proj_${pid}/updates`,{data:d}),  get:async()=>{ const d=await window.fbGet(`users/${window._user?.uid}/proj_${pid}/updates`); return d?.data||{}; }});
+window.fbEdtP  = pid=>({ save:d=>window.fbSet(`users/${window._user?.uid}/proj_${pid}/edits`,{data:d}),    get:async()=>{ const d=await window.fbGet(`users/${window._user?.uid}/proj_${pid}/edits`); return d?.data||{}; }});
+window.fbBlkP  = pid=>({ save:l=>window.fbSet(`users/${window._user?.uid}/proj_${pid}/blockers`,{list:l}), get:async()=>{ const d=await window.fbGet(`users/${window._user?.uid}/proj_${pid}/blockers`); return d?.list||[]; }});
+window.fbProfile = {
+  save: d=>window.fbSet(`users/${window._user?.uid}/profile/main`,d),
+  get:  ()=>window.fbGet(`users/${window._user?.uid}/profile/main`)
+};
 </script>
 
 <style>
@@ -613,9 +659,9 @@ textarea::placeholder{color:#334155}
         <div class="mf"><label>Space ID 4</label><input id="pmS4" placeholder="Optional"/></div>
       </div>
       <div class="msec" style="margin-top:10px">Gmail</div>
-      <div class="mf full"><label>Email Search Query (optional)</label>
-        <input id="pmEmailQuery" placeholder="e.g. subject:UPP update OR from:team@datanimbus.com"/>
-        <div class="hint">Pulls matching emails from the last 7 days as extra update sources</div>
+      <div class="mf full"><label>Pull emails from these addresses</label>
+        <input id="pmEmailQuery" placeholder="e.g. @idfcfirstbank.com, raj@client.com, balaji@datanimbus.com"/>
+        <div class="hint">Comma-separate emails, domains, or Gmail queries. Examples: @idfcfirstbank.com pulls everyone from that domain. raj@client.com pulls one person. subject:UPP uses a custom query.</div>
       </div>
       <div class="msec" style="margin-top:10px">Send To (pre-fills each week)</div>
       <div class="mrow">
@@ -736,49 +782,6 @@ window.testWorker = async function() {
 let   PROXY         = PROXY_DEFAULT; // overridden by admin setting in Firebase
 
 // Load admin-configured worker URL from Firebase (set once, works for all PMs)
-window.fbAdmin = {
-  // Reads from users/{uid}/admin/config — matches where data is in Firestore
-  get: async () => window.fbGet(`users/${window._user?.uid}/admin/config`).catch(() => null),
-  set: async d  => window.fbSet(`users/${window._user?.uid}/admin/config`, d)
-};
-async function loadAdminConfig() {
-  try {
-    const cfg = await window.fbAdmin.get().catch(() => null);
-    if (cfg?.workerUrl) { PROXY = cfg.workerUrl; }
-    if (cfg?.anthropicKey) {
-      window._anthropicKey = cfg.anthropicKey;
-      addLog('API key loaded from admin config', 'ok');
-    } else {
-      addLog('No API key in admin config — add anthropicKey to Firestore admin/config', 'err');
-    }
-  } catch(e) {
-    addLog('Admin config load failed: ' + e.message, 'err');
-  }
-}
-
-// ── State ─────────────────────────────────────────────────────
-let mode='friday', tab='mgmt', editOn=true;
-let reports={mgmt:null,client:null,team:null,chat:null};
-let _pmName='', _projects=[], _activeProjectId=null;
-let _members=[], _updates={}, _edits={}, _history=[], _blockers=[];
-let _emType=null, _rvEntry=null, _rvTab='mgmt', _editingProjectId=null;
-const PROJ_COLORS=['#f59e0b','#22d3ee','#34d399','#a78bfa','#f87171','#fb923c'];
-const genId = () => Math.random().toString(36).slice(2,9);
-const activeProject = () => _projects.find(p=>p.id===_activeProjectId)||_projects[0]||null;
-
-// ── Firebase project helpers ──────────────────────────────────
-window.fbProjects = {
-  save: l => window.fbSet(`users/${window._user?.uid}/projects/list`,{list:l}),
-  get:  async()=>{ const d=await window.fbGet(`users/${window._user?.uid}/projects/list`); return d?.list||[]; }
-};
-window.fbMemP  = pid=>({ save:l=>window.fbSet(`users/${window._user?.uid}/proj_${pid}/members`,{list:l}),  get:async()=>{ const d=await window.fbGet(`users/${window._user?.uid}/proj_${pid}/members`); return d?.list||[]; }});
-window.fbUpdP  = pid=>({ save:d=>window.fbSet(`users/${window._user?.uid}/proj_${pid}/updates`,{data:d}),  get:async()=>{ const d=await window.fbGet(`users/${window._user?.uid}/proj_${pid}/updates`); return d?.data||{}; }});
-window.fbEdtP  = pid=>({ save:d=>window.fbSet(`users/${window._user?.uid}/proj_${pid}/edits`,{data:d}),    get:async()=>{ const d=await window.fbGet(`users/${window._user?.uid}/proj_${pid}/edits`); return d?.data||{}; }});
-window.fbBlkP  = pid=>({ save:l=>window.fbSet(`users/${window._user?.uid}/proj_${pid}/blockers`,{list:l}), get:async()=>{ const d=await window.fbGet(`users/${window._user?.uid}/proj_${pid}/blockers`); return d?.list||[]; }});
-window.fbProfile = {
-  save: d=>window.fbSet(`users/${window._user?.uid}/profile/main`,d),
-  get:  ()=>window.fbGet(`users/${window._user?.uid}/profile/main`)
-};
 
 // ── App init ──────────────────────────────────────────────────
 window.appInit = async user => {
@@ -1201,11 +1204,26 @@ async function loadFromSources() {
     // Gmail
     if (proj.emailQuery) {
       try {
-        const q      = encodeURIComponent(proj.emailQuery+' newer_than:7d');
+        // Build Gmail OR query from comma-separated entries. Supports:
+        // - Full email:  vishwajit@idfcfirstbank.com  → from:vishwajit@idfcfirstbank.com
+        // - Domain only: @idfcfirstbank.com           → from:@idfcfirstbank.com  (Gmail matches all from that domain)
+        // - Raw query:   subject:UPP update           → passed through as-is
+        const rawQuery = proj.emailQuery.trim();
+        const builtQuery = rawQuery.includes('@') || rawQuery.includes(':')
+          ? rawQuery.split(',').map(e => e.trim()).filter(Boolean)
+              .map(e => {
+                if (e.includes(':')) return e;           // raw Gmail query e.g. subject:UPP
+                if (e.startsWith('@')) return 'from:' + e; // domain e.g. @idfcfirstbank.com
+                return 'from:' + e;                      // full email
+              })
+              .join(' OR ') + ' newer_than:7d'
+          : rawQuery + ' newer_than:7d';
+        const q      = encodeURIComponent(builtQuery);
         const lRes   = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=25&q='+q,{headers:{Authorization:'Bearer '+token}});
         const lData  = await lRes.json();
         if (lData.error) throw new Error(lData.error.message);
         const ids = (lData.messages||[]).map(m=>m.id);
+        addLog('Gmail query: ' + decodeURIComponent(q).slice(0,80), 'info');
         addLog('Gmail: '+ids.length+' emails matched','info');
         let emailsAdded = 0;
         for (const id of ids.slice(0,15)) {
