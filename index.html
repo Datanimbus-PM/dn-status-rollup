@@ -341,6 +341,10 @@ textarea::placeholder{color:#334155}
   </div>
   <div class="hright">
     <span class="badge fri" id="modeBadge">FRIDAY</span>
+    <button id="demoToggle" onclick="toggleDemoMode()"
+      style="background:rgba(167,139,250,.1);border:1px solid rgba(167,139,250,.3);color:#a78bfa;padding:5px 11px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;white-space:nowrap">
+      &#127916; Demo OFF
+    </button>
     <button class="hbtn" id="dashBtn" onclick="toggleDash()">&#128202; Dashboard</button>
     <button class="hbtn" id="histBtn" onclick="toggleHist()">&#128193; History</button>
     <button class="hbtn" id="teamBtn" onclick="toggleTeam()">&#128101; Team</button>
@@ -459,7 +463,16 @@ textarea::placeholder{color:#334155}
 <div id="teamView" class="fv">
   <div class="fvh">
     <div><div class="fv-title">&#128101; Team Updates</div><div class="fv-sub" id="teamViewSub">Fill in each person</div></div>
-    <button class="hbtn" onclick="toggleTeam()">&#10005; Close</button>
+    <div style="display:flex;gap:7px;align-items:center">
+      <button id="loadChatBtn" onclick="loadFromSources()"
+        style="background:#22d3ee;border:none;color:#000;padding:7px 14px;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer;font-family:'Inter',sans-serif;display:flex;align-items:center;gap:6px">
+        &#128229; Load from Chat + Gmail
+      </button>
+      <button class="hbtn" onclick="toggleTeam()">&#10005; Close</button>
+    </div>
+  </div>
+  <div style="background:rgba(34,211,238,.06);border:1px solid rgba(34,211,238,.15);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#64748b;line-height:1.6">
+    &#128161; Click <strong style="color:#22d3ee">Load from Chat + Gmail</strong> to auto-fill updates from your configured spaces, or fill in each person manually below, then click <strong style="color:#f59e0b">Compile All</strong> to generate reports.
   </div>
   <div class="stitle">Add Member</div>
   <div class="amform">
@@ -591,7 +604,7 @@ const EM = {
 let PROXY = PROXY_DEFAULT;
 
 // ── State ─────────────────────────────────────────────────────
-let mode='friday', tab='mgmt', editOn=true;
+let mode='friday', tab='mgmt', editOn=true, demoMode=false;
 let reports={mgmt:null,client:null,team:null,chat:null};
 let _pmName='', _projects=[], _activeProjectId=null;
 let _members=[], _updates={}, _edits={}, _history=[], _blockers=[];
@@ -620,6 +633,26 @@ function checkManualSendable() {
   const has=(document.getElementById('input')?.value||'').trim().length>50;
   const btn=document.getElementById('genBtn');
   if(btn) btn.style.animation=(!reports.mgmt&&has)?'pulse-amber 1.5s infinite':'';
+}
+
+function toggleDemoMode() {
+  demoMode = !demoMode;
+  const btn = document.getElementById('demoToggle');
+  if (demoMode) {
+    btn.style.background = 'rgba(167,139,250,.25)';
+    btn.style.borderColor = '#a78bfa';
+    btn.style.color = '#a78bfa';
+    btn.innerHTML = '&#127916; Demo ON';
+    toast('Demo Mode ON — no API calls will be made', 'info');
+    addLog('Demo Mode enabled — Load and Generate use sample data', 'info');
+  } else {
+    btn.style.background = 'rgba(167,139,250,.1)';
+    btn.style.borderColor = 'rgba(167,139,250,.3)';
+    btn.style.color = '#a78bfa';
+    btn.innerHTML = '&#127916; Demo OFF';
+    toast('Demo Mode OFF — live API calls restored', 'info');
+    addLog('Demo Mode disabled', 'info');
+  }
 }
 
 async function loadAdminConfig() {
@@ -759,6 +792,11 @@ async function saveOnboarding() {
 async function loadFromSources() {
   const btns=['loadChatBtn','lcBtnMain'].map(id=>document.getElementById(id)).filter(Boolean);
   btns.forEach(b=>{b.innerHTML='<span class="spin" style="border-top-color:#22d3ee"></span> Loading...';b.disabled=true;});
+  // Demo mode: skip all API calls, load sample team data directly
+  if (demoMode) {
+    try { await loadDemoTeamData(); } finally { btns.forEach(b=>{b.innerHTML=b.id==='loadChatBtn'?'Load Now':'&#128229; Chat + Gmail';b.disabled=false;}); }
+    return;
+  }
   try {
     if(!window._accessToken){toast('Sign out and sign back in to refresh permissions','err');return;}
     const proj=activeProject();
@@ -844,6 +882,19 @@ async function loadFromSources() {
     }
     await window.fbMemP(_activeProjectId).save(_members);
     await window.fbUpdP(_activeProjectId).save(_updates);
+
+    // Render the member cards immediately so PM can review and edit
+    renderMCards();
+
+    // If called from Team view button, stay on Team view so PM can edit cards
+    // If called from main view, also open Team view for review
+    const teamView = document.getElementById('teamView');
+    if (!teamView.classList.contains('open')) {
+      closeAll();
+      teamView.classList.add('open');
+      document.getElementById('teamBtn').classList.add('on');
+    }
+
     const lines=parsed.map(p=>{
       if(!p.completed&&!p.inprogress&&!p.blockers&&!p.wins) return null;
       let t=p.name+' ('+p.dept+'):';
@@ -899,6 +950,33 @@ function extractChatFields(text) {
 }
 
 // ── Demo Mode ─────────────────────────────────────────────────
+async function loadDemoTeamData() {
+  const proj = activeProject();
+  if (!proj) { toast('Add a project first','err'); return; }
+  // Sample team members with realistic data
+  _members = [
+    {name:'Anitha Kumar',    dept:'Programme Management'},
+    {name:'Tamilvanan R',    dept:'Engineering'},
+    {name:'Eldho George',    dept:'Engineering'},
+    {name:'Balaji S',        dept:'QA'},
+    {name:'Ganesh G',        dept:'Delivery'},
+  ];
+  _updates = {
+    'Anitha_Kumar':    {completed:'Weekly status report for IDFC-H2H. Coordinated sprint review with client. Approved Phase 2 scope.',inprogress:'Planning Q3 roadmap. Setting up onboarding sessions for new PMs.',blockers:'',wins:'Client approved Phase 2 — project going live next month'},
+    'Tamilvanan_R':    {completed:'Fixed interaction visibility issue on IDFC portal. Deployed agent alert configuration to prod.',inprogress:'Working on agent password sharing over email. DB purge second round.',blockers:'Need DevOps to provision Redis cluster for caching layer',wins:'Agent alert config demo approved by entire team'},
+    'Eldho_George':    {completed:'Installed KIWI client agent. Resolved Nginx config issue for IDFC team.',inprogress:'Continuing DB purge activity. ExpressDB password update.',blockers:'',wins:''},
+    'Balaji_S':        {completed:'Completed documentation for TPCL, PMJAY, PMJAYNAG and FDATA clients.',inprogress:'Flow documentation for remaining clients. Interactions visibility fix tracking.',blockers:'DB query timeout issue on reporting module — needs backend fix',wins:''},
+    'Ganesh_G':        {completed:'Reviewed and closed 3 open change requests. Sprint planning completed.',inprogress:'Monitoring production deployments. Co-ordinating UAT access for IDFC.',blockers:'',wins:'All UAT sign-offs received ahead of schedule'},
+  };
+  await window.fbMemP(_activeProjectId).save(_members);
+  await window.fbUpdP(_activeProjectId).save(_updates);
+  renderMCards();
+  const teamView=document.getElementById('teamView');
+  if(!teamView.classList.contains('open')){closeAll();teamView.classList.add('open');document.getElementById('teamBtn').classList.add('on');}
+  addLog('Demo team data loaded — '+_members.length+' members with sample updates','ok');
+  toast('Demo team loaded — review cards and click Compile All!','ok');
+}
+
 function useDemoReports(inp,proj) {
   const pn=proj?.name||'DN Programme', cn=proj?.client||'Client', week=getWeek();
   const names=[]; (inp||'').split('\n').forEach(line=>{const m=line.match(/^([A-Z][a-z]+(?: [A-Z][a-z]+)?)\s*\(/);if(m)names.push(m[1]);});
@@ -924,7 +1002,7 @@ async function generate() {
   if(!inp){toast('Paste team updates first','err');return;}
   const proj=activeProject();
   if(!proj){toast('No project — add one first','err');return;}
-  if(!window._anthropicKey){addLog('No API key — loading demo reports','info');useDemoReports(inp,proj);return;}
+  if(demoMode||!window._anthropicKey){addLog(demoMode?'Demo Mode — loading sample reports':'No API key — loading demo reports','info');useDemoReports(inp,proj);return;}
   const btn=document.getElementById('genBtn');
   btn.disabled=true; btn.innerHTML='<span class="spin"></span>Generating...';
   document.getElementById('output').innerHTML='<div class="ph"><div style="font-size:28px;animation:sp 1s linear infinite;display:inline-block">&#9889;</div><p style="margin-top:10px">Generating reports for '+proj.name+'...</p></div>';
@@ -1078,18 +1156,52 @@ async function removeMember(n){_members=_members.filter(m=>m.name!==n);await win
 function renderMCards(){
   const el=document.getElementById('mCards');
   const proj=activeProject(),tsub=document.getElementById('teamViewSub');
-  if(tsub)tsub.textContent=proj?proj.name+' - '+proj.client:'Team';
-  if(!_members.length){el.innerHTML='<div class="nodata" style="grid-column:1/-1">No members yet</div>';return;}
-  el.innerHTML=_members.map(m=>{
-    const ini=m.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2),id=m.name.replace(/\s+/g,'_'),u=_updates[id]||{};
-    return '<div class="mcard"><div class="mcard-h"><div class="mav">'+ini+'</div><div class="mni"><div class="mn">'+m.name+'</div><div class="md">'+m.dept+'</div></div><button class="mdel" onclick="removeMember(\''+m.name+'\')">x</button></div>'+
-      '<div class="uf"><label>Completed</label><textarea oninput="saveUpd(\''+id+'\',\'completed\',this.value)">'+(u.completed||'')+'</textarea></div>'+
-      '<div class="uf"><label>In Progress</label><textarea oninput="saveUpd(\''+id+'\',\'inprogress\',this.value)">'+(u.inprogress||'')+'</textarea></div>'+
-      '<div class="uf"><label>Blockers</label><textarea oninput="saveUpd(\''+id+'\',\'blockers\',this.value)">'+(u.blockers||'')+'</textarea></div>'+
-      '<div class="uf"><label>Wins</label><textarea oninput="saveUpd(\''+id+'\',\'wins\',this.value)">'+(u.wins||'')+'</textarea></div></div>';
-  }).join('');
+  if(tsub) tsub.textContent=proj?proj.name+' - '+proj.client:'Team';
+  el.innerHTML='';
+  if(!_members.length){el.innerHTML='<div class="nodata" style="grid-column:1/-1">No members yet \u2014 add above</div>';return;}
+  _members.forEach(m=>{
+    const ini=m.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+    const id=m.name.replace(/\s+/g,'_');
+    const u=_updates[id]||{};
+    const hasData=!!(u.completed||u.inprogress||u.blockers||u.wins);
+    const fn=m.name.split(' ')[0];
+    const card=document.createElement('div');
+    card.className='mcard';
+    card.style.borderColor=hasData?'rgba(34,211,238,.25)':'#334155';
+    // Header
+    const hdr=document.createElement('div'); hdr.className='mcard-h';
+    const av=document.createElement('div'); av.className='mav';
+    av.style.background=hasData?'linear-gradient(135deg,#22d3ee,#0891b2)':'linear-gradient(135deg,#f59e0b,#d97706)';
+    av.textContent=ini;
+    const ni=document.createElement('div'); ni.className='mni';
+    const mn=document.createElement('div'); mn.className='mn'; mn.textContent=m.name;
+    const md2=document.createElement('div'); md2.className='md'; md2.textContent=m.dept;
+    if(hasData){const b=document.createElement('span');b.style.cssText='color:#34d399;font-size:9px;margin-left:5px;font-weight:600';b.textContent='\u2713 loaded';md2.appendChild(b);}
+    ni.appendChild(mn); ni.appendChild(md2);
+    const del=document.createElement('button'); del.className='mdel'; del.innerHTML='&#10005;';
+    del.onclick=()=>removeMember(m.name);
+    hdr.appendChild(av); hdr.appendChild(ni); hdr.appendChild(del);
+    card.appendChild(hdr);
+    // Fields
+    [{label:'\u2705 Completed',key:'completed',ph:'What did '+fn+' finish this week?',val:u.completed||''},
+     {label:'\u{1F504} In Progress',key:'inprogress',ph:'What is '+fn+' currently working on?',val:u.inprogress||''},
+     {label:'\u{1F6A8} Blockers',key:'blockers',ph:'Any blockers for '+fn+'?',val:u.blockers||''},
+     {label:'\u{1F3C6} Wins',key:'wins',ph:'Any wins or highlights this week?',val:u.wins||''},
+    ].forEach(f=>{
+      const wrap=document.createElement('div'); wrap.className='uf';
+      const lbl=document.createElement('label'); lbl.textContent=f.label;
+      const ta=document.createElement('textarea');
+      ta.placeholder=f.ph;
+      ta.value=f.val;
+      ta.style.minHeight=f.val?Math.min(120,44+Math.floor(f.val.length/2))+'px':'44px';
+      ta.oninput=function(fk){return function(){saveUpd(id,fk,this.value);};}(f.key);
+      wrap.appendChild(lbl); wrap.appendChild(ta);
+      card.appendChild(wrap);
+    });
+    el.appendChild(card);
+  });
 }
-let updTm;
+
 function saveUpd(id,field,val){if(!_updates[id])_updates[id]={};_updates[id][field]=val;clearTimeout(updTm);updTm=setTimeout(()=>window.fbUpdP(_activeProjectId).save(_updates),700);}
 function compileUpdates(){
   if(!_members.length){toast('No members yet','err');return;}
