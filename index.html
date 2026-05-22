@@ -141,8 +141,8 @@ header{background:#1e293b;border-bottom:1px solid #334155;padding:0 14px;display
 .um-btn{background:transparent;border:1px solid #334155;color:#94a3b8;padding:6px 10px;border-radius:6px;font-size:11px;cursor:pointer;width:100%;text-align:left;font-family:'Inter',sans-serif}
 .um-btn:hover{border-color:#f87171;color:#f87171}
 main{display:grid;grid-template-columns:1fr 1fr;flex:1;min-height:0}
-@media(max-width:768px){main{grid-template-columns:1fr;height:auto}.right{display:flex;flex-direction:column;height:100%;overflow:hidden}}
-.left{border-right:1px solid #334155;display:flex;flex-direction:column;height:100%;overflow:hidden}
+@media(max-width:768px){main{grid-template-columns:1fr;height:auto}.right{display:flex;flex-direction:column;min-height:0;overflow:hidden}}
+.left{border-right:1px solid #334155;display:flex;flex-direction:column;min-height:0;overflow:hidden}
 .phead{padding:10px 14px;border-bottom:1px solid #334155;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px}
 .phead span{font-size:10px;font-weight:600;color:#94a3b8;letter-spacing:.5px;text-transform:uppercase}
 .mtoggle{display:flex;border:1px solid #334155;border-radius:6px;overflow:hidden}
