@@ -45,6 +45,9 @@ onAuthStateChanged(auth, user => {
       return;
     }
     window._user = user;
+    if (!window._accessToken) {
+      try { const t = sessionStorage.getItem('dn_gtoken'); if (t) window._accessToken = t; } catch(e) {}
+    }
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('app').style.display = 'block';
     document.getElementById('uAvatar').textContent = (user.displayName||'U').split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2);
@@ -542,7 +545,7 @@ textarea::placeholder{color:#334155}
 <!-- TEAM -->
 <div id="teamView" class="fv">
   <div class="fvh">
-    <div><div class="fv-title">👥 Team Updates</div><div class="fv-sub">Fill in each person — compiles to generator</div></div>
+    <div><div class="fv-title">&#128101; Team Updates</div><div class="fv-sub" id="teamViewSub">Fill in each person</div></div>
     <button class="hbtn" onclick="toggleTeam()">✕ Close</button>
   </div>
   <div style="background:rgba(34,211,238,.06);border:1px solid rgba(34,211,238,.2);border-radius:8px;padding:11px 14px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
@@ -739,6 +742,13 @@ textarea::placeholder{color:#334155}
       </div>
       <div class="ob-step">
         <div class="ob-num">3</div>
+        <div class="ob-f">
+          <label>Client / Account Name</label>
+          <input id="obClient" placeholder="e.g. IBL, IDFC, Internal"/>
+        </div>
+      </div>
+      <div class="ob-step">
+        <div class="ob-num">4</div>
         <div class="ob-f">
           <label>Google Chat Space ID</label>
           <input id="obSpace" placeholder="e.g. AAQAsAvqA-4" />
@@ -1136,7 +1146,7 @@ async function confirmSA() {
   let sent=0, failed=0;
   for(const {t,to} of es) {
     if(!to||!reports[t]) continue;
-    const m=EM[t], subj='['+((_cfg.project||'DN')+' '+wk)+'] '+(isFri?m.fri:m.mon);
+    const proj=activeProject(); const m=EM[t], subj='['+((proj?.name||'DN')+' '+wk)+'] '+(isFri?m.fri:m.mon);
     const content=_edits[t]||reports[t];
     const recipients=to.split(',').map(e=>e.trim()).filter(Boolean);
     try {
@@ -1399,6 +1409,9 @@ async function removeMember(n) {
 }
 function renderMCards() {
   const el=document.getElementById('mCards');
+  const proj=activeProject();
+  const tsub=document.getElementById('teamViewSub');
+  if(tsub) tsub.textContent=proj?proj.name+' — '+proj.client:'Team';
   if(!_members.length){el.innerHTML='<div class="nodata" style="grid-column:1/-1">No members yet — add above!</div>';return;}
   el.innerHTML=_members.map(m=>{
     const ini=m.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
