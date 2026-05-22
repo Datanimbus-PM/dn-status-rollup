@@ -732,6 +732,7 @@ textarea::placeholder{color:#334155}
 
 <script>
 // ── Constants ─────────────────────────────────────────────────
+const genId = () => Math.random().toString(36).slice(2,9) + Math.random().toString(36).slice(2,9);
 const PROXY_DEFAULT = 'https://statusrollup.anitha.workers.dev';
 
 // Test Worker connectivity — run from console: testWorker()
@@ -831,24 +832,40 @@ function openProjectModal(id) {
 }
 function closeProjectModal() { document.getElementById('projModal').classList.remove('open'); _editingProjectId=null; }
 async function saveProject() {
-  const name = v('pmProjName'); if (!name) { document.getElementById('pmProjName').focus(); return; }
-  const proj = {
-    id:          _editingProjectId || genId(),
-    name,
-    client:      v('pmClient') || 'Internal',
-    spaces:      [v('pmS1'),v('pmS2'),v('pmS3'),v('pmS4')].filter(Boolean),
-    emailQuery:  v('pmEmailQuery'),
-    mgmtEmail:   v('pmMgmtEmail'),
-    clientEmail: v('pmCliEmail'),
-    teamEmail:   v('pmTeamEmail'),
-    webhook:     v('pmWebhook'),
-  };
-  _projects = _editingProjectId ? _projects.map(p=>p.id===_editingProjectId?proj:p) : [..._projects, proj];
-  await window.fbProjects.save(_projects);
-  closeProjectModal();
-  if (!_activeProjectId) { _activeProjectId=proj.id; await loadProjectData(proj.id); }
-  renderProjectTabs(); updateProjectLabel();
-  toast('Project saved: ' + proj.name, 'ok');
+  const name = v('pmProjName');
+  if (!name) { document.getElementById('pmProjName').focus(); toast('Enter a project name','err'); return; }
+  const btn = document.querySelector('#projModal .bgo');
+  if (btn) { btn.innerHTML = '<span class="spin"></span> Saving...'; btn.disabled = true; }
+  try {
+    const proj = {
+      id:          _editingProjectId || genId(),
+      name,
+      client:      v('pmClient') || 'Internal',
+      spaces:      [v('pmS1'),v('pmS2'),v('pmS3'),v('pmS4')].filter(Boolean),
+      emailQuery:  v('pmEmailQuery'),
+      mgmtEmail:   v('pmMgmtEmail'),
+      clientEmail: v('pmCliEmail'),
+      teamEmail:   v('pmTeamEmail'),
+      webhook:     v('pmWebhook'),
+    };
+    _projects = _editingProjectId ? _projects.map(p=>p.id===_editingProjectId?proj:p) : [..._projects, proj];
+    await window.fbProjects.save(_projects);
+    closeProjectModal();
+    if (!_activeProjectId || !_editingProjectId) {
+      _activeProjectId = proj.id;
+      await loadProjectData(proj.id);
+    }
+    renderProjectTabs();
+    updateProjectLabel();
+    addLog('Project saved: ' + proj.name, 'ok');
+    toast('Project saved: ' + proj.name, 'ok');
+  } catch(e) {
+    addLog('Save project failed: ' + e.message, 'err');
+    toast('Save failed: ' + e.message, 'err');
+    console.error('saveProject error:', e);
+  } finally {
+    if (btn) { btn.innerHTML = 'Save Project'; btn.disabled = false; }
+  }
 }
 async function deleteProject() {
   if (!confirm('Delete this project?')) return;
@@ -1336,6 +1353,7 @@ async function saveOnboarding() {
   if (!name)    { document.getElementById('obName').focus();    return; }
   if (!project) { document.getElementById('obProject').focus(); return; }
   if (!space)   { document.getElementById('obSpace').focus();   return; }
+  try {
   _pmName = name;
   await window.fbProfile.save({name});
   const proj = {id:genId(), name:project, client, spaces:[space], emailQuery:'', mgmtEmail:'', clientEmail:'', teamEmail:'', webhook:''};
@@ -1348,6 +1366,7 @@ async function saveOnboarding() {
   renderTab();
   toast('Welcome ' + name.split(' ')[0] + '! All set.', 'ok');
   addLog('Setup complete for ' + name, 'ok');
+  } catch(e) { addLog('Onboarding save failed: '+e.message,'err'); toast('Save failed: '+e.message,'err'); }
 }
 
 // ── Message parsing helpers ────────────────────────────────────
