@@ -482,7 +482,14 @@ textarea::placeholder{color:#334155}
   </div>
   <div class="stitle">This Week</div>
   <div class="mcards" id="mCards"></div>
-  <button class="bcompile" onclick="compileUpdates()">&#9889; Compile All into Generator</button>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px">
+    <button class="bcompile" onclick="compileUpdates()" style="background:#334155;color:#e2e8f0">
+      &#128203; Compile Only
+    </button>
+    <button class="bcompile" onclick="compileAndGenerate()" style="background:#f59e0b;color:#000">
+      &#9889; Compile &amp; Generate
+    </button>
+  </div>
   <button onclick="clearUpdates()" style="background:transparent;border:1px solid #334155;color:#64748b;padding:7px;border-radius:5px;font-size:12px;cursor:pointer;width:100%;margin-top:7px;font-family:'Inter',sans-serif">Clear Updates</button>
 </div>
 
@@ -1209,6 +1216,29 @@ function compileUpdates(){
   if(!lines.length){toast('Fill in at least one update','err');return;}
   const c=lines.join('\n\n');sv('input',c);document.getElementById('chars').textContent=c.length.toLocaleString()+' chars';toggleTeam();toast(lines.length+' updates compiled','ok');
 }
+async function compileAndGenerate() {
+  // Compile updates into textarea then trigger generate — all without leaving Team view
+  if(!_members.length){toast('No members yet','err');return;}
+  const lines=_members.map(m=>{
+    const id=m.name.replace(/\s+/g,'_'),u=_updates[id]||{};
+    if(!u.completed&&!u.inprogress&&!u.blockers&&!u.wins) return null;
+    let t=m.name+' ('+m.dept+'):';
+    if(u.completed)  t+='\nCompleted: '+u.completed;
+    if(u.inprogress) t+='\nIn Progress: '+u.inprogress;
+    if(u.blockers)   t+='\nBlocker: '+u.blockers;
+    if(u.wins)       t+='\nWin: '+u.wins;
+    return t;
+  }).filter(Boolean);
+  if(!lines.length){toast('Fill in at least one update first','err');return;}
+  const c=lines.join('\n\n');
+  sv('input',c);
+  document.getElementById('chars').textContent=c.length.toLocaleString()+' chars';
+  addLog(lines.length+' updates compiled','ok');
+  // Close team view and trigger generate
+  toggleTeam();
+  setTimeout(()=>generate(), 200);
+}
+
 async function clearUpdates(){if(!confirm('Clear all?'))return;_updates={};await window.fbUpdP(_activeProjectId).save({});renderMCards();toast('Cleared','info');}
 async function saveHist(dashboard,week,type,rpts,proj){const entry={week,type,projectId:_activeProjectId,projectName:proj?.name,clientName:proj?.client,dashboard,reports:rpts||{},owner:window._user?.email,savedAt:new Date().toISOString()};await window.fbHist.save(entry,_activeProjectId);_history=await window.fbHist.list();}
 async function loadHistData(){_history=await window.fbHist.list();}
