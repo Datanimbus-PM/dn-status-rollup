@@ -111,7 +111,7 @@ body{background:#0f172a;color:#e2e8f0;font-family:'Inter',sans-serif;font-size:1
 .lb-badge{margin-top:14px;font-size:11px;color:#475569}
 #app{display:none;flex-direction:column;height:100vh;overflow:hidden}
 #app.visible{display:flex}
-header{background:#1e293b;border-bottom:1px solid #334155;padding:0 14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-height:52px;flex-shrink:0}
+header{background:#1e293b;border-bottom:1px solid #334155;padding:0 14px;display:flex;align-items:center;gap:8px;flex-wrap:nowrap;height:52px;flex-shrink:0;overflow:hidden}
 .logo{display:flex;align-items:center;gap:8px;padding:10px 0;flex-shrink:0}
 .logo-box{width:30px;height:30px;background:#f59e0b;border-radius:7px;display:grid;place-items:center;font-weight:700;font-size:12px;color:#000}
 .logo-title{font-size:13px;font-weight:700;color:#f1f5f9}
@@ -123,7 +123,7 @@ header{background:#1e293b;border-bottom:1px solid #334155;padding:0 14px;display
 .proj-tab.active{background:rgba(245,158,11,.15);border-color:#f59e0b;color:#f59e0b}
 .proj-add{padding:4px 11px;border-radius:20px;border:1px dashed #334155;background:transparent;color:#475569;font-size:11px;cursor:pointer;white-space:nowrap;font-family:'Inter',sans-serif}
 .proj-add:hover{border-color:#22d3ee;color:#22d3ee}
-.hright{display:flex;gap:5px;align-items:center;flex-shrink:0}
+.hright{display:flex;gap:5px;align-items:center;flex-shrink:0;overflow:hidden}
 .badge{padding:3px 9px;border-radius:20px;font-size:10px;font-weight:600;letter-spacing:.5px}
 .fri{background:rgba(245,158,11,.15);border:1px solid #f59e0b;color:#f59e0b}
 .mon{background:rgba(34,211,238,.15);border:1px solid #22d3ee;color:#22d3ee}
@@ -140,7 +140,7 @@ header{background:#1e293b;border-bottom:1px solid #334155;padding:0 14px;display
 .um-e{font-size:11px;color:#64748b;padding-bottom:8px;border-bottom:1px solid #334155;margin-bottom:8px}
 .um-btn{background:transparent;border:1px solid #334155;color:#94a3b8;padding:6px 10px;border-radius:6px;font-size:11px;cursor:pointer;width:100%;text-align:left;font-family:'Inter',sans-serif}
 .um-btn:hover{border-color:#f87171;color:#f87171}
-main{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr;flex:1;min-height:0}
+main{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr;height:calc(100vh - 52px - 110px)}
 @media(max-width:768px){main{grid-template-columns:1fr;height:auto}.right{display:flex;flex-direction:column;min-height:0;overflow:hidden}}
 .left{border-right:1px solid #334155;display:flex;flex-direction:column;min-height:0;overflow:hidden}
 .phead{padding:10px 14px;border-bottom:1px solid #334155;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px}
