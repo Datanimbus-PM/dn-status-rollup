@@ -721,9 +721,9 @@ let   PROXY         = PROXY_DEFAULT; // overridden by admin setting in Firebase
 
 // Load admin-configured worker URL from Firebase (set once, works for all PMs)
 window.fbAdmin = {
-  // Read from root-level admin/config - catch permission errors gracefully
-  get: async () => window.fbGet('admin/config').catch(() => null),
-  set: async d  => window.fbSet('admin/config', d)
+  // Reads from users/{uid}/admin/config — matches where data is in Firestore
+  get: async () => window.fbGet(`users/${window._user?.uid}/admin/config`).catch(() => null),
+  set: async d  => window.fbSet(`users/${window._user?.uid}/admin/config`, d)
 };
 async function loadAdminConfig() {
   try {
