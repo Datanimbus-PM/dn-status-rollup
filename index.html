@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>DN Program Status Rollup</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>if(typeof pdfjsLib!=='undefined') pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
 
 <!-- Firebase SDK -->
 <script type="module">
@@ -376,6 +379,7 @@ textarea::placeholder{color:#334155}
 
 .spin{display:inline-block;width:11px;height:11px;border:2px solid rgba(0,0,0,.2);border-top-color:#000;border-radius:50%;animation:sp .6s linear infinite;vertical-align:middle;margin-right:4px}
 @keyframes sp{to{transform:rotate(360deg)}}
+@keyframes pulse-amber{0%,100%{box-shadow:0 0 0 2px rgba(245,158,11,.2)}50%{box-shadow:0 0 0 8px rgba(245,158,11,.05)}}
 @keyframes pulse-r{0%,100%{box-shadow:0 0 0 2px rgba(248,113,113,.15)}50%{box-shadow:0 0 0 5px rgba(248,113,113,.06)}}
 </style>
 </head>
@@ -529,13 +533,25 @@ textarea::placeholder{color:#334155}
       </div>
     </div>
     <div class="iwrap">
-      <div class="ilabel">
-        <span>Paste raw team updates below</span>
-        <button id="lcBtnMain" onclick="loadFromSources()"
-          style="background:rgba(34,211,238,.1);border:1px solid rgba(34,211,238,.3);color:#22d3ee;
-                 font-family:'Inter',sans-serif;font-size:11px;padding:4px 9px;border-radius:5px;cursor:pointer;font-weight:500">
-          📥 Load from Chat + Gmail
-        </button>
+      <div class="ilabel" style="flex-direction:column;gap:6px;align-items:stretch">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:6px">
+          <span>Paste updates or use sources below</span>
+          <div style="display:flex;gap:5px">
+            <button id="lcBtnMain" onclick="loadFromSources()"
+              style="background:rgba(34,211,238,.1);border:1px solid rgba(34,211,238,.3);color:#22d3ee;
+                     font-family:'Inter',sans-serif;font-size:11px;padding:4px 9px;border-radius:5px;cursor:pointer;font-weight:500;white-space:nowrap">
+              &#128229; Chat + Gmail
+            </button>
+            <label style="background:rgba(167,139,250,.1);border:1px solid rgba(167,139,250,.3);color:#a78bfa;
+                          font-family:'Inter',sans-serif;font-size:11px;padding:4px 9px;border-radius:5px;
+                          cursor:pointer;font-weight:500;white-space:nowrap">
+              &#128206; Attach
+              <input type="file" id="fileInput" accept=".xlsx,.xls,.csv,.pdf,.txt" multiple
+                style="display:none" onchange="handleFileAttach(event)"/>
+            </label>
+          </div>
+        </div>
+        <div id="attachedFiles" style="display:none;flex-wrap:wrap;gap:5px;margin-top:2px"></div>
       </div>
       <textarea id="input" placeholder="Example:&#10;&#10;Anitha (PM): Completed Q3 roadmap. Win: Client approved Phase 2. No blockers.&#10;&#10;Raj (Engineering): Shipped OAuth. Blocker: Need Redis cluster from DevOps."></textarea>
     </div>
@@ -1696,6 +1712,122 @@ function toast(msg,type='info') {
 }
 
 
+
+
+
+// ── File Attachments ──────────────────────────────────────────
+let _attachedTexts = [];
+
+async function handleFileAttach(event) {
+  const files = Array.from(event.target.files);
+  if (!files.length) return;
+
+  const attachEl = document.getElementById('attachedFiles');
+  attachEl.style.display = 'flex';
+
+  for (const file of files) {
+    const tag = document.createElement('div');
+    tag.style.cssText = 'display:flex;align-items:center;gap:5px;background:rgba(167,139,250,.1);border:1px solid rgba(167,139,250,.3);border-radius:4px;padding:3px 8px;font-size:11px;color:#a78bfa';
+    tag.innerHTML = '<span class="spin" style="border-top-color:#a78bfa"></span> ' + file.name;
+    attachEl.appendChild(tag);
+
+    try {
+      let text = '';
+      const ext = file.name.split('.').pop().toLowerCase();
+
+      if (ext === 'pdf') {
+        text = await extractPDF(file);
+      } else if (['xlsx','xls'].includes(ext)) {
+        text = await extractExcel(file);
+      } else if (ext === 'csv') {
+        text = await extractCSV(file);
+      } else if (ext === 'txt') {
+        text = await file.text();
+      }
+
+      if (text.trim().length > 20) {
+        _attachedTexts.push({ name: file.name, text: text.slice(0, 3000) });
+        tag.dataset.fname = file.name;
+        const closeBtn2 = document.createElement('span');
+        closeBtn2.textContent = ' ✕';
+        closeBtn2.style.cssText = 'cursor:pointer;opacity:.6;margin-left:4px';
+        closeBtn2.onclick = () => removeAttach(file.name, tag);
+        tag.textContent = '📎 ' + file.name;
+        tag.appendChild(closeBtn2);
+        mergeAttachmentsToInput();
+        addLog('Attached: ' + file.name + ' (' + text.length + ' chars extracted)', 'ok');
+        toast(file.name + ' attached ✓', 'ok');
+      } else {
+        tag.innerHTML = '⚠ ' + file.name + ' (no text found)';
+        tag.style.color = '#f87171';
+        addLog('Could not extract text from: ' + file.name, 'err');
+      }
+    } catch(e) {
+      tag.innerHTML = '✕ ' + file.name + ' (error)';
+      tag.style.color = '#f87171';
+      addLog('File error ' + file.name + ': ' + e.message, 'err');
+    }
+  }
+  // Reset input so same file can be re-attached
+  event.target.value = '';
+}
+
+function removeAttach(name, tagEl) {
+  _attachedTexts = _attachedTexts.filter(a => a.name !== name);
+  tagEl?.remove();
+  if (!_attachedTexts.length) document.getElementById('attachedFiles').style.display = 'none';
+  mergeAttachmentsToInput();
+}
+
+function mergeAttachmentsToInput() {
+  // Get existing manually-typed content (non-attachment lines)
+  const current = document.getElementById('input').value;
+  const lines = current.split('\n\n').filter(l => !l.startsWith('--- From attachment:'));
+  const manual = lines.join('\n\n').trim();
+
+  // Append all attachment texts
+  const attachParts = _attachedTexts.map(a =>
+    '--- From attachment: ' + a.name + ' ---\n' + a.text
+  );
+
+  const merged = [manual, ...attachParts].filter(Boolean).join('\n\n');
+  document.getElementById('input').value = merged;
+  document.getElementById('chars').textContent = merged.length.toLocaleString() + ' chars';
+  checkManualSendable();
+}
+
+async function extractPDF(file) {
+  if (typeof pdfjsLib === 'undefined') throw new Error('PDF.js not loaded');
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  let text = '';
+  for (let i = 1; i <= Math.min(pdf.numPages, 10); i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    text += content.items.map(s => s.str).join(' ') + '\n';
+  }
+  return text.trim();
+}
+
+async function extractExcel(file) {
+  if (typeof XLSX === 'undefined') throw new Error('SheetJS not loaded');
+  const arrayBuffer = await file.arrayBuffer();
+  const wb = XLSX.read(arrayBuffer, { type: 'array' });
+  let text = '';
+  for (const sheetName of wb.SheetNames) {
+    const ws = wb.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+    text += 'Sheet: ' + sheetName + '\n';
+    text += rows.map(r => r.filter(c => c !== '').join('\t')).filter(r => r.trim()).join('\n');
+    text += '\n\n';
+  }
+  return text.trim();
+}
+
+async function extractCSV(file) {
+  const text = await file.text();
+  return text.trim();
+}
 
 
 // ── Init ──────────────────────────────────────────────────────
