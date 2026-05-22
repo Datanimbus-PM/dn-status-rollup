@@ -72,13 +72,19 @@ window.doSignIn = async () => {
     const result = await signInWithPopup(auth, gprov);
     const credential = GoogleAuthProvider.credentialFromResult(result);
     window._accessToken = credential.accessToken;
+    // Persist token for the session so page refreshes don't force re-auth
+    try { sessionStorage.setItem('dn_gtoken', credential.accessToken); } catch(e) {}
   } catch(e) {
     document.getElementById('loginBtn').textContent = 'Sign in with Google';
     document.getElementById('authErr').textContent = e.message;
     document.getElementById('authErr').style.display = 'block';
   }
 };
-window.doSignOut = () => signOut(auth);
+window.doSignOut = () => {
+  try { sessionStorage.removeItem('dn_gtoken'); } catch(e) {}
+  window._accessToken = null;
+  signOut(auth);
+};
 
 // Firebase helpers
 const up = () => `users/${window._user?.uid}`;
@@ -88,7 +94,6 @@ window.fbDel  = async (path)        => deleteDoc(doc(db,path));
 window.fbList = async (path,field)  => { const q=query(collection(db,path),orderBy(field||'_ts','desc')); const s=await getDocs(q); return s.docs.map(d=>({id:d.id,...d.data()})); };
 window.fbMem  = { save: l=>window.fbSet(`${up()}/members/all`,{list:l}), get: async()=>{ const d=await window.fbGet(`${up()}/members/all`); return d?.list||[]; } };
 window.fbUpd  = { save: d=>window.fbSet(`${up()}/updates/cur`,{data:d}),  get: async()=>{ const d=await window.fbGet(`${up()}/updates/cur`);  return d?.data||{}; } };
-window.fbEdt  = { save: d=>window.fbSet(`${up()}/edits/cur`,{data:d}),    get: async()=>{ const d=await window.fbGet(`${up()}/edits/cur`);    return d?.data||{}; } };
 window.fbBlk  = { save: l=>window.fbSet(`${up()}/blockers/all`,{list:l}), get: async()=>{ const d=await window.fbGet(`${up()}/blockers/all`); return d?.list||[]; } };
 window.fbHist = {
   save: async e => { const id=(e.week+'-'+e.type).replace(/[^a-z0-9-]/gi,'_'); await window.fbSet(`${up()}/history/${id}`,e); },
@@ -692,21 +697,47 @@ textarea::placeholder{color:#334155}
 <script>
 // ── Constants ─────────────────────────────────────────────────
 const PROXY_DEFAULT = 'https://statusrollup.anitha.workers.dev';
+
+// Test Worker connectivity — run from console: testWorker()
+window.testWorker = async function() {
+  addLog('Testing Worker: ' + PROXY, 'info');
+  try {
+    const res  = await fetch(PROXY, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6', max_tokens: 20,
+        messages: [{ role: 'user', content: 'Reply with OK' }]
+      })
+    });
+    const text = await res.text();
+    addLog('Worker HTTP ' + res.status + ': ' + text.slice(0, 200), res.ok ? 'ok' : 'err');
+    console.log('Worker full response:', text);
+  } catch(e) {
+    addLog('Worker fetch failed: ' + e.message, 'err');
+  }
+};
 let   PROXY         = PROXY_DEFAULT; // overridden by admin setting in Firebase
 
 // Load admin-configured worker URL from Firebase (set once, works for all PMs)
 window.fbAdmin = {
-  get: async () => window.fbGet('admin/config'),
+  // Read from root-level admin/config - catch permission errors gracefully
+  get: async () => window.fbGet('admin/config').catch(() => null),
   set: async d  => window.fbSet('admin/config', d)
 };
 async function loadAdminConfig() {
   try {
-    const cfg = await window.fbAdmin.get();
+    // Use .catch(() => null) so Firebase permission errors never become uncaught rejections
+    const cfg = await window.fbAdmin.get().catch(() => null);
     if (cfg?.workerUrl) {
       PROXY = cfg.workerUrl;
-      addLog('Worker URL loaded from admin config', 'info');
+      addLog('Worker URL: ' + PROXY, 'ok');
+    } else {
+      addLog('Using default worker URL', 'info');
     }
-  } catch(e) { /* use default */ }
+  } catch(e) {
+    addLog('Admin config unavailable - using default worker', 'info');
+  }
 }
 
 // ── State ─────────────────────────────────────────────────────
@@ -899,7 +930,7 @@ let edTm;
 async function onEdit() {
   const c = tab==='chat' ? document.getElementById('chatTA')?.value||'' : document.getElementById('rCont')?.innerHTML||'';
   _edits[tab]=c;
-  await window.fbEdt.save(_edits);
+  await window.fbEdtP(_activeProjectId).save(_edits);
   clearTimeout(edTm);
   const d=document.getElementById('sdot'); if(d){d.classList.add('show'); edTm=setTimeout(()=>d.classList.remove('show'),1400);}
   document.getElementById('rstBtn').style.display='inline-block';
@@ -908,11 +939,11 @@ async function onEdit() {
 async function resetReport() {
   if(!confirm('Reset to original?')) return;
   delete _edits[tab];
-  await window.fbEdt.save(_edits);
+  await window.fbEdtP(_activeProjectId).save(_edits);
   renderTab();
   toast('Reset ✓','info');
 }
-async function loadEdits() { _edits = await window.fbEdt.get()||{}; }
+async function loadEdits() { _edits = await window.fbEdtP(_activeProjectId).get()||{}; }
 
 // ── Generate ──────────────────────────────────────────────────
 async function generate() {
@@ -946,7 +977,7 @@ RAG: G=on track, A=at risk, R=blocked.`;
       let parsed;
       try { parsed=JSON.parse(raw.replace(/```json|```/g,'').trim()); } catch { throw new Error('Parse failed: '+raw.slice(0,150)); }
       reports=parsed; _edits={};
-      await window.fbEdt.save({});
+      await window.fbEdtP(_activeProjectId).save({});
       ['mgmt','client','team','chat'].forEach(t => {
         if(parsed[t]) { document.getElementById('tab-'+t).classList.add('ready'); document.getElementById('s-'+t).disabled=false; }
       });
