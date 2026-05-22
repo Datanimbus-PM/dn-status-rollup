@@ -985,24 +985,47 @@ async function loadDemoTeamData() {
 }
 
 function useDemoReports(inp,proj) {
-  const pn=proj?.name||'DN Programme', cn=proj?.client||'Client', week=getWeek();
-  const names=[]; (inp||'').split('\n').forEach(line=>{const m=line.match(/^([A-Z][a-z]+(?: [A-Z][a-z]+)?)\s*\(/);if(m)names.push(m[1]);});
-  const team=names.length?names:['Team'];
-  const mgmt='<h2>'+pn+' — Weekly Status</h2><h3>Week: '+week+'</h3><p><strong>Status:</strong> <span class="win">On Track</span></p><h2>Team Updates</h2>'+team.map(n=>'<h3>'+n+'</h3><ul><li>Completed key deliverables this week</li><li>In progress on sprint items</li></ul>').join('')+'<h2>Highlights</h2><ul><li><span class="win">WIN</span> Sprint goals on schedule</li></ul><h2>Blockers</h2><p>No critical blockers.</p>';
-  const client='<h2>'+pn+' — Progress Update</h2><p>Dear '+cn+' Team,</p><p>Here is this week progress update.</p><h3>Achievements</h3><ul><li>Key milestones progressed as planned</li><li>Technical deliverables on track</li></ul><h3>Next Steps</h3><ul><li>Continue sprint items</li><li>Review pending approvals</li></ul>';
-  const teamRpt='<h2>End-of-Week Rollup — '+week+'</h2><p>Great work this week!</p>'+team.map(n=>'<h3>'+n+'</h3><ul><li>Delivered on sprint commitments</li></ul>').join('')+'<h3>Next Week</h3><ul><li>Continue sprint</li><li>Team sync Monday</li></ul>';
-  const chat='*'+pn+' — Weekly Update*\nWeek: '+week+'\n\n'+team.map(n=>'*'+n+'*: On track. No blockers.').join('\n')+'\n\nOverall: Green';
+  const pn=proj?.name||'DN Programme', cn=proj?.client||'Client', week=getWeek(), isFri=mode==='friday';
+  // Use real member card data if loaded, otherwise parse textarea
+  let mems=_members.length?_members:[];
+  if(!mems.length){(inp||'').split('\n').forEach(line=>{const m=line.match(/^([A-Z][a-zA-Z\s]+?)\s*\(([^)]+)\):/);if(m)mems.push({name:m[1].trim(),dept:m[2].trim()});});if(!mems.length)mems=[{name:'Team',dept:'General'}];}
+  const persons=mems.map(m=>{const id=m.name.replace(/\s+/g,'_');return{name:m.name,dept:m.dept,u:_updates[id]||{}};});
+
+  // MGMT: per-person detailed
+  const mgmtBody=persons.map(({name,dept,u})=>{
+    let s='<h2>'+name+' <span style="font-size:10px;color:#64748b;font-weight:400">('+dept+')</span></h2>';
+    if(u.completed) s+='<ul>'+u.completed.split('. ').filter(Boolean).map(x=>'<li>'+x.trim()+'</li>').join('')+'</ul>';
+    if(u.inprogress) s+='<p><strong>In Progress:</strong> '+u.inprogress+'</p>';
+    if(u.blockers) s+='<p><span class="blocker">BLOCKER: '+u.blockers+'</span></p>';
+    if(u.wins) s+='<p><span class="win">WIN: '+u.wins+'</span></p>';
+    if(!u.completed&&!u.inprogress&&!u.blockers&&!u.wins) s+='<ul><li>Updates pending</li></ul>';
+    return s;
+  }).join('');
+  const allBlockers=persons.filter(p=>p.u.blockers).map(p=>'<li><strong>'+p.name+':</strong> '+p.u.blockers+'</li>').join('');
+  const allWins=persons.filter(p=>p.u.wins).map(p=>'<li><span class="win">WIN</span> <strong>'+p.name+':</strong> '+p.u.wins+'</li>').join('');
+  const rag=allBlockers?'<span style="background:rgba(245,158,11,.15);color:#f59e0b;border:1px solid #f59e0b;padding:2px 8px;border-radius:4px;font-size:11px">AMBER</span>':'<span class="win">GREEN</span>';
+  const mgmt='<h2>'+pn+' \u2014 Weekly Status Report</h2><h3>Week: '+week+'</h3><p><strong>Overall Status:</strong> '+rag+'</p><h2>Team Updates</h2>'+mgmtBody+(allWins?'<h2>Highlights</h2><ul>'+allWins+'</ul>':'')+(allBlockers?'<h2>Blockers &amp; Risks</h2><ul>'+allBlockers+'</ul>':'<h2>Blockers</h2><p>No critical blockers this week.</p>');
+
+  // CLIENT: achievements only, no internal names
+  const achievements=persons.flatMap(p=>(p.u.completed||'').split('. ').filter(Boolean).concat(p.u.wins?[p.u.wins]:[])).map(x=>'<li>'+x.trim()+'</li>').join('');
+  const nextSteps=persons.flatMap(p=>(p.u.inprogress||'').split('. ').filter(Boolean)).map(x=>'<li>'+x.trim()+'</li>').join('');
+  const client='<h2>'+pn+' \u2014 Weekly Progress Update</h2><p>Dear '+cn+' Team,</p><p>Please find this week\u2019s progress update for the '+pn+' programme.</p><h3>Achievements This Week</h3><ul>'+(achievements||'<li>Key milestones progressed as planned</li>')+'</ul>'+(nextSteps?'<h3>In Progress</h3><ul>'+nextSteps+'</ul>':'')+'<h3>Next Steps</h3><ul><li>Continue sprint deliverables</li><li>Client sync next week</li></ul><p>Please reach out if you have any questions.</p>';
+
+  // TEAM: warm recap per person
+  const teamBody=persons.map(({name,u})=>{let s='<h3>'+name+'</h3>';if(isFri){if(u.completed)s+='<ul>'+u.completed.split('. ').filter(Boolean).map(x=>'<li>'+x.trim()+'</li>').join('')+'</ul>';if(u.wins)s+='<p><span class="win">WIN:</span> '+u.wins+'</p>';}else{if(u.inprogress)s+='<p><strong>Focus:</strong> '+u.inprogress+'</p>';}return s;}).join('');
+  const teamRpt='<h2>'+(isFri?'End-of-Week Rollup':'Monday Kickoff')+' \u2014 '+week+'</h2><p>'+(isFri?'Great work this week team! Here is a summary of our accomplishments:':'New week ahead! Here is what everyone is focused on:')+' </p>'+teamBody+'<h2>Next Week</h2><ul><li>Continue sprint deliverables</li><li>Team sync Monday</li></ul>';
+
+  // CHAT: concise with bold names
+  const chatLines=persons.map(({name,u})=>{let l='*'+name+'*:';if(u.completed)l+=' '+u.completed.split('. ')[0].trim()+'.';if(u.blockers)l+=' \u26a0\ufe0f '+u.blockers+'.';if(u.wins)l+=' \ud83c\udfc6 '+u.wins+'.';return l;}).join('\n');
+  const chat='*'+pn+' \u2014 Weekly Update | '+week+'*\n\n'+chatLines+'\n\nOverall: '+(allBlockers?'Amber \ud83d\udfe1':'Green \ud83d\udfe2');
+
   reports={mgmt,client,team:teamRpt,chat}; _edits={};
-  ['mgmt','client','team','chat'].forEach(t=>{
-    document.getElementById('tab-'+t).classList.add('ready');
-    document.getElementById('s-'+t).disabled=false;
-  });
+  ['mgmt','client','team','chat'].forEach(t=>{document.getElementById('tab-'+t).classList.add('ready');document.getElementById('s-'+t).disabled=false;});
   document.getElementById('sendAll').disabled=false;
   renderTab();
-  addLog('Demo reports loaded — all 4 tabs ready','ok');
-  toast('Demo mode — reports ready! Edit and send as normal.','ok');
+  addLog('Reports built from member data \u2014 all 4 tabs ready','ok');
+  toast('Reports ready! Review and send.','ok');
 }
-
 // ── Generate ───────────────────────────────────────────────────
 async function generate() {
   const inp=v('input');
