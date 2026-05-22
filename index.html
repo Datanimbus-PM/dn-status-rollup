@@ -727,16 +727,16 @@ window.fbAdmin = {
 };
 async function loadAdminConfig() {
   try {
-    // Use .catch(() => null) so Firebase permission errors never become uncaught rejections
     const cfg = await window.fbAdmin.get().catch(() => null);
-    if (cfg?.workerUrl) {
-      PROXY = cfg.workerUrl;
-      addLog('Worker URL: ' + PROXY, 'ok');
+    if (cfg?.workerUrl) { PROXY = cfg.workerUrl; }
+    if (cfg?.anthropicKey) {
+      window._anthropicKey = cfg.anthropicKey;
+      addLog('API key loaded from admin config', 'ok');
     } else {
-      addLog('Using default worker URL', 'info');
+      addLog('No API key in admin config — add anthropicKey to Firestore admin/config', 'err');
     }
   } catch(e) {
-    addLog('Admin config unavailable - using default worker', 'info');
+    addLog('Admin config load failed: ' + e.message, 'err');
   }
 }
 
@@ -969,7 +969,10 @@ RAG: G=on track, A=at risk, R=blocked.`;
   let tries=0;
   while(tries<3) {
     try {
-      const res=await fetch(PROXY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:4000,system,messages:[{role:'user',content:`Week:${week}\nType:${isFri?'Friday':'Monday'}\nSender:${sender}\nProject:${project}\n\nUpdates:\n${inp}`}]})});
+      if (!window._anthropicKey) {
+        throw new Error('Anthropic API key not found. Ask your admin to add anthropicKey to Firestore admin/config document.');
+      }
+      const res=await fetch(PROXY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:4000,apiKey:window._anthropicKey,system,messages:[{role:'user',content:`Week:${week}\nType:${isFri?'Friday':'Monday'}\nSender:${sender}\nProject:${project}\n\nUpdates:\n${inp}`}]})});
       if(!res.ok) { const e=await res.json(); throw new Error('API '+res.status+': '+(e.error?.message||JSON.stringify(e))); }
       const data=await res.json();
       if(data.error) throw new Error(data.error.message||JSON.stringify(data.error));
