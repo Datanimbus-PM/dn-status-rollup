@@ -33,6 +33,8 @@ gprov.setCustomParameters({hd:'datanimbus.com'});
 gprov.addScope('https://www.googleapis.com/auth/gmail.send');
 gprov.addScope('https://www.googleapis.com/auth/gmail.readonly');
 gprov.addScope('https://www.googleapis.com/auth/chat.messages.readonly');
+gprov.addScope('https://www.googleapis.com/auth/presentations');
+gprov.addScope('https://www.googleapis.com/auth/drive.file');
 
 // ── Firebase helpers ──────────────────────────────────────────
 window.fbSet  = async (p,d)   => setDoc(doc(db,p),{...d,_ts:Date.now()},{merge:true});
@@ -394,6 +396,15 @@ textarea::placeholder{color:#334155}
       </div>
       <div class="msec" style="margin-top:10px">Chat Webhook</div>
       <div class="mf full"><label>Webhook URL (optional)</label><input id="pmWebhook" placeholder="https://chat.googleapis.com/v1/spaces/.../messages?key=..."/></div>
+      <div class="msec" style="margin-top:10px">Google Slides — WSR Template</div>
+      <div class="mf full"><label>Key Milestones (one per line: Milestone Name | Start Date | End Date | Status)</label>
+        <textarea id="pmMilestones" rows="5" style="background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;font-family:'Inter',sans-serif;font-size:11px;padding:8px;width:100%;resize:vertical" placeholder="Infrastructure Setup | 16/02/2026 | 12/03/2026 | Completed&#10;UAT Deployment | 10/06/2026 | 12/06/2026 | In Progress&#10;Go Live | 27/08/2026 | 03/09/2026 | Not Started"></textarea>
+      </div>
+      <div class="mf full"><label>Project Team (one per line: Name | Role | Organisation)</label>
+        <textarea id="pmTeam" rows="5" style="background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;font-family:'Inter',sans-serif;font-size:11px;padding:8px;width:100%;resize:vertical" placeholder="Anitha Kumar | Programme Manager | DataNimbus&#10;Tamilvanan R | Engineer | DataNimbus"></textarea>
+      </div>
+      <div class="mf full"><label>Leave Plan (updated each week)</label>
+        <input id="pmLeave" placeholder="e.g. Anitha — 29th May, Tamilvanan — 20th May"/></div>
     </div>
     <div class="mfoot">
       <button class="bdel" id="projDelBtn" onclick="deleteProject()" style="display:none">Delete</button>
@@ -549,6 +560,7 @@ textarea::placeholder{color:#334155}
       <button class="sbtn" id="s-team"   onclick="sendEmail('team')"   disabled>&#128231; Team</button>
       <button class="sbtn" id="s-chat"   onclick="sendChat()"          disabled>&#128172; Chat</button>
       <button class="sbtn" id="sendAll"  onclick="sendAll()"           disabled style="margin-left:auto;border-color:#22d3ee;color:#22d3ee">&#128640; Send All</button>
+      <button class="sbtn" id="slidesBtn" onclick="createSlides()"  disabled style="border-color:#34d399;color:#34d399">&#127912; Slides</button>
     </div>
   </div>
 </main>
@@ -737,6 +749,12 @@ function openProjectModal(id) {
   sv('pmCliEmail',p?.clientEmail||'');
   sv('pmTeamEmail',p?.teamEmail||'');
   sv('pmWebhook',p?.webhook||'');
+  sv('pmMilestones',p?.milestones||'');
+  sv('pmTeam',p?.team||'');
+  sv('pmLeave',p?.leave||'');
+  sv('pmMilestones',p?.milestones||'');
+  sv('pmTeam',p?.team||'');
+  sv('pmLeave',p?.leave||'');
   document.getElementById('projModal').classList.add('open');
   setTimeout(()=>document.getElementById('pmProjName').focus(),200);
 }
@@ -755,6 +773,9 @@ async function saveProject() {
       emailQuery:v('pmEmailQuery'), mgmtEmail:v('pmMgmtEmail'),
       clientEmail:v('pmCliEmail'),  teamEmail:v('pmTeamEmail'),
       webhook:v('pmWebhook'),
+      milestones:v('pmMilestones'),
+      team:v('pmTeam'),
+      leave:v('pmLeave'),
     };
     _projects=_editingProjectId?_projects.map(p=>p.id===_editingProjectId?proj:p):[..._projects,proj];
     await window.fbProjects.save(_projects);
@@ -1038,6 +1059,8 @@ function useDemoReports(inp,proj) {
   reports={mgmt,client,team:teamRpt,chat}; _edits={};
   ['mgmt','client','team','chat'].forEach(t=>{document.getElementById('tab-'+t).classList.add('ready');document.getElementById('s-'+t).disabled=false;});
   document.getElementById('sendAll').disabled=false;
+  document.getElementById('slidesBtn').disabled=false;
+  document.getElementById('slidesBtn').disabled=false;
   renderTab();
   addLog('Reports built from member data \u2014 all 4 tabs ready','ok');
   toast('Reports ready! Review and send.','ok');
@@ -1120,6 +1143,7 @@ End with: Overall: Green/Amber/Red [emoji]`;
       });
       document.getElementById('sendAll').disabled=false;
       if(parsed.dashboard){
+      document.getElementById('slidesBtn').disabled=false;
         await saveHist(parsed.dashboard,week,mode,{mgmt:parsed.mgmt,client:parsed.client,team:parsed.team,chat:parsed.chat},proj);
         await syncBlockers(parsed.dashboard,week);
         renderDash();
@@ -1395,6 +1419,128 @@ function toggleEdit(){editOn=!editOn;renderTab();}
 let edTm;
 async function onEdit(){const c=tab==='chat'?document.getElementById('chatTA')?.value||'':document.getElementById('rCont')?.innerHTML||'';_edits[tab]=c;await window.fbEdtP(_activeProjectId).save(_edits);clearTimeout(edTm);document.getElementById('rstBtn').style.display='inline-block';}
 async function resetReport(){if(!confirm('Reset?'))return;delete _edits[tab];await window.fbEdtP(_activeProjectId).save(_edits);renderTab();toast('Reset','info');}
+
+// ── Google Slides ─────────────────────────────────────────────────────────────
+async function createSlides() {
+  const proj=activeProject();
+  if(!proj){toast('No active project','err');return;}
+  if(!window._accessToken){toast('Sign out and sign back in for Slides access','err');return;}
+  if(!reports.mgmt){toast('Generate reports first','err');return;}
+  const btn=document.getElementById('slidesBtn');
+  btn.innerHTML='<span class="spin" style="border-top-color:#34d399"></span> Creating...';
+  btn.disabled=true;
+  try {
+    const token=window._accessToken,week=getWeek(),isFri=mode==='friday';
+    const pn=proj.name||'Project',cn=proj.client||'Client';
+    const milestones=(proj.milestones||'').split('\n').map(l=>l.split('|').map(s=>s.trim())).filter(p=>p.length>=2&&p[0]);
+    const team=(proj.team||'').split('\n').map(l=>l.split('|').map(s=>s.trim())).filter(p=>p.length>=2&&p[0]);
+    const leave=proj.leave||'';
+    const isAmber=(reports.mgmt||'').includes('AMBER')||(reports.mgmt||'').includes('Delayed');
+    const isRed=(reports.mgmt||'').includes('RED');
+    const statusTxt=isRed?'Delayed':isAmber?'At Risk':'On Track';
+    const statusClr=isRed?{red:0.9,green:0.2,blue:0.2}:isAmber?{red:1,green:0.6,blue:0}:{red:0.1,green:0.7,blue:0.4};
+    addLog('Creating Google Slides deck...','info');
+
+    const cr=await fetch('https://slides.googleapis.com/v1/presentations',{method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({title:pn+' — WSR '+week})});
+    const pres=await cr.json();
+    if(pres.error) throw new Error(pres.error.message);
+    const presId=pres.presentationId,s1=pres.slides[0].objectId;
+
+    let idC=100; const uid=()=>'obj'+(idC++);
+    const reqs=[];
+    const darkBg={red:0.06,green:0.09,blue:0.16},headerBg={red:0.12,green:0.18,blue:0.32};
+    const white={red:1,green:1,blue:1},amber={red:0.96,green:0.62,blue:0.04},grey={red:0.85,green:0.85,blue:0.85};
+    const setbg=(oid,c)=>({updatePageProperties:{objectId:oid,pageProperties:{pageBackgroundFill:{solidFill:{color:{rgbColor:c}}}},fields:'pageBackgroundFill'}});
+    const mktxt=(oid,pid,x,y,w,h)=>({createShape:{objectId:oid,shapeType:'TEXT_BOX',elementProperties:{pageObjectId:pid,size:{width:{magnitude:w,unit:'PT'},height:{magnitude:h,unit:'PT'}},transform:{scaleX:1,scaleY:1,translateX:x,translateY:y,unit:'PT'}}}});
+    const mkrct=(oid,pid,x,y,w,h)=>({createShape:{objectId:oid,shapeType:'RECTANGLE',elementProperties:{pageObjectId:pid,size:{width:{magnitude:w,unit:'PT'},height:{magnitude:h,unit:'PT'}},transform:{scaleX:1,scaleY:1,translateX:x,translateY:y,unit:'PT'}}}});
+    const settxt=(oid,txt)=>({insertText:{objectId:oid,text:txt}});
+    const setstyle=(oid,clr,sz,bold)=>({updateTextStyle:{objectId:oid,style:{foregroundColor:{opaqueColor:{rgbColor:clr}},fontSize:{magnitude:sz,unit:'PT'},fontFamily:'Arial',bold:!!bold},fields:'foregroundColor,fontSize,fontFamily,bold',textRange:{type:'ALL'}}});
+    const setfill=(oid,c)=>({updateShapeProperties:{objectId:oid,shapeProperties:{shapeBackgroundFill:{solidFill:{color:{rgbColor:c}}}},fields:'shapeBackgroundFill'}});
+    const hdr=(pid)=>{const b=uid(),t=uid();return[mkrct(b,pid,0,0,720,50),setfill(b,headerBg),mktxt(t,pid,20,5,680,40),settxt(t,cn+' '+pn+' — Week '+week),setstyle(t,white,13,true)];};
+
+    // Slide 1 Title
+    pres.slides[0].pageElements.forEach(el=>reqs.push({deleteObject:{objectId:el.objectId}}));
+    reqs.push(setbg(s1,darkBg));
+    const t1=uid(),t2=uid(),t3=uid();
+    reqs.push(mktxt(t1,s1,60,120,600,80),settxt(t1,'Weekly Status Report'),setstyle(t1,white,36,true));
+    reqs.push(mktxt(t2,s1,60,215,600,50),settxt(t2,cn+' '+pn+' Implementation'),setstyle(t2,grey,20,false));
+    reqs.push(mktxt(t3,s1,60,268,600,36),settxt(t3,week.toUpperCase()),setstyle(t3,amber,15,true));
+
+    // Add slides 2-5
+    const sids=Array.from({length:4},(_,i)=>({id:uid(),idx:i+1}));
+    sids.forEach(s=>reqs.push({createSlide:{objectId:s.id,insertionIndex:s.idx,slideLayoutReference:{predefinedLayout:'BLANK'}}}));
+    const [s2,s3,s4,s5]=sids.map(s=>s.id);
+
+    // Slide 2 Status
+    reqs.push(setbg(s2,darkBg),...hdr(s2));
+    const plain=(reports.mgmt||'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
+    const risks=plain.match(/(?:BLOCKER|Risk|depend|awaited|required)[^.]{0,150}/i)?.[0]||'No critical blockers identified.';
+    const accs=[];(reports.mgmt||'').match(/<li>([^<]{5,120})<\/li>/g||[]).slice(0,6).forEach(m=>accs.push('• '+m.replace(/<[^>]+>/g,'').trim()));
+    const planned=(reports.client||'').match(/(?:Next Steps|upcoming|planned)[^.]{0,150}/i)?.[0]||'Continue sprint deliverables.';
+    const rb=uid(),rs=uid(),rl=uid(),rt=uid(),al=uid(),at=uid(),pl=uid(),pt=uid();
+    reqs.push(mkrct(rb,s2,20,62,110,30),setfill(rb,statusClr),settxt.apply(null,[rb,'']),{insertText:{objectId:rb,text:statusTxt}},{updateTextStyle:{objectId:rb,style:{foregroundColor:{opaqueColor:{rgbColor:white}},fontSize:{magnitude:11,unit:'PT'},bold:true},fields:'foregroundColor,fontSize,bold',textRange:{type:'ALL'}}});
+    reqs.push(mktxt(rl,s2,20,105,300,22),settxt(rl,'Risks / Dependencies'),setstyle(rl,amber,11,true));
+    reqs.push(mktxt(rt,s2,20,128,680,55),settxt(rt,risks),setstyle(rt,grey,10,false));
+    reqs.push(mktxt(al,s2,20,195,350,22),settxt(al,'Key Accomplishments Last Week'),setstyle(al,amber,11,true));
+    reqs.push(mktxt(at,s2,20,218,680,120),settxt(at,accs.length?accs.join('\n'):'• Deliverables completed as planned'),setstyle(at,grey,10,false));
+    reqs.push(mktxt(pl,s2,20,348,350,22),settxt(pl,'Activities Planned for this Week'),setstyle(pl,amber,11,true));
+    reqs.push(mktxt(pt,s2,20,372,680,55),settxt(pt,planned),setstyle(pt,grey,10,false));
+
+    // Slide 3 Timelines
+    reqs.push(setbg(s3,darkBg),...hdr(s3));
+    if(milestones.length){
+      const tbl=uid(),rows=Math.min(milestones.length+1,14);
+      reqs.push({createTable:{objectId:tbl,elementProperties:{pageObjectId:s3,size:{width:{magnitude:680,unit:'PT'},height:{magnitude:Math.min(milestones.length*24+30,340),unit:'PT'}},transform:{scaleX:1,scaleY:1,translateX:20,translateY:58,unit:'PT'}},rows,columns:4}});
+      ['Milestone','Start Date','End Date','Status'].forEach((h,ci)=>{reqs.push({insertText:{objectId:tbl,cellLocation:{rowIndex:0,columnIndex:ci},text:h}},{updateTextStyle:{objectId:tbl,cellLocation:{rowIndex:0,columnIndex:ci},style:{bold:true,foregroundColor:{opaqueColor:{rgbColor:amber}}},fields:'bold,foregroundColor',textRange:{type:'ALL'}}});});
+      milestones.slice(0,rows-1).forEach((ms,ri)=>{
+        ms.slice(0,4).forEach((cell,ci)=>{
+          const sc=ci===3?(cell.toLowerCase().includes('complet')?{red:0.1,green:0.7,blue:0.4}:cell.toLowerCase().includes('progress')?amber:grey):grey;
+          reqs.push({insertText:{objectId:tbl,cellLocation:{rowIndex:ri+1,columnIndex:ci},text:cell||'-'}},{updateTextStyle:{objectId:tbl,cellLocation:{rowIndex:ri+1,columnIndex:ci},style:{foregroundColor:{opaqueColor:{rgbColor:sc}},fontSize:{magnitude:9,unit:'PT'}},fields:'foregroundColor,fontSize',textRange:{type:'ALL'}}});
+        });
+      });
+    } else {
+      const nt=uid();reqs.push(mktxt(nt,s3,20,60,680,60),settxt(nt,'Add milestones in Project Settings → WSR Template'),setstyle(nt,grey,12,false));
+    }
+
+    // Slide 4 Team
+    reqs.push(setbg(s4,darkBg),...hdr(s4));
+    if(team.length){
+      const tbl2=uid(),rows2=Math.min(team.length+1,18);
+      reqs.push({createTable:{objectId:tbl2,elementProperties:{pageObjectId:s4,size:{width:{magnitude:500,unit:'PT'},height:{magnitude:Math.min(team.length*24+30,290),unit:'PT'}},transform:{scaleX:1,scaleY:1,translateX:20,translateY:58,unit:'PT'}},rows:rows2,columns:3}});
+      ['Name','Role','Organisation'].forEach((h,ci)=>{reqs.push({insertText:{objectId:tbl2,cellLocation:{rowIndex:0,columnIndex:ci},text:h}},{updateTextStyle:{objectId:tbl2,cellLocation:{rowIndex:0,columnIndex:ci},style:{bold:true,foregroundColor:{opaqueColor:{rgbColor:amber}}},fields:'bold,foregroundColor',textRange:{type:'ALL'}}});});
+      team.slice(0,rows2-1).forEach((m,ri)=>{m.slice(0,3).forEach((cell,ci)=>{reqs.push({insertText:{objectId:tbl2,cellLocation:{rowIndex:ri+1,columnIndex:ci},text:cell||'-'}},{updateTextStyle:{objectId:tbl2,cellLocation:{rowIndex:ri+1,columnIndex:ci},style:{foregroundColor:{opaqueColor:{rgbColor:grey}},fontSize:{magnitude:9,unit:'PT'}},fields:'foregroundColor,fontSize',textRange:{type:'ALL'}}});});});
+    }
+    if(leave){
+      const ll=uid(),lt=uid();
+      const teamH=Math.min(team.length*24+90,350);
+      reqs.push(mktxt(ll,s4,20,teamH,200,24),settxt(ll,'Leave Plan'),setstyle(ll,amber,11,true));
+      reqs.push(mktxt(lt,s4,20,teamH+24,500,60),settxt(lt,leave),setstyle(lt,grey,10,false));
+    }
+
+    // Slide 5 Thank You
+    reqs.push(setbg(s5,darkBg));
+    const ty=uid(),tysub=uid();
+    reqs.push(mktxt(ty,s5,60,150,600,90),settxt(ty,'Thank You'),setstyle(ty,white,42,true));
+    reqs.push(mktxt(tysub,s5,60,250,500,36),settxt(tysub,'DataNimbus — '+pn),setstyle(tysub,amber,16,false));
+
+    // Execute
+    const ur=await fetch('https://slides.googleapis.com/v1/presentations/'+presId+':batchUpdate',{method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({requests:reqs})});
+    const ud=await ur.json();
+    if(ud.error) throw new Error(ud.error.message);
+    const url='https://docs.google.com/presentation/d/'+presId+'/edit';
+    window.open(url,'_blank');
+    addLog('Slides created: '+pn+' WSR '+week,'ok');
+    toast('Google Slides deck created and opening!','ok');
+  } catch(e) {
+    addLog('Slides failed: '+e.message,'err');
+    toast('Slides failed: '+e.message,'err');
+    console.error(e);
+  } finally {
+    btn.innerHTML='&#127912; Slides';
+    btn.disabled=false;
+  }
+}
+
 function getWeek(){const n=new Date(),day=n.getDay(),mon=new Date(n);mon.setDate(n.getDate()-((day+6)%7));const fri=new Date(mon);fri.setDate(mon.getDate()+4);const fmt=d=>d.toLocaleDateString('en-GB',{day:'numeric',month:'short'});return fmt(mon)+' - '+fmt(fri)+' '+fri.getFullYear();}
 function md(html){if(!html)return '';return html.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\*(.*?)\*/g,'<em>$1</em>');}
 let logCount=0;
