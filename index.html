@@ -398,9 +398,13 @@ textarea::placeholder{color:#334155}
       <div class="msec" style="margin-top:10px">Chat Webhook</div>
       <div class="mf full"><label>Webhook URL (optional)</label><input id="pmWebhook" placeholder="https://chat.googleapis.com/v1/spaces/.../messages?key=..."/></div>
       <div class="msec" style="margin-top:10px">Google Slides — WSR Template</div>
-      <div class="mf full"><label>Google Sheet URL (paste your WSR tracking sheet link)</label>
+      <div class="mf full"><label>Slides Template URL (your master WSR deck)</label>
+        <input id="pmTemplateUrl" placeholder="https://docs.google.com/presentation/d/..."/>
+        <div class="hint">App copies this deck every week and replaces the placeholders with live data. Make sure it is shared as &quot;Anyone with link can view&quot;.</div>
+      </div>
+      <div class="mf full"><label>Google Sheet URL (WSR tracking sheet)</label>
         <input id="pmSheetUrl" placeholder="https://docs.google.com/spreadsheets/d/..."/>
-        <div class="hint">App will read the entire sheet and Claude will extract milestones, team and status data automatically.</div>
+        <div class="hint">App reads the sheet to extract milestones and team data automatically.</div>
       </div>
       <div class="mf full"><label>Key Milestones (one per line: Milestone Name | Start Date | End Date | Status)</label>
         <textarea id="pmMilestones" rows="5" style="background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;font-family:'Inter',sans-serif;font-size:11px;padding:8px;width:100%;resize:vertical" placeholder="Infrastructure Setup | 16/02/2026 | 12/03/2026 | Completed&#10;UAT Deployment | 10/06/2026 | 12/06/2026 | In Progress&#10;Go Live | 27/08/2026 | 03/09/2026 | Not Started"></textarea>
@@ -565,7 +569,7 @@ textarea::placeholder{color:#334155}
       <button class="sbtn" id="s-team"   onclick="sendEmail('team')"   disabled>&#128231; Team</button>
       <button class="sbtn" id="s-chat"   onclick="sendChat()"          disabled>&#128172; Chat</button>
       <button class="sbtn" id="sendAll"  onclick="sendAll()"           disabled style="margin-left:auto;border-color:#22d3ee;color:#22d3ee">&#128640; Send All</button>
-      <button class="sbtn" id="slidesBtn" onclick="createSlides()"  disabled style="border-color:#34d399;color:#34d399">&#127912; Slides</button>
+      <button class="sbtn" id="slidesBtn" onclick="openSlidesModal()" disabled style="border-color:#34d399;color:#34d399">&#127912; Slides</button>
     </div>
   </div>
 </main>
@@ -618,6 +622,76 @@ textarea::placeholder{color:#334155}
 </div>
 
 <div id="toast"></div>
+
+<!-- SLIDES SETUP MODAL -->
+<div id="slidesModal" class="moverlay">
+  <div class="mbox" style="max-width:620px">
+    <div class="mhead">
+      <span class="mtitle">&#127912; Create Google Slides WSR</span>
+      <button class="mxbtn" onclick="closeSlidesModal()">&#10005;</button>
+    </div>
+    <div class="mbody" style="gap:0;padding:0">
+
+      <!-- Preview panel — shown when template is set -->
+      <div id="slidesPreview" style="display:none;padding:16px 18px;border-bottom:1px solid #334155">
+        <div style="font-size:11px;color:#34d399;font-weight:600;letter-spacing:.5px;text-transform:uppercase;margin-bottom:10px">&#10003; Template Connected — Preview of replacements</div>
+        <div id="previewTable" style="display:flex;flex-direction:column;gap:5px"></div>
+      </div>
+
+      <!-- Placeholder guide — always shown -->
+      <div style="padding:16px 18px;border-bottom:1px solid #334155">
+        <div style="font-size:11px;color:#f59e0b;font-weight:600;letter-spacing:.5px;text-transform:uppercase;margin-bottom:10px">
+          &#128196; Add these placeholders to your Google Slides deck
+        </div>
+        <div style="font-size:11px;color:#64748b;margin-bottom:10px;line-height:1.6">
+          Open your master WSR deck, click on each text element you want auto-filled, and type the placeholder exactly as shown below. The app will replace them with live data every time you create slides.
+        </div>
+        <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 14px;align-items:center">
+          <div style="font-family:monospace;font-size:11px;background:#0f172a;color:#22d3ee;padding:3px 8px;border-radius:4px;border:1px solid #1e3a5f">{{PROJECT}}</div>
+          <div style="font-size:11px;color:#94a3b8">Project name from settings</div>
+          <div style="font-family:monospace;font-size:11px;background:#0f172a;color:#22d3ee;padding:3px 8px;border-radius:4px;border:1px solid #1e3a5f">{{CLIENT}}</div>
+          <div style="font-size:11px;color:#94a3b8">Client name from settings</div>
+          <div style="font-family:monospace;font-size:11px;background:#0f172a;color:#22d3ee;padding:3px 8px;border-radius:4px;border:1px solid #1e3a5f">{{WEEK}}</div>
+          <div style="font-size:11px;color:#94a3b8">Current week date range</div>
+          <div style="font-family:monospace;font-size:11px;background:#0f172a;color:#22d3ee;padding:3px 8px;border-radius:4px;border:1px solid #1e3a5f">{{STATUS}}</div>
+          <div style="font-size:11px;color:#94a3b8">On Track / At Risk / Delayed</div>
+          <div style="font-family:monospace;font-size:11px;background:#0f172a;color:#22d3ee;padding:3px 8px;border-radius:4px;border:1px solid #1e3a5f">{{STATUS_REASON}}</div>
+          <div style="font-size:11px;color:#94a3b8">One-line reason for status</div>
+          <div style="font-family:monospace;font-size:11px;background:#0f172a;color:#22d3ee;padding:3px 8px;border-radius:4px;border:1px solid #1e3a5f">{{RISKS}}</div>
+          <div style="font-size:11px;color:#94a3b8">Risks and dependencies text</div>
+          <div style="font-family:monospace;font-size:11px;background:#0f172a;color:#22d3ee;padding:3px 8px;border-radius:4px;border:1px solid #1e3a5f">{{ACCOMPLISHMENTS}}</div>
+          <div style="font-size:11px;color:#94a3b8">Bullet list of completed items</div>
+          <div style="font-family:monospace;font-size:11px;background:#0f172a;color:#22d3ee;padding:3px 8px;border-radius:4px;border:1px solid #1e3a5f">{{PLANNED}}</div>
+          <div style="font-size:11px;color:#94a3b8">Activities planned this week</div>
+          <div style="font-family:monospace;font-size:11px;background:#0f172a;color:#22d3ee;padding:3px 8px;border-radius:4px;border:1px solid #1e3a5f">{{DECISIONS}}</div>
+          <div style="font-size:11px;color:#94a3b8">Decisions and support required</div>
+          <div style="font-family:monospace;font-size:11px;background:#0f172a;color:#22d3ee;padding:3px 8px;border-radius:4px;border:1px solid #1e3a5f">{{MILESTONES}}</div>
+          <div style="font-size:11px;color:#94a3b8">Timeline milestones from sheet</div>
+          <div style="font-family:monospace;font-size:11px;background:#0f172a;color:#22d3ee;padding:3px 8px;border-radius:4px;border:1px solid #1e3a5f">{{TEAM}}</div>
+          <div style="font-size:11px;color:#94a3b8">Project team from sheet or settings</div>
+          <div style="font-family:monospace;font-size:11px;background:#0f172a;color:#22d3ee;padding:3px 8px;border-radius:4px;border:1px solid #1e3a5f">{{LEAVE}}</div>
+          <div style="font-size:11px;color:#94a3b8">Leave plan for the week</div>
+        </div>
+      </div>
+
+      <!-- Template URL input -->
+      <div style="padding:14px 18px;border-bottom:1px solid #334155">
+        <div style="font-size:11px;color:#f59e0b;font-weight:600;letter-spacing:.5px;text-transform:uppercase;margin-bottom:8px">Your Template Deck URL</div>
+        <input id="slidesTemplateInput" style="background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;font-family:'Inter',sans-serif;font-size:12px;padding:8px 10px;width:100%;outline:none" placeholder="https://docs.google.com/presentation/d/..."/>
+        <div style="font-size:10px;color:#475569;margin-top:5px">Make sure the deck is shared as "Anyone with link can view". The template URL is also saved in Project Settings.</div>
+      </div>
+
+    </div>
+    <div class="mfoot">
+      <div style="font-size:11px;color:#475569">No template? We build slides from scratch in your brand colours.</div>
+      <div style="display:flex;gap:7px">
+        <button class="bcancel" onclick="closeSlidesModal()">Cancel</button>
+        <button class="bgo" onclick="confirmCreateSlides()">&#127912; Create Slides</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 </div>
 
 <script>
@@ -757,10 +831,12 @@ function openProjectModal(id) {
   sv('pmMilestones',p?.milestones||'');
   sv('pmTeam',p?.team||'');
   sv('pmLeave',p?.leave||'');
+  sv('pmTemplateUrl',p?.templateUrl||'');
   sv('pmSheetUrl',p?.sheetUrl||'');
   sv('pmMilestones',p?.milestones||'');
   sv('pmTeam',p?.team||'');
   sv('pmLeave',p?.leave||'');
+  sv('pmTemplateUrl',p?.templateUrl||'');
   sv('pmSheetUrl',p?.sheetUrl||'');
   document.getElementById('projModal').classList.add('open');
   setTimeout(()=>document.getElementById('pmProjName').focus(),200);
@@ -783,6 +859,7 @@ async function saveProject() {
       milestones:v('pmMilestones'),
       team:v('pmTeam'),
       leave:v('pmLeave'),
+      templateUrl:v('pmTemplateUrl'),
       sheetUrl:v('pmSheetUrl'),
     };
     _projects=_editingProjectId?_projects.map(p=>p.id===_editingProjectId?proj:p):[..._projects,proj];
@@ -1429,6 +1506,71 @@ async function onEdit(){const c=tab==='chat'?document.getElementById('chatTA')?.
 async function resetReport(){if(!confirm('Reset?'))return;delete _edits[tab];await window.fbEdtP(_activeProjectId).save(_edits);renderTab();toast('Reset','info');}
 
 
+
+// ── Slides Modal ─────────────────────────────────────────────────────────────
+function openSlidesModal() {
+  const proj = activeProject();
+  // Pre-fill template URL from project settings
+  const inp = document.getElementById('slidesTemplateInput');
+  if (inp) inp.value = proj?.templateUrl || '';
+
+  // Show preview if we have report data
+  const preview = document.getElementById('slidesPreview');
+  const previewTable = document.getElementById('previewTable');
+  if (preview && previewTable && reports.mgmt) {
+    const plain = (reports.mgmt||'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
+    const accs = ((reports.mgmt||'').match(/<li>([^<]{5,80})<\/li>/g)||[])
+      .slice(0,3).map(m=>m.replace(/<[^>]+>/g,'').trim());
+    const isAmber = (reports.mgmt||'').includes('AMBER');
+    const isRed   = (reports.mgmt||'').includes('RED');
+    const status  = isRed?'Delayed':isAmber?'At Risk':'On Track';
+
+    const rows = [
+      ['{{PROJECT}}',   proj?.name    || '-'],
+      ['{{CLIENT}}',    proj?.client  || '-'],
+      ['{{WEEK}}',      getWeek()],
+      ['{{STATUS}}',    status],
+      ['{{ACCOMPLISHMENTS}}', accs.length ? accs[0]+'...' : 'Extracted from report'],
+      ['{{TEAM}}',      proj?.team ? 'From project settings' : 'From sheet or settings'],
+      ['{{LEAVE}}',     proj?.leave   || '-'],
+    ];
+
+    previewTable.innerHTML = rows.map(([ph,val])=>`
+      <div style="display:flex;align-items:center;gap:10px;padding:4px 0;border-bottom:1px solid #1e293b">
+        <div style="font-family:monospace;font-size:10px;background:#0f172a;color:#22d3ee;padding:2px 7px;border-radius:3px;border:1px solid #1e3a5f;white-space:nowrap;flex-shrink:0">${ph}</div>
+        <div style="font-size:11px;color:#64748b">&#8594;</div>
+        <div style="font-size:11px;color:#e2e8f0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${val}</div>
+      </div>`).join('');
+    preview.style.display = 'block';
+  } else if (preview) {
+    preview.style.display = 'none';
+  }
+
+  document.getElementById('slidesModal').classList.add('open');
+}
+
+function closeSlidesModal() {
+  document.getElementById('slidesModal').classList.remove('open');
+}
+
+async function confirmCreateSlides() {
+  // Save template URL to project if changed
+  const inp = document.getElementById('slidesTemplateInput');
+  const templateUrl = inp?.value?.trim() || '';
+  if (templateUrl) {
+    const proj = activeProject();
+    if (proj && templateUrl !== proj.templateUrl) {
+      proj.templateUrl = templateUrl;
+      const idx = _projects.findIndex(p=>p.id===proj.id);
+      if (idx >= 0) _projects[idx] = proj;
+      await window.fbProjects.save(_projects);
+      addLog('Template URL saved to project settings','ok');
+    }
+  }
+  closeSlidesModal();
+  await createSlides();
+}
+
 // ── Google Slides ─────────────────────────────────────────────────────────────
 async function createSlides() {
   const proj=activeProject();
@@ -1441,311 +1583,323 @@ async function createSlides() {
   btn.disabled=true;
 
   try {
-    const token=window._accessToken;
-    const week=getWeek();
-    const pn=proj.name||'Project';
-    const cn=proj.client||'Client';
+    const token = window._accessToken;
+    const week  = getWeek();
+    const pn    = proj.name   || 'Project';
+    const cn    = proj.client || 'Client';
 
-    // ── STEP 1: Read Google Sheet if URL provided ────────────
-    let sheetData='';
-    if(proj.sheetUrl){
+    // ── STEP 1: Read Google Sheet if provided ────────────────
+    let sheetData = '';
+    if (proj.sheetUrl) {
       try {
         addLog('Reading Google Sheet...','info');
-        // Extract sheet ID from URL
-        const match=proj.sheetUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
-        if(!match) throw new Error('Invalid Google Sheet URL');
-        const sheetId=match[1];
-
-        // Read all sheets
-        const metaRes=await fetch(
+        const match = proj.sheetUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+        if (!match) throw new Error('Invalid Sheet URL');
+        const sheetId = match[1];
+        const metaRes = await fetch(
           'https://sheets.googleapis.com/v4/spreadsheets/'+sheetId,
           {headers:{Authorization:'Bearer '+token}}
         );
-        const meta=await metaRes.json();
-        if(meta.error) throw new Error('Sheet: '+meta.error.message);
-
-        const sheetNames=(meta.sheets||[]).map(s=>s.properties.title);
-        addLog('Sheet has '+sheetNames.length+' tab(s): '+sheetNames.join(', '),'info');
-
-        // Read all tabs
-        const ranges=sheetNames.map(n=>"'"+n+"'");
-        const dataRes=await fetch(
-          'https://sheets.googleapis.com/v4/spreadsheets/'+sheetId+'/values:batchGet?ranges='+
-          ranges.map(r=>'ranges='+encodeURIComponent(r)).join('&'),
+        const meta = await metaRes.json();
+        if (meta.error) throw new Error('Sheet: '+meta.error.message);
+        const sheetNames = (meta.sheets||[]).map(s=>s.properties.title);
+        const dataRes = await fetch(
+          'https://sheets.googleapis.com/v4/spreadsheets/'+sheetId+'/values:batchGet?'+
+          sheetNames.map(n=>'ranges='+encodeURIComponent("'"+n+"'")).join('&'),
           {headers:{Authorization:'Bearer '+token}}
         );
-        const data=await dataRes.json();
-        if(data.error) throw new Error('Sheet data: '+data.error.message);
-
-        // Flatten all sheet data to text
-        sheetData=(data.valueRanges||[]).map((vr,i)=>{
-          const rows=(vr.values||[]).map(r=>r.join('\t')).join('\n');
-          return '=== Sheet: '+sheetNames[i]+' ===\n'+rows;
-        }).join('\n\n');
-
-        addLog('Sheet data loaded ('+sheetData.length+' chars)','ok');
+        const data = await dataRes.json();
+        if (data.error) throw new Error(data.error.message);
+        sheetData = (data.valueRanges||[]).map((vr,i)=>
+          '=== '+sheetNames[i]+' ===\n'+(vr.values||[]).map(r=>r.join('\t')).join('\n')
+        ).join('\n\n');
+        addLog('Sheet loaded ('+sheetData.length+' chars)','ok');
       } catch(e) {
-        addLog('Sheet read failed: '+e.message+' — building slides from report data','err');
+        addLog('Sheet read failed: '+e.message,'info');
       }
     }
 
-    // ── STEP 2: Ask Claude to extract structured slide content ─
-    addLog('Claude is structuring slide content...','info');
+    // ── STEP 2: Ask Claude to extract content ────────────────
+    addLog('Extracting slide content...','info');
+    const plain = (reports.mgmt||'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
+    const prompt = `Extract WSR slide content for ${cn} - ${pn}, Week: ${week}.
 
-    const claudePrompt=`You are preparing content for a 5-slide Google Slides WSR deck for ${cn} - ${pn}.
+REPORT DATA:
+${plain.slice(0,2500)}
 
-Week: ${week}
+${sheetData ? 'SHEET DATA:\n'+sheetData.slice(0,2500) : ''}
 
-GENERATED REPORT:
-${(reports.mgmt||'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim().slice(0,2000)}
+MANUAL TEAM: ${proj.team||''}
+MANUAL MILESTONES: ${proj.milestones||''}
+LEAVE: ${proj.leave||''}
 
-${sheetData ? 'GOOGLE SHEET DATA:\n'+sheetData.slice(0,3000) : ''}
-
-MANUAL TEAM DATA:
-${proj.team||'Not provided'}
-
-MANUAL MILESTONES:
-${proj.milestones||'Not provided'}
-
-LEAVE PLAN:
-${proj.leave||'Not provided'}
-
-Extract and return ONLY valid JSON (no markdown):
+Return ONLY valid JSON (no markdown fences):
 {
-  "title": "${pn} WSR - ${week}",
-  "status": "On Track|At Risk|Delayed",
-  "statusReason": "one line reason",
-  "risks": "bullet list of risks and dependencies",
-  "accomplishments": ["item1","item2","item3","item4","item5"],
-  "planned": ["item1","item2","item3"],
-  "decisions": ["item1","item2"],
-  "milestones": [
-    {"name":"milestone name","start":"date","end":"date","actualStart":"date or -","actualEnd":"date or -","status":"Completed|In Progress|Not Started|Delayed"}
-  ],
-  "team": [
-    {"name":"full name","role":"role","org":"organisation"}
-  ],
-  "leave": "formatted leave plan text"
-}
+  "status":"On Track",
+  "statusReason":"one line",
+  "risks":"bullet text",
+  "accomplishments":["item1","item2","item3","item4"],
+  "planned":["item1","item2","item3"],
+  "decisions":["item1","item2"],
+  "milestones":[{"name":"","start":"","end":"","actualStart":"","actualEnd":"","status":""}],
+  "team":[{"name":"","role":"","org":""}],
+  "leave":"text"
+}`;
 
-Use real data from the sheet and report. Be specific, not generic.`;
-
-    let slideContent=null;
+    let content = null;
     try {
-      const cr=await fetch(PROXY,{
+      const cr = await fetch(PROXY,{
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body:JSON.stringify({
           model:'claude-haiku-4-5-20251001',
           max_tokens:2000,
           apiKey:window._anthropicKey,
-          system:'You extract structured data for slide decks. Return only valid JSON.',
-          messages:[{role:'user',content:claudePrompt}]
+          system:'Extract structured data for slide decks. Return only valid JSON.',
+          messages:[{role:'user',content:prompt}]
         })
       });
-      const cd=await cr.json();
-      const raw=(cd.content?.[0]?.text||'').replace(/```json|```/g,'').trim();
-      slideContent=JSON.parse(raw);
-      addLog('Slide content structured by Claude','ok');
+      const cd = await cr.json();
+      let raw = (cd.content?.[0]?.text||'').trim()
+        .replace(/```json\s*/gi,'').replace(/```\s*/g,'').trim();
+      const jm = raw.match(/\{[\s\S]*\}/);
+      if (!jm) throw new Error('No JSON in response');
+      content = JSON.parse(jm[0]);
+      addLog('Content extracted by Claude','ok');
     } catch(e) {
-      addLog('Claude extraction failed, using report data directly: '+e.message,'info');
-      // Fallback: build from report + manual fields
-      const plain=(reports.mgmt||'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ');
-      const accs=[];
+      addLog('Claude extraction failed — using report data: '+e.message,'info');
+      const accs = [];
       ((reports.mgmt||'').match(/<li>([^<]{5,120})<\/li>/g)||[])
         .slice(0,5).forEach(m=>accs.push(m.replace(/<[^>]+>/g,'').trim()));
-      slideContent={
-        title:pn+' WSR - '+week,
-        status:(reports.mgmt||'').includes('AMBER')?'At Risk':(reports.mgmt||'').includes('RED')?'Delayed':'On Track',
-        statusReason:'See management report for details',
-        risks:plain.match(/(?:BLOCKER|Risk|awaited|required)[^.]{0,150}/i)?.[0]||'No critical blockers.',
-        accomplishments:accs.length?accs:['Deliverables completed as planned'],
-        planned:['Continue sprint deliverables','Client sync next week'],
-        decisions:['No decisions pending'],
-        milestones:(proj.milestones||'').split('\n').filter(Boolean).map(l=>{
+      content = {
+        status: (reports.mgmt||'').includes('AMBER')?'At Risk':
+                (reports.mgmt||'').includes('RED')?'Delayed':'On Track',
+        statusReason: 'See management report',
+        risks: plain.match(/(?:BLOCKER|Risk|awaited)[^.]{0,150}/i)?.[0]||'No blockers.',
+        accomplishments: accs.length?accs:['Deliverables completed as planned'],
+        planned: ['Continue sprint deliverables','Client sync next week'],
+        decisions: ['No decisions pending'],
+        milestones: (proj.milestones||'').split('\n').filter(Boolean).map(l=>{
           const p=l.split('|').map(s=>s.trim());
           return{name:p[0]||'-',start:p[1]||'-',end:p[2]||'-',actualStart:'-',actualEnd:'-',status:p[3]||'Not Started'};
         }),
-        team:(proj.team||'').split('\n').filter(Boolean).map(l=>{
+        team: (proj.team||'').split('\n').filter(Boolean).map(l=>{
           const p=l.split('|').map(s=>s.trim());
           return{name:p[0]||'-',role:p[1]||'-',org:p[2]||'DataNimbus'};
         }),
-        leave:proj.leave||''
+        leave: proj.leave||''
       };
     }
 
-    // ── STEP 3: Create Google Slides presentation ────────────
-    addLog('Creating Google Slides deck...','info');
-    const presRes=await fetch('https://slides.googleapis.com/v1/presentations',{
-      method:'POST',
-      headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
-      body:JSON.stringify({title:slideContent.title})
-    });
-    const pres=await presRes.json();
-    if(pres.error) throw new Error(pres.error.message);
-    const presId=pres.presentationId;
-    const s1=pres.slides[0].objectId;
+    // ── STEP 3: Copy template OR build from scratch ──────────
+    let presId = null;
 
-    // Helper IDs and builders
-    let idC=100; const uid=()=>'obj'+(idC++);
-    const reqs=[];
-    const darkBg={red:0.06,green:0.09,blue:0.16};
-    const hdrBg ={red:0.12,green:0.18,blue:0.32};
-    const white={red:1,green:1,blue:1};
-    const amber={red:0.96,green:0.62,blue:0.04};
-    const grey ={red:0.85,green:0.85,blue:0.85};
-    const green={red:0.1,green:0.7,blue:0.4};
-    const red  ={red:0.9,green:0.2,blue:0.2};
+    if (proj.templateUrl) {
+      // Extract template presentation ID
+      const tmplMatch = proj.templateUrl.match(/\/presentation\/d\/([a-zA-Z0-9-_]+)/);
+      if (!tmplMatch) throw new Error('Invalid template URL — check project settings');
+      const tmplId = tmplMatch[1];
 
-    const setBg =(oid,c)=>({updatePageProperties:{objectId:oid,pageProperties:{pageBackgroundFill:{solidFill:{color:{rgbColor:c}}}},fields:'pageBackgroundFill'}});
-    const mkTxt =(oid,pid,x,y,w,h)=>({createShape:{objectId:oid,shapeType:'TEXT_BOX',elementProperties:{pageObjectId:pid,size:{width:{magnitude:w,unit:'PT'},height:{magnitude:h,unit:'PT'}},transform:{scaleX:1,scaleY:1,translateX:x,translateY:y,unit:'PT'}}}});
-    const mkRect=(oid,pid,x,y,w,h)=>({createShape:{objectId:oid,shapeType:'RECTANGLE',elementProperties:{pageObjectId:pid,size:{width:{magnitude:w,unit:'PT'},height:{magnitude:h,unit:'PT'}},transform:{scaleX:1,scaleY:1,translateX:x,translateY:y,unit:'PT'}}}});
-    const insTxt=(oid,txt)=>({insertText:{objectId:oid,text:String(txt||'')}});
-    const setStyle=(oid,clr,sz,bold)=>({updateTextStyle:{objectId:oid,style:{foregroundColor:{opaqueColor:{rgbColor:clr}},fontSize:{magnitude:sz,unit:'PT'},fontFamily:'Arial',bold:!!bold},fields:'foregroundColor,fontSize,fontFamily,bold',textRange:{type:'ALL'}}});
-    const setFill=(oid,c)=>({updateShapeProperties:{objectId:oid,shapeProperties:{shapeBackgroundFill:{solidFill:{color:{rgbColor:c}}}},fields:'shapeBackgroundFill'}});
+      addLog('Copying template deck...','info');
+      // Copy the template using Drive API
+      const copyRes = await fetch(
+        'https://www.googleapis.com/drive/v3/files/'+tmplId+'/copy',
+        {
+          method:'POST',
+          headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+          body:JSON.stringify({name: cn+' '+pn+' — WSR '+week})
+        }
+      );
+      const copyData = await copyRes.json();
+      if (copyData.error) throw new Error('Copy failed: '+copyData.error.message);
+      presId = copyData.id;
+      addLog('Template copied — replacing placeholders...','info');
 
-    // Header bar helper
-    const hdr=(pid,subtitle)=>{
-      const b=uid(),t=uid();
-      return[mkRect(b,pid,0,0,720,48),setFill(b,hdrBg),
-             mkTxt(t,pid,20,5,680,38),insTxt(t,cn+' '+pn+' — '+subtitle),setStyle(t,white,13,true)];
-    };
+      // Get all text in the presentation to find placeholders
+      const presRes = await fetch(
+        'https://slides.googleapis.com/v1/presentations/'+presId,
+        {headers:{Authorization:'Bearer '+token}}
+      );
+      const pres = await presRes.json();
+      if (pres.error) throw new Error(pres.error.message);
 
-    // Status colour
-    const sc=slideContent.status==='Delayed'?red:slideContent.status==='At Risk'?amber:green;
+      // Build replace-all requests for each placeholder
+      const accText  = (content.accomplishments||[]).map(a=>'• '+a).join('\n');
+      const planText = (content.planned||[]).map(p=>'• '+p).join('\n');
+      const decText  = (content.decisions||[]).filter(Boolean).map(d=>'• '+d).join('\n');
 
-    // ── SLIDE 1: Title ───────────────────────────────────────
-    (pres.slides[0].pageElements||[]).forEach(el=>reqs.push({deleteObject:{objectId:el.objectId}}));
-    reqs.push(setBg(s1,darkBg));
-    const t1=uid(),t2=uid(),t3=uid(),t4=uid();
-    reqs.push(mkTxt(t1,s1,60,100,600,80),insTxt(t1,'Weekly Status Report'),setStyle(t1,white,38,true));
-    reqs.push(mkTxt(t2,s1,60,195,600,50),insTxt(t2,cn+' '+pn+' Implementation'),setStyle(t2,grey,22,false));
-    reqs.push(mkTxt(t3,s1,60,252,600,36),insTxt(t3,week.toUpperCase()),setStyle(t3,amber,16,true));
+      const replacements = {
+        '{{PROJECT}}':      pn,
+        '{{CLIENT}}':       cn,
+        '{{WEEK}}':         week,
+        '{{STATUS}}':       content.status||'On Track',
+        '{{STATUS_REASON}}':content.statusReason||'',
+        '{{RISKS}}':        content.risks||'No blockers identified.',
+        '{{ACCOMPLISHMENTS}}': accText,
+        '{{PLANNED}}':      planText,
+        '{{DECISIONS}}':    decText||'No decisions pending.',
+        '{{LEAVE}}':        content.leave||'',
+      };
 
-    // ── SLIDES 2-5: Create blank slides ─────────────────────
-    const newSlides=Array.from({length:4},(_,i)=>uid());
-    newSlides.forEach((sid,i)=>reqs.push({createSlide:{objectId:sid,insertionIndex:i+1,slideLayoutReference:{predefinedLayout:'BLANK'}}}));
-    const [s2,s3,s4,s5]=newSlides;
+      // Add milestone rows if placeholder exists
+      const msText = (content.milestones||[]).map(m=>
+        [m.name,m.start,m.end,m.actualStart||'-',m.actualEnd||'-',m.status].join('\t')
+      ).join('\n');
+      replacements['{{MILESTONES}}'] = msText;
 
-    // ── SLIDE 2: Status Summary ──────────────────────────────
-    reqs.push(setBg(s2,darkBg),...hdr(s2,'Status Summary — Week '+week));
+      // Add team rows
+      const teamText = (content.team||[]).map(t=>
+        [t.name,t.role,t.org].join('\t')
+      ).join('\n');
+      replacements['{{TEAM}}'] = teamText;
 
-    // Status badge
-    const sb=uid();
-    reqs.push(mkRect(sb,s2,20,60,120,32),setFill(sb,sc));
-    reqs.push(insTxt(sb,slideContent.status));
-    reqs.push({updateTextStyle:{objectId:sb,style:{foregroundColor:{opaqueColor:{rgbColor:white}},fontSize:{magnitude:12,unit:'PT'},bold:true},fields:'foregroundColor,fontSize,bold',textRange:{type:'ALL'}}});
+      const requests = Object.entries(replacements).map(([find,replace])=>({
+        replaceAllText:{
+          containsText:{text:find,matchCase:true},
+          replaceText:replace
+        }
+      }));
 
-    // Status reason
-    const sr=uid();
-    reqs.push(mkTxt(sr,s2,155,60,540,32),insTxt(sr,slideContent.statusReason||''),setStyle(sr,grey,11,false));
+      const updateRes = await fetch(
+        'https://slides.googleapis.com/v1/presentations/'+presId+':batchUpdate',
+        {
+          method:'POST',
+          headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+          body:JSON.stringify({requests})
+        }
+      );
+      const updateData = await updateRes.json();
+      if (updateData.error) throw new Error('Replace failed: '+updateData.error.message);
+      addLog('Placeholders replaced successfully','ok');
 
-    // Risks
-    const rl=uid(),rt=uid();
-    reqs.push(mkTxt(rl,s2,20,105,680,22),insTxt(rl,'Risks / Dependencies'),setStyle(rl,amber,11,true));
-    reqs.push(mkTxt(rt,s2,20,128,680,55),insTxt(rt,slideContent.risks||'None identified.'),setStyle(rt,grey,10,false));
-
-    // Accomplishments
-    const al=uid(),at=uid();
-    const accTxt=(slideContent.accomplishments||[]).map(a=>'• '+a).join('\n');
-    reqs.push(mkTxt(al,s2,20,195,680,22),insTxt(al,'Key Accomplishments Last Week'),setStyle(al,amber,11,true));
-    reqs.push(mkTxt(at,s2,20,218,680,110),insTxt(at,accTxt||'• Completed deliverables as planned'),setStyle(at,grey,10,false));
-
-    // Planned
-    const pl=uid(),pt=uid();
-    const planTxt=(slideContent.planned||[]).map(p=>'• '+p).join('\n');
-    reqs.push(mkTxt(pl,s2,20,338,680,22),insTxt(pl,'Activities Planned for this Week'),setStyle(pl,amber,11,true));
-    reqs.push(mkTxt(pt,s2,20,360,680,50),insTxt(pt,planTxt||'• Continue sprint deliverables'),setStyle(pt,grey,10,false));
-
-    // Decisions
-    if((slideContent.decisions||[]).length){
-      const dl=uid(),dt=uid();
-      const decTxt=slideContent.decisions.map(d=>'• '+d).join('\n');
-      reqs.push(mkTxt(dl,s2,20,420,680,22),insTxt(dl,'Decision and Support Required'),setStyle(dl,amber,11,true));
-      reqs.push(mkTxt(dt,s2,20,442,680,50),insTxt(dt,decTxt),setStyle(dt,grey,10,false));
-    }
-
-    // ── SLIDE 3: Timelines ───────────────────────────────────
-    reqs.push(setBg(s3,darkBg),...hdr(s3,'Timelines — Key Delivery Milestones'));
-    const ms=slideContent.milestones||[];
-    if(ms.length){
-      const tblId=uid();
-      const rows=Math.min(ms.length+1,14);
-      reqs.push({createTable:{objectId:tblId,elementProperties:{pageObjectId:s3,size:{width:{magnitude:680,unit:'PT'},height:{magnitude:Math.min(ms.length*22+28,350),unit:'PT'}},transform:{scaleX:1,scaleY:1,translateX:20,translateY:56,unit:'PT'}},rows,columns:6}});
-      const hdrs=['Key Delivery Milestone','Planned Start','Planned End','Actual Start','Actual End','Status'];
-      hdrs.forEach((h,ci)=>{
-        reqs.push({insertText:{objectId:tblId,cellLocation:{rowIndex:0,columnIndex:ci},text:h}});
-        reqs.push({updateTextStyle:{objectId:tblId,cellLocation:{rowIndex:0,columnIndex:ci},style:{bold:true,foregroundColor:{opaqueColor:{rgbColor:amber}},fontSize:{magnitude:8,unit:'PT'}},fields:'bold,foregroundColor,fontSize',textRange:{type:'ALL'}}});
-      });
-      ms.slice(0,rows-1).forEach((m,ri)=>{
-        const cells=[m.name,m.start,m.end,m.actualStart||'-',m.actualEnd||'-',m.status];
-        cells.forEach((cell,ci)=>{
-          const st=m.status||'';
-          const clr=ci===5?(st.includes('Complet')?green:st.includes('Progress')?amber:st.includes('Delay')?red:grey):grey;
-          reqs.push({insertText:{objectId:tblId,cellLocation:{rowIndex:ri+1,columnIndex:ci},text:String(cell||'-')}});
-          reqs.push({updateTextStyle:{objectId:tblId,cellLocation:{rowIndex:ri+1,columnIndex:ci},style:{foregroundColor:{opaqueColor:{rgbColor:clr}},fontSize:{magnitude:8,unit:'PT'}},fields:'foregroundColor,fontSize',textRange:{type:'ALL'}}});
-        });
-      });
     } else {
-      const nt=uid();
-      reqs.push(mkTxt(nt,s3,20,60,680,60),insTxt(nt,'Add Google Sheet URL in project settings to auto-populate milestones.'),setStyle(nt,grey,12,false));
-    }
-
-    // ── SLIDE 4: Project Team ────────────────────────────────
-    reqs.push(setBg(s4,darkBg),...hdr(s4,'Project Team'));
-    const tm=slideContent.team||[];
-    if(tm.length){
-      const tblId2=uid();
-      const rows2=Math.min(tm.length+1,18);
-      reqs.push({createTable:{objectId:tblId2,elementProperties:{pageObjectId:s4,size:{width:{magnitude:480,unit:'PT'},height:{magnitude:Math.min(tm.length*24+28,280),unit:'PT'}},transform:{scaleX:1,scaleY:1,translateX:20,translateY:56,unit:'PT'}},rows:rows2,columns:3}});
-      ['Name','Role','Organisation'].forEach((h,ci)=>{
-        reqs.push({insertText:{objectId:tblId2,cellLocation:{rowIndex:0,columnIndex:ci},text:h}});
-        reqs.push({updateTextStyle:{objectId:tblId2,cellLocation:{rowIndex:0,columnIndex:ci},style:{bold:true,foregroundColor:{opaqueColor:{rgbColor:amber}},fontSize:{magnitude:9,unit:'PT'}},fields:'bold,foregroundColor,fontSize',textRange:{type:'ALL'}}});
+      // No template — build slides from scratch with dark theme
+      addLog('No template URL set — building slides from scratch...','info');
+      const cr2 = await fetch('https://slides.googleapis.com/v1/presentations',{
+        method:'POST',
+        headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+        body:JSON.stringify({title:cn+' '+pn+' — WSR '+week})
       });
-      tm.slice(0,rows2-1).forEach((m,ri)=>{
-        [m.name,m.role,m.org].forEach((cell,ci)=>{
-          reqs.push({insertText:{objectId:tblId2,cellLocation:{rowIndex:ri+1,columnIndex:ci},text:String(cell||'-')}});
-          reqs.push({updateTextStyle:{objectId:tblId2,cellLocation:{rowIndex:ri+1,columnIndex:ci},style:{foregroundColor:{opaqueColor:{rgbColor:grey}},fontSize:{magnitude:9,unit:'PT'}},fields:'foregroundColor,fontSize',textRange:{type:'ALL'}}});
+      const pres2 = await cr2.json();
+      if (pres2.error) throw new Error(pres2.error.message);
+      presId = pres2.presentationId;
+      const s1 = pres2.slides[0].objectId;
+
+      let idC=100; const uid=()=>'obj'+(idC++);
+      const reqs=[];
+      const dark={red:0.06,green:0.09,blue:0.16};
+      const hdrC={red:0.12,green:0.18,blue:0.32};
+      const white={red:1,green:1,blue:1};
+      const amber={red:0.96,green:0.62,blue:0.04};
+      const grey={red:0.85,green:0.85,blue:0.85};
+      const sc=content.status==='Delayed'?{red:0.9,green:0.2,blue:0.2}:
+               content.status==='At Risk'?{red:1,green:0.6,blue:0}:{red:0.1,green:0.7,blue:0.4};
+
+      const setBg=(o,c)=>({updatePageProperties:{objectId:o,pageProperties:{pageBackgroundFill:{solidFill:{color:{rgbColor:c}}}},fields:'pageBackgroundFill'}});
+      const mkT=(o,p,x,y,w,h)=>({createShape:{objectId:o,shapeType:'TEXT_BOX',elementProperties:{pageObjectId:p,size:{width:{magnitude:w,unit:'PT'},height:{magnitude:h,unit:'PT'}},transform:{scaleX:1,scaleY:1,translateX:x,translateY:y,unit:'PT'}}}});
+      const mkR=(o,p,x,y,w,h)=>({createShape:{objectId:o,shapeType:'RECTANGLE',elementProperties:{pageObjectId:p,size:{width:{magnitude:w,unit:'PT'},height:{magnitude:h,unit:'PT'}},transform:{scaleX:1,scaleY:1,translateX:x,translateY:y,unit:'PT'}}}});
+      const ins=(o,t)=>({insertText:{objectId:o,text:String(t||'')}});
+      const sty=(o,c,s,b)=>({updateTextStyle:{objectId:o,style:{foregroundColor:{opaqueColor:{rgbColor:c}},fontSize:{magnitude:s,unit:'PT'},fontFamily:'Arial',bold:!!b},fields:'foregroundColor,fontSize,fontFamily,bold',textRange:{type:'ALL'}}});
+      const fil=(o,c)=>({updateShapeProperties:{objectId:o,shapeProperties:{shapeBackgroundFill:{solidFill:{color:{rgbColor:c}}}},fields:'shapeBackgroundFill'}});
+      const hdr=(p,txt)=>{const b=uid(),t=uid();return[mkR(b,p,0,0,720,48),fil(b,hdrC),mkT(t,p,20,5,680,38),ins(t,txt),sty(t,white,13,true)];};
+
+      // Slide 1
+      (pres2.slides[0].pageElements||[]).forEach(el=>reqs.push({deleteObject:{objectId:el.objectId}}));
+      reqs.push(setBg(s1,dark));
+      const t1=uid(),t2=uid(),t3=uid();
+      reqs.push(mkT(t1,s1,60,100,600,80),ins(t1,'Weekly Status Report'),sty(t1,white,38,true));
+      reqs.push(mkT(t2,s1,60,195,600,50),ins(t2,cn+' '+pn+' Implementation'),sty(t2,grey,22,false));
+      reqs.push(mkT(t3,s1,60,252,600,36),ins(t3,week.toUpperCase()),sty(t3,amber,16,true));
+
+      const ns=Array.from({length:4},(_,i)=>uid());
+      ns.forEach((sid,i)=>reqs.push({createSlide:{objectId:sid,insertionIndex:i+1,slideLayoutReference:{predefinedLayout:'BLANK'}}}));
+      const [s2,s3,s4,s5]=ns;
+
+      // Slide 2
+      reqs.push(setBg(s2,dark),...hdr(s2,cn+' '+pn+' — Week '+week));
+      const sb=uid();reqs.push(mkR(sb,s2,20,60,120,32),fil(sb,sc),ins(sb,content.status||'On Track'));
+      reqs.push({updateTextStyle:{objectId:sb,style:{foregroundColor:{opaqueColor:{rgbColor:white}},fontSize:{magnitude:12,unit:'PT'},bold:true},fields:'foregroundColor,fontSize,bold',textRange:{type:'ALL'}}});
+      const rl=uid(),rt=uid(),al=uid(),at=uid(),pl=uid(),pt=uid();
+      reqs.push(mkT(rl,s2,20,105,680,22),ins(rl,'Risks / Dependencies'),sty(rl,amber,11,true));
+      reqs.push(mkT(rt,s2,20,128,680,55),ins(rt,content.risks||'None.'),sty(rt,grey,10,false));
+      reqs.push(mkT(al,s2,20,192,680,22),ins(al,'Key Accomplishments Last Week'),sty(al,amber,11,true));
+      reqs.push(mkT(at,s2,20,215,680,110),ins(at,(content.accomplishments||[]).map(a=>'• '+a).join('\n')),sty(at,grey,10,false));
+      reqs.push(mkT(pl,s2,20,335,680,22),ins(pl,'Activities Planned for this Week'),sty(pl,amber,11,true));
+      reqs.push(mkT(pt,s2,20,358,680,60),ins(pt,(content.planned||[]).map(p=>'• '+p).join('\n')),sty(pt,grey,10,false));
+
+      // Slide 3 Milestones
+      reqs.push(setBg(s3,dark),...hdr(s3,'Timelines — Key Delivery Milestones'));
+      const ms=content.milestones||[];
+      if(ms.length){
+        const tb=uid(),rows=Math.min(ms.length+1,14);
+        reqs.push({createTable:{objectId:tb,elementProperties:{pageObjectId:s3,size:{width:{magnitude:680,unit:'PT'},height:{magnitude:Math.min(ms.length*22+28,340),unit:'PT'}},transform:{scaleX:1,scaleY:1,translateX:20,translateY:56,unit:'PT'}},rows,columns:5}});
+        ['Milestone','Planned Start','Planned End','Actual End','Status'].forEach((h,ci)=>{
+          reqs.push({insertText:{objectId:tb,cellLocation:{rowIndex:0,columnIndex:ci},text:h}});
+          reqs.push({updateTextStyle:{objectId:tb,cellLocation:{rowIndex:0,columnIndex:ci},style:{bold:true,foregroundColor:{opaqueColor:{rgbColor:amber}},fontSize:{magnitude:8,unit:'PT'}},fields:'bold,foregroundColor,fontSize',textRange:{type:'ALL'}}});
         });
+        ms.slice(0,rows-1).forEach((m,ri)=>{
+          [m.name,m.start,m.end,m.actualEnd||'-',m.status].forEach((cell,ci)=>{
+            const clr=ci===4?(m.status?.includes('Complet')?{red:0.1,green:0.7,blue:0.4}:m.status?.includes('Progress')?amber:grey):grey;
+            reqs.push({insertText:{objectId:tb,cellLocation:{rowIndex:ri+1,columnIndex:ci},text:String(cell||'-')}});
+            reqs.push({updateTextStyle:{objectId:tb,cellLocation:{rowIndex:ri+1,columnIndex:ci},style:{foregroundColor:{opaqueColor:{rgbColor:clr}},fontSize:{magnitude:8,unit:'PT'}},fields:'foregroundColor,fontSize',textRange:{type:'ALL'}}});
+          });
+        });
+      }
+
+      // Slide 4 Team
+      reqs.push(setBg(s4,dark),...hdr(s4,'Project Team'));
+      const tm=content.team||[];
+      if(tm.length){
+        const tb2=uid(),rows2=Math.min(tm.length+1,18);
+        reqs.push({createTable:{objectId:tb2,elementProperties:{pageObjectId:s4,size:{width:{magnitude:480,unit:'PT'},height:{magnitude:Math.min(tm.length*24+28,280),unit:'PT'}},transform:{scaleX:1,scaleY:1,translateX:20,translateY:56,unit:'PT'}},rows:rows2,columns:3}});
+        ['Name','Role','Organisation'].forEach((h,ci)=>{
+          reqs.push({insertText:{objectId:tb2,cellLocation:{rowIndex:0,columnIndex:ci},text:h}});
+          reqs.push({updateTextStyle:{objectId:tb2,cellLocation:{rowIndex:0,columnIndex:ci},style:{bold:true,foregroundColor:{opaqueColor:{rgbColor:amber}},fontSize:{magnitude:9,unit:'PT'}},fields:'bold,foregroundColor,fontSize',textRange:{type:'ALL'}}});
+        });
+        tm.slice(0,rows2-1).forEach((m,ri)=>{
+          [m.name,m.role,m.org].forEach((cell,ci)=>{
+            reqs.push({insertText:{objectId:tb2,cellLocation:{rowIndex:ri+1,columnIndex:ci},text:String(cell||'-')}});
+            reqs.push({updateTextStyle:{objectId:tb2,cellLocation:{rowIndex:ri+1,columnIndex:ci},style:{foregroundColor:{opaqueColor:{rgbColor:grey}},fontSize:{magnitude:9,unit:'PT'}},fields:'foregroundColor,fontSize',textRange:{type:'ALL'}}});
+          });
+        });
+      }
+      if(content.leave){
+        const ll=uid(),lt=uid(),ty2=Math.min(tm.length*24+90,320);
+        reqs.push(mkT(ll,s4,20,ty2,200,24),ins(ll,'Leave Plan'),sty(ll,amber,11,true));
+        reqs.push(mkT(lt,s4,20,ty2+26,500,60),ins(lt,content.leave),sty(lt,grey,10,false));
+      }
+
+      // Slide 5
+      reqs.push(setBg(s5,dark));
+      const ty=uid(),tysub=uid();
+      reqs.push(mkT(ty,s5,60,150,600,90),ins(ty,'Thank You'),sty(ty,white,44,true));
+      reqs.push(mkT(tysub,s5,60,252,500,36),ins(tysub,'DataNimbus — '+pn),sty(tysub,amber,18,false));
+
+      const ur=await fetch('https://slides.googleapis.com/v1/presentations/'+presId+':batchUpdate',{
+        method:'POST',
+        headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+        body:JSON.stringify({requests:reqs})
       });
-    }
-    if(slideContent.leave){
-      const teamH=Math.min(tm.length*24+90,320);
-      const ll=uid(),lt=uid();
-      reqs.push(mkTxt(ll,s4,20,teamH,200,24),insTxt(ll,'Leave Plan'),setStyle(ll,amber,11,true));
-      reqs.push(mkTxt(lt,s4,20,teamH+26,500,60),insTxt(lt,slideContent.leave),setStyle(lt,grey,10,false));
+      const ud=await ur.json();
+      if(ud.error) throw new Error(ud.error.message);
     }
 
-    // ── SLIDE 5: Thank You ───────────────────────────────────
-    reqs.push(setBg(s5,darkBg));
-    const ty=uid(),tysub=uid();
-    reqs.push(mkTxt(ty,s5,60,150,600,90),insTxt(ty,'Thank You'),setStyle(ty,white,44,true));
-    reqs.push(mkTxt(tysub,s5,60,252,500,36),insTxt(tysub,'DataNimbus — '+pn),setStyle(tysub,amber,18,false));
-
-    // ── STEP 4: Execute batch update ────────────────────────
-    const ur=await fetch('https://slides.googleapis.com/v1/presentations/'+presId+':batchUpdate',{
-      method:'POST',
-      headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
-      body:JSON.stringify({requests:reqs})
-    });
-    const ud=await ur.json();
-    if(ud.error) throw new Error(ud.error.message);
-
-    // Open editable presentation
+    // Open the deck
     const url='https://docs.google.com/presentation/d/'+presId+'/edit';
     window.open(url,'_blank');
-    addLog('Google Slides created and opened — fully editable','ok');
-    toast('Slides deck ready in Google Slides!','ok');
+    addLog('Google Slides ready — opening in new tab','ok');
+    toast('Slides deck created! Fully editable in Google Slides.','ok');
 
   } catch(e) {
     addLog('Slides failed: '+e.message,'err');
     toast('Slides failed: '+e.message,'err');
-    console.error('createSlides error:',e);
+    console.error('createSlides:',e);
   } finally {
     btn.innerHTML='&#127912; Slides';
     btn.disabled=false;
   }
 }
+
 
 
 function getWeek(){const n=new Date(),day=n.getDay(),mon=new Date(n);mon.setDate(n.getDate()-((day+6)%7));const fri=new Date(mon);fri.setDate(mon.getDate()+4);const fmt=d=>d.toLocaleDateString('en-GB',{day:'numeric',month:'short'});return fmt(mon)+' - '+fmt(fri)+' '+fri.getFullYear();}
