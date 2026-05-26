@@ -1638,7 +1638,10 @@ Return ONLY valid JSON (no markdown fences):
   "status":"On Track",
   "statusReason":"one line",
   "risks":"bullet text",
-  "accomplishments":["item1","item2","item3","item4"],
+  "accomplishments":[
+    {"workstream":"name","status":"Completed","detail":"what was done"},
+    {"workstream":"name","status":"In Progress","detail":"what is happening"}
+  ],
   "planned":["item1","item2","item3"],
   "decisions":["item1","item2"],
   "milestones":[{"name":"","start":"","end":"","actualStart":"","actualEnd":"","status":""}],
@@ -1724,21 +1727,44 @@ Return ONLY valid JSON (no markdown fences):
       if (pres.error) throw new Error(pres.error.message);
 
       // Build replace-all requests for each placeholder
-      const accText  = (content.accomplishments||[]).map(a=>'• '+a).join('\n');
+      const accs    = content.accomplishments||[];
       const planText = (content.planned||[]).map(p=>'• '+p).join('\n');
       const decText  = (content.decisions||[]).filter(Boolean).map(d=>'• '+d).join('\n');
+      // Also build a flat bullet list fallback for {{ACCOMPLISHMENTS}}
+      const accText  = accs.map(a=>typeof a==='string'?'• '+a:'• '+a.workstream+': '+a.detail).join('\n');
+
+      // Build per-row replacements for the accomplishments table
+      // Rows 1-6: {{ACC_1_NAME}}, {{ACC_1_STATUS}}, {{ACC_1_DETAIL}} etc
+      const rowReplacements = {};
+      for (let i=1; i<=6; i++) {
+        const acc = accs[i-1];
+        if (acc && typeof acc === 'object') {
+          rowReplacements['{{ACC_'+i+'_NAME}}']   = acc.workstream || '-';
+          rowReplacements['{{ACC_'+i+'_STATUS}}'] = acc.status     || '-';
+          rowReplacements['{{ACC_'+i+'_DETAIL}}'] = acc.detail     || '-';
+        } else if (acc && typeof acc === 'string') {
+          rowReplacements['{{ACC_'+i+'_NAME}}']   = acc;
+          rowReplacements['{{ACC_'+i+'_STATUS}}'] = 'Completed';
+          rowReplacements['{{ACC_'+i+'_DETAIL}}'] = '';
+        } else {
+          rowReplacements['{{ACC_'+i+'_NAME}}']   = '';
+          rowReplacements['{{ACC_'+i+'_STATUS}}'] = '';
+          rowReplacements['{{ACC_'+i+'_DETAIL}}'] = '';
+        }
+      }
 
       const replacements = {
-        '{{PROJECT}}':      pn,
-        '{{CLIENT}}':       cn,
-        '{{WEEK}}':         week,
-        '{{STATUS}}':       content.status||'On Track',
-        '{{STATUS_REASON}}':content.statusReason||'',
-        '{{RISKS}}':        content.risks||'No blockers identified.',
+        '{{PROJECT}}':       pn,
+        '{{CLIENT}}':        cn,
+        '{{WEEK}}':          week,
+        '{{STATUS}}':        content.status||'On Track',
+        '{{STATUS_REASON}}': content.statusReason||'',
+        '{{RISKS}}':         content.risks||'No blockers identified.',
         '{{ACCOMPLISHMENTS}}': accText,
-        '{{PLANNED}}':      planText,
-        '{{DECISIONS}}':    decText||'No decisions pending.',
-        '{{LEAVE}}':        content.leave||'',
+        '{{PLANNED}}':       planText,
+        '{{DECISIONS}}':     decText||'No decisions pending.',
+        '{{LEAVE}}':         content.leave||'',
+        ...rowReplacements,
       };
 
       // Add milestone rows if placeholder exists
