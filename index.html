@@ -165,7 +165,7 @@ textarea::placeholder{color:#334155}
 .chars{font-size:11px;color:#475569}
 .right{display:flex;flex-direction:column}
 .tabs{display:flex;border-bottom:1px solid #334155;background:#1e293b;overflow-x:auto;flex-shrink:0}
-.tab{flex:1;min-width:65px;background:transparent;border:none;border-bottom:2px solid transparent;color:#64748b;font-family:'Inter',sans-serif;font-size:11px;padding:9px 4px;cursor:pointer;white-space:nowrap}
+.tab{flex:1;min-width:55px;background:transparent;border:none;border-bottom:2px solid transparent;color:#64748b;font-family:'Inter',sans-serif;font-size:11px;padding:9px 2px;cursor:pointer;white-space:nowrap}
 .tab .dot{width:5px;height:5px;border-radius:50%;background:#334155;display:inline-block;margin-right:3px}
 .tab.active{color:#f1f5f9;border-bottom-color:#f59e0b}
 .tab.ready .dot{background:#34d399}
@@ -807,6 +807,9 @@ function renderProjectTabs() {
 
 async function setActiveProject(id) {
   _activeProjectId=id;
+  _members=[]; _updates={}; _edits={};  // clear previous project data
+  sv('input','');  // clear textarea
+  document.getElementById('chars').textContent='0 chars';
   resetReportTabs();
   await loadProjectData(id);
   renderProjectTabs();
