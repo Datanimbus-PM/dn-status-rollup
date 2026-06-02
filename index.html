@@ -1232,8 +1232,20 @@ For each real team member:
       const data=await res.json();
       if(data.error) throw new Error(data.error.message||JSON.stringify(data.error));
       const raw=data.content?.[0]?.text||'';
+      addLog('Claude response received ('+raw.length+' chars)','info');
+      if(raw.length<10) throw new Error('Empty response from Claude — check API key');
       let parsed;
-      try{parsed=JSON.parse(raw.replace(/\u0060\u0060\u0060json|\u0060\u0060\u0060/g,'').trim());}catch{throw new Error('Parse failed: '+raw.slice(0,150));}
+      try{
+        // Clean the response
+        let cleaned=raw.replace(/\u0060\u0060\u0060json\s*/gi,'').replace(/\u0060\u0060\u0060\s*/g,'').trim();
+        // Extract JSON object if there's text around it
+        const jMatch=cleaned.match(/\{[\s\S]*\}/);
+        if(!jMatch) throw new Error('No JSON found. Claude returned: '+raw.slice(0,200));
+        parsed=JSON.parse(jMatch[0]);
+      }catch(e){
+        addLog('Parse error: '+e.message.slice(0,120),'err');
+        throw e;
+      }
       reports=parsed; _edits={};
       await window.fbEdtP(_activeProjectId).save({});
       ['mgmt','client','team','chat'].forEach(t=>{
