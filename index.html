@@ -177,10 +177,14 @@ textarea::placeholder{color:#334155}
 .ebtn.on{background:rgba(245,158,11,.12);border-color:#f59e0b;color:#f59e0b}
 .ebtn.rst{border-color:rgba(248,113,113,.3);color:#f87171}
 .output{flex:1;overflow-y:scroll;padding:14px;min-height:0}
-.output::-webkit-scrollbar{width:6px}
-.output::-webkit-scrollbar-track{background:#1e293b}
-.output::-webkit-scrollbar-thumb{background:#475569;border-radius:3px}
-.output::-webkit-scrollbar-thumb:hover{background:#475569}
+.output::-webkit-scrollbar{width:8px}
+.output::-webkit-scrollbar-track{background:#0f172a;border-left:1px solid #1e293b}
+.output::-webkit-scrollbar-thumb{background:#64748b;border-radius:4px;border:1px solid #334155}
+.output::-webkit-scrollbar-thumb:hover{background:#94a3b8}
+.iwrap textarea::-webkit-scrollbar{width:8px}
+.iwrap textarea::-webkit-scrollbar-track{background:#0f172a;border-left:1px solid #1e293b}
+.iwrap textarea::-webkit-scrollbar-thumb{background:#64748b;border-radius:4px;border:1px solid #334155}
+.iwrap textarea::-webkit-scrollbar-thumb:hover{background:#94a3b8}
 .ph{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:8px;color:#475569;text-align:center}
 .ph-icon{font-size:28px}
 .report{font-size:13px;line-height:1.8;color:#cbd5e1}
@@ -1000,7 +1004,7 @@ async function loadFromSources() {
         const ids=(lData.messages||[]).map(m=>m.id);
         addLog('Gmail: '+ids.length+' emails matched','info');
         let added=0;
-        for(const id of ids.slice(0,15)) {
+        for(const id of ids.slice(0,8)) {
           try {
             const mRes=await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/'+id+'?format=full',{headers:{Authorization:'Bearer '+token}});
             const mData=await mRes.json();
@@ -1018,7 +1022,21 @@ async function loadFromSources() {
               for(const p of pts){if(p.body?.data) return dec(p.body.data);}
               return '';
             }
-            const body=extractBody(mData.payload).slice(0,1500);
+            let body=extractBody(mData.payload);
+            // Strip email noise
+            body=body
+              .replace(/^(From|To|Cc|Bcc|Date|Subject|Sent|On .* wrote):.*$/gim,'')
+              .replace(/_{3,}.*$/gms,'')  // strip signature lines
+              .replace(/^>.*$/gm,'')      // strip quoted replies
+              .replace(/https?:\/\/\S+/g,'') // strip URLs
+              .replace(/CONFIDENTIALITY.*$/gims,'') // strip disclaimers
+              .replace(/This email originated.*$/gims,'')
+              .replace(/\*\*.*\*\*/g,'')  // strip bold markers
+              .replace(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g,'') // strip emails
+              .replace(/\+?[0-9][\s\-0-9]{8,}/g,'') // strip phone numbers
+              .replace(/\n{3,}/g,'\n\n') // collapse blank lines
+              .trim()
+              .slice(0,800); // limit to 800 chars per email
             if(body.trim().length>20){allMessages.push({source:'gmail',sender,text:body});added++;}
           } catch(e2){}
         }
@@ -1248,7 +1266,7 @@ CHAT (plain text — concise, for Google Chat):
   while(tries<3) {
     try {
       const controller=new AbortController();
-      const tid=setTimeout(()=>controller.abort(),30000);
+      const tid=setTimeout(()=>controller.abort(),45000);
       let res;
       try {
         res=await fetch(PROXY,{method:'POST',signal:controller.signal,headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:8000,apiKey:window._anthropicKey,system,messages:[{role:'user',content:'Week:'+week+'\nType:'+(isFri?'Friday':'Monday')+'\nSender:'+sender+'\nProject:'+project+'\n\nUpdates:\n'+inp}]})});
