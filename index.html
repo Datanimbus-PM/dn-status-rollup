@@ -101,18 +101,6 @@ window.doSignOut=()=>{ try{sessionStorage.removeItem('dn_gtoken');}catch(e){} wi
 </script>
 
 <style>
-:root{
-  --header-h:52px;
-  --log-h:28px;
-  --main-h:calc(100vh - 52px - 28px);
-  --phead-h:44px;
-  --abar-h:52px;
-  --tabs-h:38px;
-  --ebar-h:32px;
-  --sbar-h:44px;
-  --iwrap-h:calc(var(--main-h) - var(--phead-h) - var(--abar-h));
-  --output-h:calc(var(--main-h) - var(--tabs-h) - var(--ebar-h) - var(--sbar-h));
-}
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:#0f172a;color:#e2e8f0;font-family:'Inter',sans-serif;font-size:13px}
 #loginScreen{position:fixed;inset:0;background:#0f172a;display:flex;align-items:center;justify-content:center;z-index:999;padding:20px}
@@ -155,40 +143,40 @@ header{background:#1e293b;border-bottom:1px solid #334155;padding:0 14px;display
 .um-e{font-size:11px;color:#64748b;padding-bottom:8px;border-bottom:1px solid #334155;margin-bottom:8px}
 .um-btn{background:transparent;border:1px solid #334155;color:#94a3b8;padding:6px 10px;border-radius:6px;font-size:11px;cursor:pointer;width:100%;text-align:left;font-family:'Inter',sans-serif}
 .um-btn:hover{border-color:#f87171;color:#f87171}
-main{display:grid;grid-template-columns:1fr 1fr;height:var(--main-h)}
-@media(max-width:768px){main{grid-template-columns:1fr;height:auto}.right{position:relative;overflow:hidden;height:var(--main-h)}}
-.left{border-right:1px solid #334155;position:relative;overflow:hidden;height:var(--main-h)}
-.phead{padding:8px 14px;border-bottom:1px solid #334155;display:flex;align-items:center;justify-content:space-between;gap:6px;overflow:hidden;position:absolute;top:0;left:0;right:0;height:var(--phead-h);z-index:1;background:#0f172a}
+main{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr;height:calc(100vh - 52px - 28px)}
+@media(max-width:768px){main{grid-template-columns:1fr;height:auto}.right{display:flex;flex-direction:column;overflow:hidden;height:100%;min-height:0}}
+.left{border-right:1px solid #334155;display:flex;flex-direction:column;overflow:hidden;height:100%;min-height:0}
+.phead{padding:8px 14px;border-bottom:1px solid #334155;display:flex;align-items:center;justify-content:space-between;gap:6px;overflow:hidden;flex-shrink:0;height:44px}
 .phead span{font-size:10px;font-weight:600;color:#94a3b8;letter-spacing:.5px;text-transform:uppercase}
 .mtoggle{display:flex;border:1px solid #334155;border-radius:6px;overflow:hidden}
 .mtoggle button{background:transparent;border:none;color:#64748b;padding:4px 10px;font-size:11px;font-family:'Inter',sans-serif;cursor:pointer}
 .mfri{background:rgba(245,158,11,.15)!important;color:#f59e0b!important}
 .mmon{background:rgba(34,211,238,.15)!important;color:#22d3ee!important}
-.iwrap{position:absolute;top:var(--phead-h);left:0;right:0;height:var(--iwrap-h);display:flex;flex-direction:column;padding:12px 14px;gap:7px;overflow:hidden}
+.iwrap{flex:1;display:flex;flex-direction:column;padding:12px 14px;gap:7px;overflow:hidden;min-height:0}
 .ilabel{font-size:10px;color:#64748b;letter-spacing:.8px;text-transform:uppercase;display:flex;flex-direction:column;gap:6px;align-items:stretch}
 .ilabel-top{display:flex;align-items:center;justify-content:space-between;gap:6px}
 .src-btns{display:flex;gap:5px}
 textarea{background:#1e293b;border:1px solid #334155;border-radius:8px;color:#e2e8f0;font-family:'Inter',sans-serif;font-size:13px;line-height:1.7;padding:11px;resize:none;flex:1;min-height:0;outline:none;transition:.2s;width:100%;box-sizing:border-box}
 textarea:focus{border-color:#f59e0b}
 textarea::placeholder{color:#334155}
-.abar{position:absolute;bottom:0;left:0;right:0;height:var(--abar-h);padding:10px 14px;border-top:1px solid #334155;display:flex;gap:8px;align-items:center;background:#0f172a;z-index:1}
+.abar{padding:10px 14px;border-top:1px solid #334155;display:flex;gap:8px;align-items:center;flex-shrink:0;height:52px}
 #genBtn{flex:1;background:#f59e0b;border:none;border-radius:8px;color:#000;font-weight:700;font-size:13px;padding:10px;cursor:pointer;font-family:'Inter',sans-serif}
 #genBtn:disabled{opacity:.5;cursor:not-allowed}
 .chars{font-size:11px;color:#475569}
 .right{display:flex;flex-direction:column}
-.tabs{position:absolute;top:0;left:0;right:0;height:var(--tabs-h);display:flex;border-bottom:1px solid #334155;background:#1e293b;overflow-x:auto;z-index:1}
+.tabs{display:flex;border-bottom:1px solid #334155;background:#1e293b;overflow-x:auto;flex-shrink:0;height:38px}
 .tab{flex:1;min-width:55px;background:transparent;border:none;border-bottom:2px solid transparent;color:#64748b;font-family:'Inter',sans-serif;font-size:11px;padding:9px 2px;cursor:pointer;white-space:nowrap}
 .tab .dot{width:5px;height:5px;border-radius:50%;background:#334155;display:inline-block;margin-right:3px}
 .tab.active{color:#f1f5f9;border-bottom-color:#f59e0b}
 .tab.ready .dot{background:#34d399}
 .tab.active .dot{background:#f59e0b}
-.ebar{position:absolute;top:var(--tabs-h);left:0;right:0;height:var(--ebar-h);padding:5px 14px;background:rgba(245,158,11,.04);border-bottom:1px solid rgba(245,158,11,.1);display:flex;align-items:center;justify-content:space-between;font-size:11px;z-index:1}
+.ebar{padding:5px 14px;background:rgba(245,158,11,.04);border-bottom:1px solid rgba(245,158,11,.1);display:flex;align-items:center;justify-content:space-between;font-size:11px;flex-shrink:0;height:32px}
 .ehint{color:#64748b}
 .eacts{display:flex;gap:5px}
 .ebtn{background:transparent;border:1px solid #334155;border-radius:4px;color:#64748b;font-family:'Inter',sans-serif;font-size:10px;padding:3px 8px;cursor:pointer}
 .ebtn.on{background:rgba(245,158,11,.12);border-color:#f59e0b;color:#f59e0b}
 .ebtn.rst{border-color:rgba(248,113,113,.3);color:#f87171}
-.output{position:absolute;top:calc(var(--tabs-h) + var(--ebar-h));left:0;right:0;height:var(--output-h);overflow-y:scroll;padding:14px}
+.output{flex:1;overflow-y:scroll;padding:14px;min-height:0}
 .output::-webkit-scrollbar{width:6px}
 .output::-webkit-scrollbar-track{background:#1e293b}
 .output::-webkit-scrollbar-thumb{background:#475569;border-radius:3px}
@@ -204,7 +192,7 @@ textarea::placeholder{color:#334155}
 .report strong{color:#f1f5f9}
 .report .blocker{background:rgba(248,113,113,.12);color:#f87171;border:1px solid rgba(248,113,113,.25);padding:1px 5px;border-radius:3px;font-size:11px}
 .report .win{background:rgba(52,211,153,.12);color:#34d399;border:1px solid rgba(52,211,153,.25);padding:1px 5px;border-radius:3px;font-size:11px}
-.sbar{position:absolute;bottom:0;left:0;right:0;height:var(--sbar-h);padding:6px 14px;border-top:1px solid #334155;background:#1e293b;display:flex;gap:5px;flex-wrap:nowrap;align-items:center;overflow-x:auto;scrollbar-width:none;z-index:1}
+.sbar{padding:6px 14px;border-top:1px solid #334155;background:#1e293b;display:flex;gap:5px;flex-wrap:nowrap;align-items:center;overflow-x:auto;scrollbar-width:none;flex-shrink:0;height:44px}
 .sbtn{background:transparent;border:1px solid #334155;border-radius:5px;color:#64748b;font-family:'Inter',sans-serif;font-size:10px;padding:4px 7px;cursor:pointer;transition:.15s;white-space:nowrap;flex-shrink:0}
 .sbtn:hover:not(:disabled){border-color:#22d3ee;color:#22d3ee}
 .sbtn:disabled{opacity:.4;cursor:not-allowed}
@@ -399,6 +387,7 @@ textarea::placeholder{color:#334155}
       <div class="msec" style="margin-top:10px">Gmail</div>
       <div class="mf full"><label>Pull emails from (comma-separated)</label>
         <input id="pmEmailQuery" placeholder="e.g. @idfcfirstbank.com, raj@client.com"/>
+      <div class="mf"><label>Lookback Days</label><input id="pmLookback" type="number" min="1" max="30" placeholder="7" style="width:80px"/></div>
         <div class="hint">Use @domain.com for all from that domain, or full email addresses</div>
       </div>
       <div class="msec" style="margin-top:10px">Send To</div>
@@ -410,6 +399,26 @@ textarea::placeholder{color:#334155}
       <div class="msec" style="margin-top:10px">Chat Webhook</div>
       <div class="mf full"><label>Webhook URL (optional)</label><input id="pmWebhook" placeholder="https://chat.googleapis.com/v1/spaces/.../messages?key=..."/></div>
       <div class="msec" style="margin-top:10px">Google Slides — WSR Template</div>
+      <div style="background:#0f172a;border:1px solid #1e3a5f;border-radius:6px;padding:10px;margin:8px 18px;font-size:10px">
+        <div style="color:#f59e0b;font-weight:600;margin-bottom:6px;letter-spacing:.5px">PLACEHOLDERS — add these to your Google Slides deck</div>
+        <div style="display:grid;grid-template-columns:auto 1fr;gap:3px 10px;align-items:center">
+          <code style="color:#22d3ee;background:#1e293b;padding:1px 5px;border-radius:3px">{{PROJECT}}</code><span style="color:#64748b">Project name</span>
+          <code style="color:#22d3ee;background:#1e293b;padding:1px 5px;border-radius:3px">{{CLIENT}}</code><span style="color:#64748b">Client name</span>
+          <code style="color:#22d3ee;background:#1e293b;padding:1px 5px;border-radius:3px">{{WEEK}}</code><span style="color:#64748b">Week date range</span>
+          <code style="color:#22d3ee;background:#1e293b;padding:1px 5px;border-radius:3px">{{STATUS}}</code><span style="color:#64748b">On Track / At Risk / Delayed</span>
+          <code style="color:#22d3ee;background:#1e293b;padding:1px 5px;border-radius:3px">{{STATUS_REASON}}</code><span style="color:#64748b">One-line status reason</span>
+          <code style="color:#22d3ee;background:#1e293b;padding:1px 5px;border-radius:3px">{{RISKS}}</code><span style="color:#64748b">Risks and dependencies</span>
+          <code style="color:#22d3ee;background:#1e293b;padding:1px 5px;border-radius:3px">{{ACCOMPLISHMENTS}}</code><span style="color:#64748b">Bullet list of completions</span>
+          <code style="color:#22d3ee;background:#1e293b;padding:1px 5px;border-radius:3px">{{PLANNED}}</code><span style="color:#64748b">Planned activities</span>
+          <code style="color:#22d3ee;background:#1e293b;padding:1px 5px;border-radius:3px">{{DECISIONS}}</code><span style="color:#64748b">Decisions required</span>
+          <code style="color:#22d3ee;background:#1e293b;padding:1px 5px;border-radius:3px">{{LEAVE}}</code><span style="color:#64748b">Leave plan</span>
+          <code style="color:#22d3ee;background:#1e293b;padding:1px 5px;border-radius:3px">{{ACC_1_NAME}}</code><span style="color:#64748b">Workstream row 1 name</span>
+          <code style="color:#22d3ee;background:#1e293b;padding:1px 5px;border-radius:3px">{{ACC_1_STATUS}}</code><span style="color:#64748b">Workstream row 1 status</span>
+          <code style="color:#22d3ee;background:#1e293b;padding:1px 5px;border-radius:3px">{{ACC_1_DETAIL}}</code><span style="color:#64748b">Workstream row 1 detail (1-6)</span>
+          <code style="color:#22d3ee;background:#1e293b;padding:1px 5px;border-radius:3px">{{TEAM}}</code><span style="color:#64748b">Project team list</span>
+          <code style="color:#22d3ee;background:#1e293b;padding:1px 5px;border-radius:3px">{{MILESTONES}}</code><span style="color:#64748b">Timeline milestones</span>
+        </div>
+      </div>
       <div class="mf full"><label>Slides Template URL (your master WSR deck)</label>
         <input id="pmTemplateUrl" placeholder="https://docs.google.com/presentation/d/..."/>
         <div class="hint">App copies this deck every week and replaces the placeholders with live data. Make sure it is shared as &quot;Anyone with link can view&quot;.</div>
@@ -480,6 +489,7 @@ textarea::placeholder{color:#334155}
       <button class="hbtn" onclick="toggleHist()">&#10005; Close</button>
     </div>
   </div>
+  <input id="histSearch" placeholder="🔍 Search by project, week..." oninput="filterHist(this.value)" style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;font-family:'Inter',sans-serif;font-size:12px;padding:7px 10px;margin-bottom:8px;outline:none;box-sizing:border-box"/>
   <div id="histList"></div>
   <div id="rvPanel" style="display:none;margin-top:14px">
     <div class="stitle" id="rvTitle">Report</div>
@@ -519,10 +529,7 @@ textarea::placeholder{color:#334155}
   <div class="stitle">This Week</div>
   <div class="mcards" id="mCards"></div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px">
-    <button class="bcompile" onclick="compileUpdates()" style="background:#334155;color:#e2e8f0">
-      &#128203; Compile Only
-    </button>
-    <button class="bcompile" onclick="compileAndGenerate()" style="background:#f59e0b;color:#000">
+    <button class="bcompile" onclick="compileAndGenerate()" style="background:#f59e0b;color:#000;flex:1">
       &#9889; Compile &amp; Generate
     </button>
   </div>
@@ -552,7 +559,7 @@ textarea::placeholder{color:#334155}
       </div>
       <textarea id="input" placeholder="Example:&#10;&#10;Anitha (PM): Completed Q3 roadmap. Win: Client approved Phase 2. No blockers.&#10;&#10;Raj (Engineering): Shipped OAuth. Blocker: Need Redis cluster from DevOps."></textarea>
     </div>
-    <div class="abar">
+    <div class="abar" title="Tip: Press Ctrl+G to generate, Ctrl+K to focus input">
       <button id="genBtn" onclick="generate()">&#9889; Generate All Reports</button>
       <span class="chars" id="chars">0 chars</span>
     </div>
@@ -568,6 +575,8 @@ textarea::placeholder{color:#334155}
       <span class="ehint" id="ehint">Click to edit</span>
       <div class="eacts">
         <button class="ebtn rst" id="rstBtn" onclick="resetReport()" style="display:none">Reset</button>
+        <button class="ebtn" onclick="copyReport()" title="Copy to clipboard">&#128203; Copy</button>
+        <button class="ebtn" onclick="exportPDF()" title="Export as PDF">&#128196; PDF</button>
         <button class="ebtn on" id="etoggle" onclick="toggleEdit()">Edit: ON</button>
       </div>
     </div>
@@ -614,6 +623,10 @@ textarea::placeholder{color:#334155}
     <div class="mbody">
       <div style="display:flex;flex-direction:column;gap:4px"><label style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.5px">To (comma-separated)</label><input class="mi" id="emTo" placeholder="name@company.com"/></div>
       <div style="display:flex;flex-direction:column;gap:4px;margin-top:8px"><label style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.5px">Subject</label><input class="mi" id="emSubj"/></div>
+      <div id="emPreview" style="margin-top:8px;background:#0f172a;border:1px solid #334155;border-radius:6px;padding:10px;max-height:120px;overflow-y:auto">
+        <div style="font-size:10px;color:#f59e0b;font-weight:600;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">Preview</div>
+        <div id="emPreviewContent" style="font-size:11px;color:#64748b;line-height:1.6;white-space:pre-wrap"></div>
+      </div>
     </div>
     <div class="mfoot"><div></div><div style="display:flex;gap:7px"><button class="bcancel" onclick="closeEM()">Cancel</button><button class="bgo" onclick="confirmEM()">Send Email</button></div></div>
   </div>
@@ -839,6 +852,7 @@ function openProjectModal(id) {
   sv('pmS1',p?.spaces?.[0]||'');   sv('pmS2',p?.spaces?.[1]||'');
   sv('pmS3',p?.spaces?.[2]||'');   sv('pmS4',p?.spaces?.[3]||'');
   sv('pmEmailQuery',p?.emailQuery||'');
+  sv('pmLookback',(p?.lookback||7).toString());
   sv('pmMgmtEmail',p?.mgmtEmail||'');
   sv('pmCliEmail',p?.clientEmail||'');
   sv('pmTeamEmail',p?.teamEmail||'');
@@ -868,7 +882,8 @@ async function saveProject() {
       id:_editingProjectId||genId(), name,
       client:v('pmClient')||'Internal',
       spaces:[v('pmS1'),v('pmS2'),v('pmS3'),v('pmS4')].filter(Boolean),
-      emailQuery:v('pmEmailQuery'), mgmtEmail:v('pmMgmtEmail'),
+      emailQuery:v('pmEmailQuery'),
+      lookback:parseInt(v('pmLookback'))||7, mgmtEmail:v('pmMgmtEmail'),
       clientEmail:v('pmCliEmail'),  teamEmail:v('pmTeamEmail'),
       webhook:v('pmWebhook'),
       milestones:v('pmMilestones'),
@@ -933,15 +948,18 @@ async function loadFromSources() {
     if(!window._accessToken){toast('Sign out and sign back in to refresh permissions','err');return;}
     const proj=activeProject();
     if(!proj){toast('Add a project first','err');return;}
-    const allMessages=[], since=new Date(); since.setDate(since.getDate()-7);
+    const allMessages=[], since=new Date(); const lookbackDays=activeProject()?.lookback||7; since.setDate(since.getDate()-lookbackDays); addLog("Loading last "+lookbackDays+" days","info");
     const sinceStr=since.toISOString();
     const token=window._accessToken;
     const spaces=proj.spaces||[];
     addLog('Checking '+spaces.length+' space(s): '+spaces.join(', '),'info');
     if(!spaces.length){ toast('No Chat Space IDs configured — add them in project settings','err'); }
     for(const spaceId of spaces) {
+      addLog('Reading space '+spaceId+'...','info');
+      const spaceBtn=document.getElementById('loadChatBtn');
+      if(spaceBtn) spaceBtn.innerHTML='⏳ '+spaceId.slice(-6)+'...';
       try {
-        let pt=null;
+        let pt=null; let spaceCount=0;
         do {
           let url='https://chat.googleapis.com/v1/spaces/'+spaceId+'/messages?pageSize=100';
           if(pt) url+='&pageToken='+encodeURIComponent(pt);
@@ -950,12 +968,12 @@ async function loadFromSources() {
           if(data.error){
             const code=data.error.code||data.error.status;
             if(code===401||code===403||data.error.message?.includes('credential')||data.error.message?.includes('token')){
-              addLog('Chat auth failed — your session needs refresh. Sign out and back in.','err');
+              addLog('Space '+spaceId+': auth failed — sign out and back in','err');
               toast('Chat access expired — sign out and sign back in','err');
             } else {
-              addLog('Chat '+spaceId+': '+data.error.message,'err');
+              addLog('Space '+spaceId+': '+data.error.message+' — skipping','err');
             }
-            break;
+            break; // skip this space, continue to next
           }
           for(const m of(data.messages||[])){
             if((m.createTime||'')<sinceStr) continue;
@@ -1024,6 +1042,8 @@ async function loadFromSources() {
       const id=p.name.replace(/\s+/g,'_');
       _updates[id]={completed:p.completed,inprogress:p.inprogress,blockers:p.blockers,wins:p.wins};
     }
+    // Sort members by department then name
+    _members.sort((a,b)=>(a.dept||'').localeCompare(b.dept||'')||a.name.localeCompare(b.name));
     await window.fbMemP(_activeProjectId).save(_members);
     await window.fbUpdP(_activeProjectId).save(_updates);
 
@@ -1178,59 +1198,85 @@ async function generate() {
   const week=getWeek(), isFri=mode==='friday';
   const sender=_pmName||window._user?.displayName||'DN Team';
   const project=proj.name+' (Client: '+proj.client+')';
-  const system = `You are an expert programme manager writing detailed weekly status reports for the ${project} project at Datanimbus, Client: ${project.split('Client:')[1]||''}.
+  const system = `You are an expert programme manager writing detailed weekly status reports for the ${project} project at Datanimbus.
 
-CRITICAL: The input may be raw Google Chat conversation threads — @mentions, replies, casual messages. You must intelligently extract each REAL team member's actual work from the conversation, ignoring chat noise like "can you check", "please join", coordination messages, and @mention notifications.
+The input may be raw Google Chat messages, structured updates, or a mix. Extract every real team member's work carefully.
 
-HOW TO EXTRACT:
-1. Identify real team members by name (ignore "Unknown" — look for actual names in the conversation)
-2. For each person, find what they actually DID or are WORKING ON — not what others asked them to do
-3. Separate completed work, in-progress work, blockers, and wins
-4. If someone reports a production issue or blocker, that is a BLOCKER for the project
-5. @mentions of external clients (e.g. @Souradeep Das from IBL) are client interactions — note them as completed coordination items
-6. Ignore pure coordination noise ("can you check", "please look into this", "ASAP") unless it reveals a blocker
+CRITICAL NAME EXTRACTION RULES:
+- Look for patterns: "Name (Role):", "Name:", "*Name*:", messages starting with a person's name
+- In Google Chat, the sender name appears before their message — use it
+- If you see "@Firstname Lastname" being assigned work, that person has a task
+- Group ALL messages from the same person together
+- Common Indian names to recognise: Anitha, Tamilvanan, Eldho, Balaji, Ganesh, Souradeep, Aryan, Nikhil, Rohith, Mathew, Parmeshwar, Hiren, Sandil
+- NEVER use "Unknown" as a person's name — always find the real name
+- If truly anonymous, skip that message entirely
+- Ignore pure noise: "can you check", "please join the call", "noted", "ok", "sure", @mention-only messages
 
-Return ONLY a valid raw JSON object — no markdown fences:
+WHAT TO EXTRACT per person:
+- Completed: specific tasks done this week (use exact system/client/API names)
+- In Progress: what they are actively working on
+- Blockers: only real blockers that are preventing progress
+- Wins: achievements, approvals, sign-offs, milestones hit
+- Client interactions: meetings, demos, emails with the client
+
+Return ONLY valid raw JSON — no markdown fences:
 {"mgmt":"<html>","client":"<html>","team":"<html>","chat":"plain text","dashboard":{"members":[{"name":"","dept":"","rag":"G","ragReason":"","blockers":[],"wins":[],"completed":[],"inProgress":[]}],"summary":{"totalMembers":0,"greenCount":0,"amberCount":0,"redCount":0,"totalBlockers":0,"totalWins":0,"overallRAG":"G"}}}
 
-MGMT REPORT (HTML) — minimum 400 words, per real person only:
+MGMT REPORT (HTML) — minimum 600 words, comprehensive:
 <h2>${project} — Weekly Status Report</h2>
 <h3>Week: [week]</h3>
-<p><strong>Overall Status:</strong> [RAG badge with reason]</p>
+<p><strong>Overall Status:</strong> [GREEN/AMBER/RED badge] — [reason in one sentence]</p>
+<h2>Executive Summary</h2>
+<p>[2-3 sentences covering the week's key theme, major achievement, and primary concern]</p>
 <h2>Team Updates</h2>
-For each REAL team member found (not Unknown):
-<h2>[Name] <span style="font-size:10px;color:#64748b;font-weight:400">([Role/Dept])</span></h2>
-<ul>[specific completed items — use real system names, API names, feature names]</ul>
-<p><strong>In Progress:</strong> [specific ongoing work]</p>
-[If blocker] <p><span class="blocker">BLOCKER: [description and business impact]</span></p>
-[If win] <p><span class="win">WIN: [achievement]</span></p>
+[For EACH real person found — never skip anyone]:
+<h2>[Full Name] <span style="font-size:10px;color:#64748b;font-weight:400">([Department/Role])</span></h2>
+<ul>[Each completed item as its own bullet — use exact task names, API names, client names]</ul>
+<p><strong>In Progress:</strong> [specific ongoing work with context]</p>
+[If blocker]: <p><span class="blocker">BLOCKER: [exact description] — Impact: [business impact]</span></p>
+[If win]: <p><span class="win">WIN: [achievement with context]</span></p>
 <h2>Client Interactions</h2>
-<p>[Any mentions of client communication, sign-offs, demos, meetings]</p>
+<p>[All client-facing activities, communications, meetings this week]</p>
 <h2>Blockers &amp; Risks</h2>
-<ul>[All blockers with owner and next step]</ul>
-<h2>Highlights</h2>
-<ul>[Key wins across the team]</ul>
+<ul>[Each blocker: owner, description, impact, suggested next step]</ul>
+<h2>Key Highlights</h2>
+<ul>[Top 3-5 wins across the team with names]</ul>
+<h2>Next Week Focus</h2>
+<ul>[Top priorities for next week per person]</ul>
 
-CLIENT REPORT (HTML) — professional, 200+ words:
-- Only achievements and progress — no internal names, no operational noise
-- <h3>Achievements This Week</h3> with specific deliverables (IFSC Code Validation, CBS APIs etc)
-- <h3>In Progress</h3> with concrete items
-- <h3>Next Steps</h3> with clear actions
-- Professional tone throughout
+CLIENT REPORT (HTML) — professional, 250+ words, NO internal names or jargon:
+<h2>${project} — Weekly Progress Update</h2>
+<p>Dear [Client] Team,</p>
+<p>Please find this week's progress update for the [project] programme.</p>
+<h3>Overall Status: [Green/Amber/Red]</h3>
+<p>[One line status summary]</p>
+<h3>Achievements This Week</h3>
+<ul>[Specific deliverables — use system names, feature names, not person names]</ul>
+<h3>In Progress</h3>
+<ul>[Active workstreams with expected completion context]</ul>
+<h3>Risks &amp; Dependencies</h3>
+<ul>[Only include if real risks exist — be specific]</ul>
+<h3>Next Steps</h3>
+<ul>[Concrete actions with owners implied but not named]</ul>
+<p>Please reach out if you have any questions or require further information.</p>
 
-TEAM REPORT (HTML):
-${isFri ? "Warm Friday recap — name each real person with their specific contribution. No noise." : "Monday kickoff — each person's focus. Energetic."}
+TEAM REPORT (HTML) — warm, specific, motivating:
+${isFri
+  ? '<h2>End-of-Week Rollup — [week]</h2><p>Great work this week team! Here is what we accomplished:</p>[Per person: name + specific achievement + win if any]<h2>Next Week</h2>[Top 3 team priorities]'
+  : '<h2>Weekly Kickoff — [week]</h2><p>New week, clear goals. Here is what everyone is focused on:</p>[Per person: name + specific focus area]<h2>Team Reminders</h2>[Any important dates or deadlines]'}
 
-CHAT (formatted for Google Chat):
-*${project} — Weekly Update | [Week]*
+CHAT (plain text — formatted for Google Chat):
+*${project} — Weekly Update | [week]*
 
-For each real team member:
-*[Name]*:
+[Per person, use this exact format]:
+*[Name]*
 ✅ [specific completed item]
-🔄 [in progress item]
-⚠️ Blocker: [only if real blocker exists]
+🔄 [specific in-progress item]
+⚠️ Blocker: [only if real blocker] 
+🏆 [win — only if exists]
 
-*Overall:* [Green 🟢/Amber 🟡/Red 🔴] — [one line reason]`;
+*Overall: [Green 🟢 / Amber 🟡 / Red 🔴]*
+*Key focus next week:* [top priority]`;
   let tries=0;
   while(tries<3) {
     try {
@@ -1238,7 +1284,7 @@ For each real team member:
       const tid=setTimeout(()=>controller.abort(),30000);
       let res;
       try {
-        res=await fetch(PROXY,{method:'POST',signal:controller.signal,headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:4000,apiKey:window._anthropicKey,system,messages:[{role:'user',content:'Week:'+week+'\nType:'+(isFri?'Friday':'Monday')+'\nSender:'+sender+'\nProject:'+project+'\n\nUpdates:\n'+inp}]})});
+        res=await fetch(PROXY,{method:'POST',signal:controller.signal,headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:8000,apiKey:window._anthropicKey,system,messages:[{role:'user',content:'Week:'+week+'\nType:'+(isFri?'Friday':'Monday')+'\nSender:'+sender+'\nProject:'+project+'\n\nUpdates:\n'+inp}]})});
       } finally { clearTimeout(tid); }
       if(!res.ok){const e=await res.json();throw new Error('API '+res.status+': '+(e.error?.message||JSON.stringify(e)));}
       const data=await res.json();
@@ -1311,6 +1357,13 @@ function sendEmail(type){
   sv('emTitle','Send '+m.label+' Email');
   sv('emSubj','['+((proj?.name||'DN')+' '+getWeek())+'] '+(isFri?m.fri:m.mon));
   sv('emTo',type==='mgmt'?proj?.mgmtEmail||'':type==='client'?proj?.clientEmail||'':proj?.teamEmail||'');
+  // Populate preview
+  const previewEl = document.getElementById('emPreviewContent');
+  if (previewEl) {
+    const content = _edits[type] || reports[type] || '';
+    const plain = content.replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim().slice(0,300);
+    previewEl.textContent = plain + (plain.length >= 300 ? '...' : '');
+  }
   document.getElementById('emailModal').classList.add('open');
   setTimeout(()=>document.getElementById('emTo').focus(),100);
 }
@@ -1356,8 +1409,18 @@ async function sendChat(){
   if(!c){toast('Generate first','err');return;}
   if(!wh){toast('Add a webhook in project settings','err');return;}
   const b=document.getElementById('s-chat');b.innerHTML='<span class="spin" style="border-top-color:#22d3ee"></span>';b.disabled=true;
-  try{await fetch(wh,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:c}),mode:'no-cors'});b.innerHTML='Sent';b.className+=' sent';addLog('Chat posted','ok');toast('Chat posted!','ok');}
-  catch(e){addLog('Chat failed: '+e.message,'err');b.innerHTML='Chat';b.disabled=false;}
+  let chatTries=0;
+  const trySendChat=async()=>{
+    try{
+      await fetch(wh,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:c}),mode:'no-cors'});
+      b.innerHTML='Sent';b.className+=' sent';addLog('Chat posted','ok');toast('Chat posted!','ok');
+    }catch(e){
+      chatTries++;
+      if(chatTries<3){addLog('Chat retry '+chatTries+'...','info');setTimeout(trySendChat,2000);}
+      else{addLog('Chat failed after 3 attempts: '+e.message,'err');b.innerHTML='&#128172; Chat';b.disabled=false;}
+    }
+  };
+  trySendChat();
 }
 async function addMember(){
   const name=v('nmName'),dept=v('nmDept');
@@ -1450,6 +1513,14 @@ async function compileAndGenerate() {
 async function clearUpdates(){if(!confirm('Clear all?'))return;_updates={};await window.fbUpdP(_activeProjectId).save({});renderMCards();toast('Cleared','info');}
 async function saveHist(dashboard,week,type,rpts,proj){const entry={week,type,projectId:_activeProjectId,projectName:proj?.name,clientName:proj?.client,dashboard,reports:rpts||{},owner:window._user?.email,savedAt:new Date().toISOString()};await window.fbHist.save(entry,_activeProjectId);_history=await window.fbHist.list();}
 async function loadHistData(){_history=await window.fbHist.list();}
+function filterHist(q){
+  const s=q.toLowerCase().trim();
+  document.querySelectorAll('.hcard').forEach(card=>{
+    const t=(card.textContent||'').toLowerCase();
+    card.style.display=(!s||t.includes(s))?'':'none';
+  });
+}
+
 function renderHistList(){
   const el=document.getElementById('histList');document.getElementById('rvPanel').style.display='none';
   if(!_history.length){el.innerHTML='<div class="nodata">No reports yet</div>';return;}
@@ -1483,10 +1554,22 @@ function renderDash(){
 }
 function renderRAGGrid(members){
   const el=document.getElementById('ragGrid');
-  if(!members.length){el.innerHTML='<div class="nodata">No RAG data</div>';return;}
-  el.innerHTML=[...members].sort((a,b)=>({R:0,A:1,G:2}[a.rag]||2)-({R:0,A:1,G:2}[b.rag]||2)).map(m=>
+  if(!members.length){
+    // Try to restore last saved RAG from sessionStorage
+    try{
+      const saved=sessionStorage.getItem('dn_last_rag');
+      if(saved){const m=JSON.parse(saved);if(m.length){el.innerHTML='<div style="font-size:10px;color:#475569;padding:4px 0 8px">Last week RAG (generate to update)</div>'+renderRAGCards(m);return;}}
+    }catch(e){}
+    el.innerHTML='<div class="nodata">No RAG data — generate reports first</div>';return;
+  }
+  // Save to session for persistence
+  try{sessionStorage.setItem('dn_last_rag',JSON.stringify(members));}catch(e){}
+  el.innerHTML=renderRAGCards(members);
+}
+function renderRAGCards(members){
+  return [...members].sort((a,b)=>({R:0,A:1,G:2}[a.rag]||2)-({R:0,A:1,G:2}[b.rag]||2)).map(m=>
     '<div class="rc '+m.rag+'"><div class="rbadge '+m.rag+'">'+m.rag+'</div><div class="rname">'+m.name+'</div><div class="rdept">'+(m.dept||'')+'</div><div class="rdet">'+(m.ragReason?'<div style="color:#94a3b8;font-size:11px">'+m.ragReason+'</div>':'')+
-    (m.blockers||[]).map(b=>'<div class="bi">Blocked: '+b+'</div>').join('')+(m.wins||[]).map(w=>'<div class="wi">Win: '+w+'</div>').join('')+'</div></div>'
+    (m.blockers||[]).map(b=>'<div class="bi" title="Blocker for '+m.name+'">⚠️ '+b+'</div>').join('')+(m.wins||[]).map(w=>'<div class="wi">🏆 '+w+'</div>').join('')+'</div></div>'
   ).join('');
 }
 async function syncBlockers(dashboard,week){
@@ -1505,7 +1588,7 @@ function renderBlockers(){
 async function resolveBlk(id){const b=_blockers.find(b=>String(b.id)===String(id));if(!b)return;b.resolved=true;b.resolvedAt=getWeek();await window.fbBlkP(_activeProjectId).save(_blockers);renderBlockers();toast('Resolved: '+b.name,'ok');}
 function renderTrends(fil){
   const el=document.getElementById('trendChart');
-  if(!fil||fil.length<2){el.innerHTML='<div class="nodata">Trends after 2+ weeks</div>';return;}
+  if(!fil||fil.length<2){el.innerHTML='<div class="nodata" style="text-align:center;padding:20px"><div style="font-size:24px;margin-bottom:8px">📊</div><div>Trends appear after 2+ weeks of reports</div><div style="font-size:11px;color:#475569;margin-top:4px">Generate and save reports each Friday to build your trend data</div></div>';return;}
   const maxB=Math.max(...fil.map(h=>h.dashboard?.summary?.totalBlockers||0),1),maxW=Math.max(...fil.map(h=>h.dashboard?.summary?.totalWins||0),1);
   el.innerHTML=fil.slice(0,6).reverse().map(h=>{const b=h.dashboard?.summary?.totalBlockers||0,w=h.dashboard?.summary?.totalWins||0,rag=h.dashboard?.summary?.overallRAG||'G';
     return '<div style="margin-bottom:12px"><div style="display:flex;align-items:center;gap:7px;margin-bottom:5px"><span class="rpill '+rag+'">'+rag+'</span><span style="font-size:11px;color:#64748b">'+(h.projectName||'')+'</span><span style="font-size:12px;color:#94a3b8">'+h.week+'</span></div><div class="tbar"><span class="tlabel">Blockers</span><div class="tbg"><div class="tbar-fill bl" style="width:'+(b/maxB*100)+'%"></div></div><span class="tval">'+b+'</span></div><div class="tbar"><span class="tlabel">Wins</span><div class="tbg"><div class="tbar-fill wn" style="width:'+(w/maxW*100)+'%"></div></div><span class="tval">'+w+'</span></div></div>';
@@ -1985,6 +2068,27 @@ Return ONLY valid JSON (no markdown fences):
 
 function getWeek(){const n=new Date(),day=n.getDay(),mon=new Date(n);mon.setDate(n.getDate()-((day+6)%7));const fri=new Date(mon);fri.setDate(mon.getDate()+4);const fmt=d=>d.toLocaleDateString('en-GB',{day:'numeric',month:'short'});return fmt(mon)+' - '+fmt(fri)+' '+fri.getFullYear();}
 function md(html){if(!html)return '';return html.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\*(.*?)\*/g,'<em>$1</em>');}
+function copyReport(){
+  const r=_edits[tab]||reports[tab];if(!r){toast('Nothing to copy','err');return;}
+  const plain=r.replace(/<[^>]+>/g,'\n').replace(/\n{3,}/g,'\n\n').trim();
+  navigator.clipboard.writeText(plain).then(()=>toast('Copied to clipboard!','ok')).catch(()=>toast('Copy failed','err'));
+}
+
+function exportPDF(){
+  const r=_edits[tab]||reports[tab];if(!r){toast('Nothing to export','err');return;}
+  const proj=activeProject();
+  const win=window.open('','_blank');
+  win.document.write(`<!DOCTYPE html><html><head><title>${proj?.name||'Report'} - ${getWeek()}</title>
+  <style>body{font-family:Arial,sans-serif;max-width:800px;margin:40px auto;color:#1e293b;line-height:1.6}
+  h1,h2{color:#1e293b}h3{color:#334155}.blocker{background:#fef2f2;color:#dc2626;padding:4px 8px;border-radius:4px;font-size:13px}
+  .win{background:#f0fdf4;color:#16a34a;padding:4px 8px;border-radius:4px;font-size:13px}
+  ul{margin:8px 0}li{margin:4px 0}@media print{body{margin:20px}}</style></head>
+  <body>${r}</body></html>`);
+  win.document.close();
+  setTimeout(()=>{win.print();},500);
+  addLog('PDF export opened for '+tab+' report','ok');
+}
+
 let logCount=0;
 function addLog(msg,type){
   logCount++;document.getElementById('logCnt').textContent=logCount+' events';
@@ -2019,6 +2123,14 @@ function mergeAttachmentsToInput(){const cur=document.getElementById('input').va
 async function extractPDF(file){if(typeof pdfjsLib==='undefined')throw new Error('PDF.js not loaded');const ab=await file.arrayBuffer();const pdf=await pdfjsLib.getDocument({data:ab}).promise;let text='';for(let i=1;i<=Math.min(pdf.numPages,10);i++){const page=await pdf.getPage(i);const c=await page.getTextContent();text+=c.items.map(s=>s.str).join(' ')+'\n';}return text.trim();}
 async function extractExcel(file){if(typeof XLSX==='undefined')throw new Error('SheetJS not loaded');const ab=await file.arrayBuffer();const wb=XLSX.read(ab,{type:'array'});let text='';for(const sn of wb.SheetNames){const ws=wb.Sheets[sn];const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});text+='Sheet: '+sn+'\n'+rows.map(r=>r.filter(c=>c!=='').join('\t')).filter(r=>r.trim()).join('\n')+'\n\n';}return text.trim();}
 document.getElementById('input').addEventListener('input',function(){document.getElementById('chars').textContent=this.value.length.toLocaleString()+' chars';checkManualSendable();});
+
+// Keyboard shortcuts
+document.addEventListener('keydown',function(e){
+  if((e.ctrlKey||e.metaKey)&&!e.shiftKey&&!e.altKey){
+    if(e.key==='g'&&!e.target.matches('input,textarea')){e.preventDefault();generate();}
+    if(e.key==='k'){e.preventDefault();document.getElementById('input').focus();}
+  }
+});
 </script>
 </body>
 </html>
