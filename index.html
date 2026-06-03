@@ -1189,7 +1189,7 @@ function useDemoReports(inp,proj) {
 
   // MGMT: two-table format matching AI output (DataNimbus Team + Client Interactions)
   const mgmtRows=persons.map(({name,dept,u})=>{
-    const completed=u.completed||—’;
+    const completed=u.completed||'—';
     const inprog=u.inprogress||'—';
     const blocker=u.blockers?'<span class="blocker">'+u.blockers+'</span>':'—';
     return '<tr><td><strong>'+name+'</strong><br><span style="font-size:10px;color:#64748b">'+dept+'</span></td>'
