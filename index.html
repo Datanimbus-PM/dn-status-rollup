@@ -163,7 +163,7 @@ textarea::placeholder{color:#334155}
 #genBtn{flex:1;background:#f59e0b;border:none;border-radius:8px;color:#000;font-weight:700;font-size:13px;padding:10px;cursor:pointer;font-family:'Inter',sans-serif}
 #genBtn:disabled{opacity:.5;cursor:not-allowed}
 .chars{font-size:11px;color:#475569}
-.right{display:flex;flex-direction:column}
+.right{display:flex;flex-direction:column;height:100%;min-height:0;overflow:hidden}
 .tabs{display:flex;border-bottom:1px solid #334155;background:#1e293b;overflow-x:auto;flex-shrink:0;height:38px}
 .tab{flex:1;min-width:55px;background:transparent;border:none;border-bottom:2px solid transparent;color:#64748b;font-family:'Inter',sans-serif;font-size:11px;padding:9px 2px;cursor:pointer;white-space:nowrap}
 .tab .dot{width:5px;height:5px;border-radius:50%;background:#334155;display:inline-block;margin-right:3px}
@@ -1023,6 +1023,8 @@ async function loadFromSources() {
             const hdrs=mData.payload?.headers||[];
             const from=hdrs.find(h=>h.name==='From')?.value||'Unknown';
             const sender=from.replace(/<[^>]*>/,'').replace(/"/g,'').trim()||from;
+            const senderEmailMatch=from.match(/[a-zA-Z0-9._%+\-]+@([\w.-]+)/);
+            const senderDomain=senderEmailMatch?senderEmailMatch[1].toLowerCase():'';
             const dec=d=>atob(d.replace(/-/g,'+').replace(/_/g,'/'));
             function extractBody(pl){
               if(!pl) return '';
@@ -1049,7 +1051,7 @@ async function loadFromSources() {
               .replace(/\n{3,}/g,'\n\n') // collapse blank lines
               .trim()
               .slice(0,800); // limit to 800 chars per email
-            if(body.trim().length>20){allMessages.push({source:'gmail',sender,text:body});added++;}
+            if(body.trim().length>20){allMessages.push({source:'gmail',sender,senderDomain,text:body});added++;}
           } catch(e2){}
         }
         addLog('Gmail: '+added+'/'+ids.length+' emails parsed','ok');
@@ -1089,9 +1091,16 @@ async function loadFromSources() {
       document.getElementById('teamBtn').classList.add('on');
     }
 
+    // Tag each block as [INTERNAL] (DataNimbus team) or [CLIENT] (bank/client contacts)
+    // Gmail messages from non-datanimbus domains are tagged CLIENT; Chat and datanimbus emails are INTERNAL
+    const internalDepts=['engineering','qa','delivery','programme management','project management','devops','design','support','general'];
+    const gmailSenders=new Set(allMessages.filter(m=>m.source==='gmail'&&m.senderDomain&&m.senderDomain!=='datanimbus.com').map(m=>m.sender.toLowerCase()));
     const lines=parsed.map(p=>{
       if(!p.completed&&!p.inprogress&&!p.blockers&&!p.wins) return null;
-      let t=p.name+' ('+p.dept+'):';
+      const isClientContact=gmailSenders.has(p.name.toLowerCase())||
+        (p.dept&&!internalDepts.some(d=>p.dept.toLowerCase().includes(d))&&p.dept.toLowerCase()!=='general');
+      const tag=isClientContact?'[CLIENT]':'[INTERNAL]';
+      let t=tag+' '+p.name+' ('+p.dept+'):';
       if(p.completed)  t+='\nCompleted: '+p.completed;
       if(p.inprogress) t+='\nIn Progress: '+p.inprogress;
       if(p.blockers)   t+='\nBlocker: '+p.blockers;
@@ -1178,20 +1187,19 @@ function useDemoReports(inp,proj) {
   if(!mems.length){(inp||'').split('\n').forEach(line=>{const m=line.match(/^([A-Z][a-zA-Z\s]+?)\s*\(([^)]+)\):/);if(m)mems.push({name:m[1].trim(),dept:m[2].trim()});});if(!mems.length)mems=[{name:'Team',dept:'General'}];}
   const persons=mems.map(m=>{const id=m.name.replace(/\s+/g,'_');return{name:m.name,dept:m.dept,u:_updates[id]||{}};});
 
-  // MGMT: per-person detailed
-  const mgmtBody=persons.map(({name,dept,u})=>{
-    let s='<h2>'+name+' <span style="font-size:10px;color:#64748b;font-weight:400">('+dept+')</span></h2>';
-    if(u.completed) s+='<ul>'+u.completed.split('. ').filter(Boolean).map(x=>'<li>'+x.trim()+'</li>').join('')+'</ul>';
-    if(u.inprogress) s+='<p><strong>In Progress:</strong> '+u.inprogress+'</p>';
-    if(u.blockers) s+='<p><span class="blocker">BLOCKER: '+u.blockers+'</span></p>';
-    if(u.wins) s+='<p><span class="win">WIN: '+u.wins+'</span></p>';
-    if(!u.completed&&!u.inprogress&&!u.blockers&&!u.wins) s+='<ul><li>Updates pending</li></ul>';
-    return s;
+  // MGMT: two-table format matching AI output (DataNimbus Team + Client Interactions)
+  const mgmtRows=persons.map(({name,dept,u})=>{
+    const completed=u.completed||—’;
+    const inprog=u.inprogress||'—';
+    const blocker=u.blockers?'<span class="blocker">'+u.blockers+'</span>':'—';
+    return '<tr><td><strong>'+name+'</strong><br><span style="font-size:10px;color:#64748b">'+dept+'</span></td>'
+      +'<td>'+completed+'</td><td>'+inprog+'</td><td>'+blocker+'</td></tr>';
   }).join('');
+  const mgmtTable='<table><tr><th>Name</th><th>Completed</th><th>In Progress</th><th>Blocker</th></tr>'+mgmtRows+'</table>';
   const allBlockers=persons.filter(p=>p.u.blockers).map(p=>'<li><strong>'+p.name+':</strong> '+p.u.blockers+'</li>').join('');
   const allWins=persons.filter(p=>p.u.wins).map(p=>'<li><span class="win">WIN</span> <strong>'+p.name+':</strong> '+p.u.wins+'</li>').join('');
   const rag=allBlockers?'<span style="background:rgba(245,158,11,.15);color:#f59e0b;border:1px solid #f59e0b;padding:2px 8px;border-radius:4px;font-size:11px">AMBER</span>':'<span class="win">GREEN</span>';
-  const mgmt='<h2>'+pn+' \u2014 Weekly Status Report</h2><h3>Week: '+week+'</h3><p><strong>Overall Status:</strong> '+rag+'</p><h2>Team Updates</h2>'+mgmtBody+(allWins?'<h2>Highlights</h2><ul>'+allWins+'</ul>':'')+(allBlockers?'<h2>Blockers &amp; Risks</h2><ul>'+allBlockers+'</ul>':'<h2>Blockers</h2><p>No critical blockers this week.</p>');
+  const mgmt='<h2>'+pn+' \u2014 Weekly Status Report</h2><h3>Week: '+week+'</h3><p><strong>Overall Status:</strong> '+rag+'</p><h2>DataNimbus Team Updates</h2>'+mgmtTable+(allWins?'<h2>Highlights</h2><ul>'+allWins+'</ul>':'')+(allBlockers?'<h2>Blockers &amp; Risks</h2><ul>'+allBlockers+'</ul>':'<h2>Blockers</h2><p>No critical blockers this week.</p>');
 
   // CLIENT: achievements only, no internal names
   const achievements=persons.flatMap(p=>(p.u.completed||'').split('. ').filter(Boolean).concat(p.u.wins?[p.u.wins]:[])).map(x=>'<li>'+x.trim()+'</li>').join('');
@@ -1238,20 +1246,30 @@ Return ONLY valid raw JSON — no markdown fences:
 MGMT REPORT (HTML) — use this EXACT structure, compact and scannable:
 <h2>${project} — Week: [week]</h2>
 <p><strong>Status:</strong> <span class="[win/blocker]">[GREEN/AMBER/RED]</span> — [one sentence reason]</p>
-<h2>Team Updates</h2>
-<table><tr><th>Name</th><th>Completed</th><th>In Progress</th><th>Blocker</th></tr>
-[One row per person:]
-<tr><td><strong>[Name]</strong><br><span style="font-size:10px;color:#64748b">[Dept]</span></td>
-<td>[2-3 specific items, comma separated]</td>
-<td>[1-2 items]</td>
-<td>[blocker or —]</td></tr>
+
+RULE: Lines tagged [INTERNAL] = DataNimbus team members. Lines tagged [CLIENT] = client/bank contacts.
+Build TWO separate tables. If no [CLIENT] lines exist, omit the Client Interactions table.
+
+<h2>DataNimbus Team Updates</h2>
+<table><tr><th>Name</th><th>Department</th><th>Completed</th><th>In Progress</th><th>Blocker</th></tr>
+[One row per [INTERNAL] person — use exact task names, not generic phrases:]
+<tr><td><strong>[Name]</strong></td><td><span style="font-size:10px;color:#64748b">[Dept]</span></td>
+<td>[2-3 specific items]</td><td>[1-2 items]</td><td>[blocker or —]</td></tr>
 </table>
+
+<h2>Client Interactions</h2>
+<table><tr><th>Contact</th><th>Organisation</th><th>What Was Raised / Shared</th><th>Action / Response Needed</th></tr>
+[One row per [CLIENT] person:]
+<tr><td><strong>[Name]</strong></td><td>[org/bank name from context]</td>
+<td>[what they asked, shared, or escalated]</td><td>[what DataNimbus needs to do or respond]</td></tr>
+</table>
+
 [If any wins:]
 <h2>Highlights</h2>
 <ul>[Top 3 wins with person name]</ul>
 [If any blockers:]
 <h2>Blockers</h2>
-<ul>[Each blocker: Name — description]</ul>
+<ul>[Each blocker: Name — description — impact]</ul>
 
 CLIENT REPORT (HTML) — formal email, 150 words MAX, NO names, NO internal details:
 <h2>${project} — Weekly Update</h2>
@@ -1337,7 +1355,18 @@ async function sendViaGmail(to,subject,htmlBody) {
   const b64='DN_BOUNDARY_'+Date.now();
   const encSub='=?UTF-8?B?'+btoa(unescape(encodeURIComponent(subject)))+'?=';
   const plain=htmlBody.replace(/<br\s*\/?>/gi,'\n').replace(/<\/p>/gi,'\n\n').replace(/<[^>]+>/g,'').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&nbsp;/g,' ').trim();
-  const wrapped='<!DOCTYPE html><html><body style="margin:0;padding:0;font-family:\'Segoe UI\',Arial,sans-serif;background:#f4f6f9"><div style="max-width:680px;margin:24px auto;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.08)"><div style="background:linear-gradient(135deg,#0f172a,#1e3a5f);padding:22px 28px"><div style="color:#fff;font-size:19px;font-weight:700">'+subject+'</div></div><div style="padding:24px 28px;font-size:14px;line-height:1.8;color:#333">'+htmlBody+'</div><div style="background:#f8fafc;padding:12px 28px;font-size:11px;color:#aaa;text-align:center">Sent by '+sender+'</div></div></body></html>';
+  const emailBody=htmlBody
+    .replace(/<table/g,'<table style="width:100%;border-collapse:collapse;margin:12px 0;font-size:13px"')
+    .replace(/<th/g,'<th style="background:#1e3a5f;color:#f59e0b;padding:8px 12px;text-align:left;font-size:12px;font-weight:600;border:1px solid #334155"')
+    .replace(/<td/g,'<td style="padding:7px 12px;border:1px solid #d1d5db;color:#1e293b;line-height:1.5;vertical-align:top"')
+    .replace(/<h2/g,'<h2 style="font-size:15px;font-weight:700;color:#0f172a;margin:18px 0 6px;padding-bottom:5px;border-bottom:2px solid #f59e0b"')
+    .replace(/<h3/g,'<h3 style="font-size:13px;font-weight:600;color:#1e3a5f;margin:12px 0 4px"')
+    .replace(/<ul/g,'<ul style="margin:6px 0;padding-left:18px"')
+    .replace(/<li/g,'<li style="margin:4px 0;line-height:1.6"')
+    .replace(/<strong/g,'<strong style="color:#0f172a"')
+    .replace(/class="blocker"/g,'style="background:#fef2f2;color:#dc2626;border:1px solid #fca5a5;padding:2px 7px;border-radius:4px;font-size:12px"')
+    .replace(/class="win"/g,'style="background:#f0fdf4;color:#16a34a;border:1px solid #86efac;padding:2px 7px;border-radius:4px;font-size:12px"');
+  const wrapped='<!DOCTYPE html><html><head><meta charset="UTF-8"/></head><body style="margin:0;padding:0;font-family:\'Segoe UI\',Arial,sans-serif;background:#f4f6f9"><div style="max-width:700px;margin:24px auto;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.08)"><div style="background:linear-gradient(135deg,#0f172a,#1e3a5f);padding:22px 28px"><div style="color:#fff;font-size:18px;font-weight:700">'+subject+'</div></div><div style="padding:24px 28px;font-size:14px;line-height:1.7;color:#374151">'+emailBody+'</div><div style="background:#f8fafc;padding:12px 28px;font-size:11px;color:#9ca3af;text-align:center;border-top:1px solid #e5e7eb">Sent by '+sender+' via DN Status Rollup</div></div></body></html>';
   const mime=['From: '+sender+' <'+from+'>','To: '+to,'Subject: '+encSub,'MIME-Version: 1.0','Content-Type: multipart/alternative; boundary="'+b64+'"','','--'+b64,'Content-Type: text/plain; charset=UTF-8','Content-Transfer-Encoding: base64','',btoa(unescape(encodeURIComponent(plain))),'','--'+b64,'Content-Type: text/html; charset=UTF-8','Content-Transfer-Encoding: base64','',btoa(unescape(encodeURIComponent(wrapped))),'','--'+b64+'--'].join('\r\n');
   const encoded=btoa(Array.from(new TextEncoder().encode(mime)).map(b=>String.fromCharCode(b)).join('')).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
   const res=await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send',{method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({raw:encoded})});
