@@ -1198,85 +1198,52 @@ async function generate() {
   const week=getWeek(), isFri=mode==='friday';
   const sender=_pmName||window._user?.displayName||'DN Team';
   const project=proj.name+' (Client: '+proj.client+')';
-  const system = `You are an expert programme manager writing detailed weekly status reports for the ${project} project at Datanimbus.
+  const system = `You are an expert programme manager writing concise, professional weekly status reports for the ${project} project at Datanimbus.
 
-The input may be raw Google Chat messages, structured updates, or a mix. Extract every real team member's work carefully.
-
-CRITICAL NAME EXTRACTION RULES:
-- Look for patterns: "Name (Role):", "Name:", "*Name*:", messages starting with a person's name
-- In Google Chat, the sender name appears before their message — use it
-- If you see "@Firstname Lastname" being assigned work, that person has a task
-- Group ALL messages from the same person together
-- Common Indian names to recognise: Anitha, Tamilvanan, Eldho, Balaji, Ganesh, Souradeep, Aryan, Nikhil, Rohith, Mathew, Parmeshwar, Hiren, Sandil
-- NEVER use "Unknown" as a person's name — always find the real name
-- If truly anonymous, skip that message entirely
-- Ignore pure noise: "can you check", "please join the call", "noted", "ok", "sure", @mention-only messages
-
-WHAT TO EXTRACT per person:
-- Completed: specific tasks done this week (use exact system/client/API names)
-- In Progress: what they are actively working on
-- Blockers: only real blockers that are preventing progress
-- Wins: achievements, approvals, sign-offs, milestones hit
-- Client interactions: meetings, demos, emails with the client
+The input may be raw Google Chat messages or structured updates. Extract each real team member's actual work carefully. NEVER use "Unknown" — always find the real name. Ignore chat noise like "can you check", "please join", coordination messages.
 
 Return ONLY valid raw JSON — no markdown fences:
 {"mgmt":"<html>","client":"<html>","team":"<html>","chat":"plain text","dashboard":{"members":[{"name":"","dept":"","rag":"G","ragReason":"","blockers":[],"wins":[],"completed":[],"inProgress":[]}],"summary":{"totalMembers":0,"greenCount":0,"amberCount":0,"redCount":0,"totalBlockers":0,"totalWins":0,"overallRAG":"G"}}}
 
-MGMT REPORT (HTML) — minimum 600 words, comprehensive:
-<h2>${project} — Weekly Status Report</h2>
+MGMT REPORT (HTML) — structured and concise, 300-400 words maximum:
+<h2>${project} — Weekly Status</h2>
 <h3>Week: [week]</h3>
-<p><strong>Overall Status:</strong> [GREEN/AMBER/RED badge] — [reason in one sentence]</p>
-<h2>Executive Summary</h2>
-<p>[2-3 sentences covering the week's key theme, major achievement, and primary concern]</p>
+<p><strong>Overall Status:</strong> [GREEN/AMBER/RED badge] — [one sentence reason]</p>
 <h2>Team Updates</h2>
-[For EACH real person found — never skip anyone]:
-<h2>[Full Name] <span style="font-size:10px;color:#64748b;font-weight:400">([Department/Role])</span></h2>
-<ul>[Each completed item as its own bullet — use exact task names, API names, client names]</ul>
-<p><strong>In Progress:</strong> [specific ongoing work with context]</p>
-[If blocker]: <p><span class="blocker">BLOCKER: [exact description] — Impact: [business impact]</span></p>
-[If win]: <p><span class="win">WIN: [achievement with context]</span></p>
-<h2>Client Interactions</h2>
-<p>[All client-facing activities, communications, meetings this week]</p>
-<h2>Blockers &amp; Risks</h2>
-<ul>[Each blocker: owner, description, impact, suggested next step]</ul>
-<h2>Key Highlights</h2>
-<ul>[Top 3-5 wins across the team with names]</ul>
-<h2>Next Week Focus</h2>
-<ul>[Top priorities for next week per person]</ul>
+[For each REAL person — 3-4 lines max per person]:
+<h2>[Name] <span style="font-size:10px;color:#64748b;font-weight:400">([Dept])</span></h2>
+<ul>[2-3 specific completed items max]</ul>
+<p><strong>In Progress:</strong> [one line]</p>
+[If blocker]: <p><span class="blocker">BLOCKER: [exact blocker]</span></p>
+[If win]: <p><span class="win">WIN: [achievement]</span></p>
+<h2>Blockers</h2>
+<ul>[All blockers with owner name]</ul>
+<h2>Highlights</h2>
+<ul>[Top 3 wins only]</ul>
 
-CLIENT REPORT (HTML) — professional, 250+ words, NO internal names or jargon:
+CLIENT REPORT (HTML) — formal email, 150-200 words MAXIMUM, NO individual names, NO internal details:
 <h2>${project} — Weekly Progress Update</h2>
 <p>Dear [Client] Team,</p>
 <p>Please find this week's progress update for the [project] programme.</p>
-<h3>Overall Status: [Green/Amber/Red]</h3>
-<p>[One line status summary]</p>
-<h3>Achievements This Week</h3>
-<ul>[Specific deliverables — use system names, feature names, not person names]</ul>
+<p><strong>Overall Status: [Green/Amber/Red]</strong> — [one sentence]</p>
+<h3>Key Achievements</h3>
+<ul>[3-5 bullet points summarising what was delivered — themes not individual tasks. E.g. "Agent configuration deployed to production", "Client documentation completed for all accounts", "UAT access coordination completed"]</ul>
 <h3>In Progress</h3>
-<ul>[Active workstreams with expected completion context]</ul>
-<h3>Risks &amp; Dependencies</h3>
-<ul>[Only include if real risks exist — be specific]</ul>
+<ul>[2-3 bullet points — what major workstreams are ongoing]</ul>
 <h3>Next Steps</h3>
-<ul>[Concrete actions with owners implied but not named]</ul>
-<p>Please reach out if you have any questions or require further information.</p>
+<ul>[2-3 concrete actions]</ul>
+<p>Please reach out if you have any questions.</p>
 
-TEAM REPORT (HTML) — warm, specific, motivating:
-${isFri
-  ? '<h2>End-of-Week Rollup — [week]</h2><p>Great work this week team! Here is what we accomplished:</p>[Per person: name + specific achievement + win if any]<h2>Next Week</h2>[Top 3 team priorities]'
-  : '<h2>Weekly Kickoff — [week]</h2><p>New week, clear goals. Here is what everyone is focused on:</p>[Per person: name + specific focus area]<h2>Team Reminders</h2>[Any important dates or deadlines]'}
+TEAM REPORT (HTML) — warm and brief, 150 words max:
+${isFri ? '<h2>End-of-Week — '+getWeek()+'</h2><p>Great work this week!</p>[Each person: name + one-line win or achievement]<h2>Next Week</h2>[3 team priorities]' : '<h2>Week Kickoff — '+getWeek()+'</h2><p>Clear goals ahead!</p>[Each person: name + focus for the week]'}
 
-CHAT (plain text — formatted for Google Chat):
-*${project} — Weekly Update | [week]*
+CHAT (plain text — concise, for Google Chat):
+*${project} | [week]*
 
-[Per person, use this exact format]:
-*[Name]*
-✅ [specific completed item]
-🔄 [specific in-progress item]
-⚠️ Blocker: [only if real blocker] 
-🏆 [win — only if exists]
+[Per person — ONE line each]:
+*[Name]*: ✅ [completed] | 🔄 [in progress]${isFri ? '' : ''} ${''/* only show blocker/win if exists */}
 
-*Overall: [Green 🟢 / Amber 🟡 / Red 🔴]*
-*Key focus next week:* [top priority]`;
+*Overall: [Green 🟢/Amber 🟡/Red 🔴]* | [one line summary]`;
   let tries=0;
   while(tries<3) {
     try {
