@@ -187,7 +187,19 @@ textarea::placeholder{color:#334155}
 .iwrap textarea::-webkit-scrollbar-thumb:hover{background:#94a3b8}
 .ph{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:8px;color:#475569;text-align:center}
 .ph-icon{font-size:28px}
-.report{font-size:13px;line-height:1.8;color:#cbd5e1}
+.report{font-size:13px;line-height:1.5;color:#cbd5e1}
+.report h2{font-size:13px;font-weight:700;color:#f1f5f9;margin:14px 0 4px;padding-bottom:4px;border-bottom:1px solid #1e293b;text-transform:uppercase;letter-spacing:.4px}
+.report h3{font-size:12px;font-weight:600;color:#94a3b8;margin:10px 0 3px}
+.report p{margin:3px 0;line-height:1.5}
+.report ul{margin:4px 0;padding-left:16px}
+.report li{margin:2px 0;line-height:1.5;font-size:12px}
+.report strong{color:#e2e8f0;font-weight:600}
+.report table{width:100%;border-collapse:collapse;margin:8px 0;font-size:12px}
+.report th{background:#1e293b;color:#f59e0b;padding:5px 8px;text-align:left;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.3px;border:1px solid #334155}
+.report td{padding:4px 8px;border:1px solid #1e293b;color:#cbd5e1;line-height:1.4;vertical-align:top}
+.report tr:nth-child(even) td{background:rgba(255,255,255,.02)}
+.report .section-person{background:#0f172a;border-left:3px solid #f59e0b;padding:8px 12px;margin:8px 0;border-radius:0 6px 6px 0}
+.report .section-person h2{border:none;margin:0 0 6px;padding:0;font-size:12px}
 .report h2{font-size:13px;font-weight:600;color:#f1f5f9;margin:14px 0 5px;padding-bottom:4px;border-bottom:1px solid #1e293b}
 .report h2:first-child{margin-top:0}
 .report h3{font-size:11px;font-weight:600;color:#f59e0b;margin:8px 0 3px;text-transform:uppercase;letter-spacing:.5px}
@@ -307,10 +319,10 @@ textarea::placeholder{color:#334155}
 .ob-foot{padding:14px 24px;border-top:1px solid #334155;display:flex;justify-content:flex-end}
 .ob-go{background:#f59e0b;border:none;color:#000;padding:10px 28px;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer;font-family:'Inter',sans-serif}
 #log{background:#1e293b;border-top:1px solid #334155;flex-shrink:0;z-index:10}
-.loge{max-height:0;overflow:hidden;transition:max-height .25s}.loge.open{max-height:100px}
+.loge{max-height:0;overflow:hidden;overflow-y:auto;transition:max-height .25s;padding:0 14px 7px;display:flex;flex-direction:column;gap:2px}.loge.open{max-height:100px}
 .logh{padding:6px 14px;display:flex;justify-content:space-between;cursor:pointer}
 .logh span{font-size:10px;color:#475569;text-transform:uppercase;letter-spacing:.5px}
-.loge{padding:0 14px 7px;overflow-y:auto;max-height:90px;display:flex;flex-direction:column;gap:2px}
+
 .logr{display:flex;gap:7px;font-size:11px}
 .logt{color:#475569;min-width:48px}
 .logm{color:#94a3b8}
@@ -1216,52 +1228,50 @@ async function generate() {
   const week=getWeek(), isFri=mode==='friday';
   const sender=_pmName||window._user?.displayName||'DN Team';
   const project=proj.name+' (Client: '+proj.client+')';
-  const system = `You are an expert programme manager writing concise, professional weekly status reports for the ${project} project at Datanimbus.
+  const system = `You are an expert programme manager writing concise weekly status reports for the ${project} project at Datanimbus.
 
-The input may be raw Google Chat messages or structured updates. Extract each real team member's actual work carefully. NEVER use "Unknown" — always find the real name. Ignore chat noise like "can you check", "please join", coordination messages.
+Extract each real team member's actual work. NEVER use "Unknown". Ignore noise: CC lists, signatures, URLs, disclaimers, forwarded email headers.
 
 Return ONLY valid raw JSON — no markdown fences:
 {"mgmt":"<html>","client":"<html>","team":"<html>","chat":"plain text","dashboard":{"members":[{"name":"","dept":"","rag":"G","ragReason":"","blockers":[],"wins":[],"completed":[],"inProgress":[]}],"summary":{"totalMembers":0,"greenCount":0,"amberCount":0,"redCount":0,"totalBlockers":0,"totalWins":0,"overallRAG":"G"}}}
 
-MGMT REPORT (HTML) — structured and concise, 300-400 words maximum:
-<h2>${project} — Weekly Status</h2>
-<h3>Week: [week]</h3>
-<p><strong>Overall Status:</strong> [GREEN/AMBER/RED badge] — [one sentence reason]</p>
+MGMT REPORT (HTML) — use this EXACT structure, compact and scannable:
+<h2>${project} — Week: [week]</h2>
+<p><strong>Status:</strong> <span class="[win/blocker]">[GREEN/AMBER/RED]</span> — [one sentence reason]</p>
 <h2>Team Updates</h2>
-[For each REAL person — 3-4 lines max per person]:
-<h2>[Name] <span style="font-size:10px;color:#64748b;font-weight:400">([Dept])</span></h2>
-<ul>[2-3 specific completed items max]</ul>
-<p><strong>In Progress:</strong> [one line]</p>
-[If blocker]: <p><span class="blocker">BLOCKER: [exact blocker]</span></p>
-[If win]: <p><span class="win">WIN: [achievement]</span></p>
-<h2>Blockers</h2>
-<ul>[All blockers with owner name]</ul>
+<table><tr><th>Name</th><th>Completed</th><th>In Progress</th><th>Blocker</th></tr>
+[One row per person:]
+<tr><td><strong>[Name]</strong><br><span style="font-size:10px;color:#64748b">[Dept]</span></td>
+<td>[2-3 specific items, comma separated]</td>
+<td>[1-2 items]</td>
+<td>[blocker or —]</td></tr>
+</table>
+[If any wins:]
 <h2>Highlights</h2>
-<ul>[Top 3 wins only]</ul>
+<ul>[Top 3 wins with person name]</ul>
+[If any blockers:]
+<h2>Blockers</h2>
+<ul>[Each blocker: Name — description]</ul>
 
-CLIENT REPORT (HTML) — formal email, 150-200 words MAXIMUM, NO individual names, NO internal details:
-<h2>${project} — Weekly Progress Update</h2>
+CLIENT REPORT (HTML) — formal email, 150 words MAX, NO names, NO internal details:
+<h2>${project} — Weekly Update</h2>
 <p>Dear [Client] Team,</p>
-<p>Please find this week's progress update for the [project] programme.</p>
-<p><strong>Overall Status: [Green/Amber/Red]</strong> — [one sentence]</p>
-<h3>Key Achievements</h3>
-<ul>[3-5 bullet points summarising what was delivered — themes not individual tasks. E.g. "Agent configuration deployed to production", "Client documentation completed for all accounts", "UAT access coordination completed"]</ul>
+<p><strong>Status: [Green/Amber/Red]</strong> — [one sentence]</p>
+<h3>Achievements</h3>
+<ul>[3-4 outcome-focused bullets — what was delivered, not who did it]</ul>
 <h3>In Progress</h3>
-<ul>[2-3 bullet points — what major workstreams are ongoing]</ul>
+<ul>[2-3 active workstreams]</ul>
 <h3>Next Steps</h3>
-<ul>[2-3 concrete actions]</ul>
-<p>Please reach out if you have any questions.</p>
+<ul>[2-3 actions]</ul>
+<p>Please reach out with any questions.</p>
 
-TEAM REPORT (HTML) — warm and brief, 150 words max:
-${isFri ? '<h2>End-of-Week — '+getWeek()+'</h2><p>Great work this week!</p>[Each person: name + one-line win or achievement]<h2>Next Week</h2>[3 team priorities]' : '<h2>Week Kickoff — '+getWeek()+'</h2><p>Clear goals ahead!</p>[Each person: name + focus for the week]'}
+TEAM REPORT (HTML) — friendly, under 120 words:
+${isFri ? '<h2>Week Wrap — [week]</h2><ul>[Each person: <li><strong>Name</strong>: one-line achievement</li>]</ul>' : '<h2>Week Ahead — [week]</h2><ul>[Each person: <li><strong>Name</strong>: focus for the week</li>]</ul>'}
 
-CHAT (plain text — concise, for Google Chat):
+CHAT (plain text):
 *${project} | [week]*
-
-[Per person — ONE line each]:
-*[Name]*: ✅ [completed] | 🔄 [in progress]${isFri ? '' : ''} ${''/* only show blocker/win if exists */}
-
-*Overall: [Green 🟢/Amber 🟡/Red 🔴]* | [one line summary]`;
+[Per person — ONE line]: *Name*: ✅ [done] | 🔄 [progress] [⚠️ blocker if exists]
+*Status: [🟢/🟡/🔴] [reason]*`;
   let tries=0;
   while(tries<3) {
     try {
