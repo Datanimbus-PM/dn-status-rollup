@@ -1201,14 +1201,40 @@ function useDemoReports(inp,proj) {
   const rag=allBlockers?'<span style="background:rgba(245,158,11,.15);color:#f59e0b;border:1px solid #f59e0b;padding:2px 8px;border-radius:4px;font-size:11px">AMBER</span>':'<span class="win">GREEN</span>';
   const mgmt='<h2>'+pn+' \u2014 Weekly Status Report</h2><h3>Week: '+week+'</h3><p><strong>Overall Status:</strong> '+rag+'</p><h2>DataNimbus Team Updates</h2>'+mgmtTable+(allWins?'<h2>Highlights</h2><ul>'+allWins+'</ul>':'')+(allBlockers?'<h2>Blockers &amp; Risks</h2><ul>'+allBlockers+'</ul>':'<h2>Blockers</h2><p>No critical blockers this week.</p>');
 
-  // CLIENT: achievements only, no internal names
-  const achievements=persons.flatMap(p=>(p.u.completed||'').split('. ').filter(Boolean).concat(p.u.wins?[p.u.wins]:[])).map(x=>'<li>'+x.trim()+'</li>').join('');
-  const nextSteps=persons.flatMap(p=>(p.u.inprogress||'').split('. ').filter(Boolean)).map(x=>'<li>'+x.trim()+'</li>').join('');
-  const client='<h2>'+pn+' \u2014 Weekly Progress Update</h2><p>Dear '+cn+' Team,</p><p>Please find this week\u2019s progress update for the '+pn+' programme.</p><h3>Achievements This Week</h3><ul>'+(achievements||'<li>Key milestones progressed as planned</li>')+'</ul>'+(nextSteps?'<h3>In Progress</h3><ul>'+nextSteps+'</ul>':'')+'<h3>Next Steps</h3><ul><li>Continue sprint deliverables</li><li>Client sync next week</li></ul><p>Please reach out if you have any questions.</p>';
+  // CLIENT: outcome table — no internal names, no individual people
+  const clientRows=persons.map(({name,dept,u})=>{
+    const done=(u.completed||'').split('. ').filter(Boolean).slice(0,2).join('. ')||'—';
+    const prog=(u.inprogress||'').split('. ').filter(Boolean)[0]||'—';
+    const win=u.wins||'—';
+    return '<tr><td>'+done+'</td><td>'+prog+'</td><td>'+(win==='—'?'—':'<span class="win">'+win+'</span>')+'</td></tr>';
+  }).join('');
+  const clientTable='<table><tr><th>Completed This Week</th><th>In Progress</th><th>Highlight</th></tr>'+clientRows+'</table>';
+  const ragStatus=allBlockers?'<strong style="color:#f59e0b">Amber</strong>':'<strong style="color:#34d399">Green</strong>';
+  const client='<h2>'+pn+' \u2014 Weekly Progress Update</h2>'
+    +'<p>Dear '+cn+' Team,</p>'
+    +'<p>Please find this week\u2019s progress update for the '+pn+' programme.</p>'
+    +'<p><strong>Overall Status:</strong> '+ragStatus+'</p>'
+    +'<h2>This Week\u2019s Progress</h2>'+clientTable
+    +(allBlockers?'<h2>Items Requiring Attention</h2><ul>'+persons.filter(p=>p.u.blockers).map(p=>'<li>'+p.u.blockers+'</li>').join('')+'</ul>':'')
+    +'<h2>Next Steps</h2><ul><li>Continue sprint deliverables</li><li>Client sync scheduled for next week</li></ul>'
+    +'<p>Please reach out if you have any questions.</p>';
 
-  // TEAM: warm recap per person
-  const teamBody=persons.map(({name,u})=>{let s='<h3>'+name+'</h3>';if(isFri){if(u.completed)s+='<ul>'+u.completed.split('. ').filter(Boolean).map(x=>'<li>'+x.trim()+'</li>').join('')+'</ul>';if(u.wins)s+='<p><span class="win">WIN:</span> '+u.wins+'</p>';}else{if(u.inprogress)s+='<p><strong>Focus:</strong> '+u.inprogress+'</p>';}return s;}).join('');
-  const teamRpt='<h2>'+(isFri?'End-of-Week Rollup':'Monday Kickoff')+' \u2014 '+week+'</h2><p>'+(isFri?'Great work this week team! Here is a summary of our accomplishments:':'New week ahead! Here is what everyone is focused on:')+' </p>'+teamBody+'<h2>Next Week</h2><ul><li>Continue sprint deliverables</li><li>Team sync Monday</li></ul>';
+  // TEAM: table per person — what they did, what's next, any wins
+  const teamRows=persons.map(({name,dept,u})=>{
+    const done=isFri?(u.completed||'—'):(u.inprogress||'—');
+    const next=isFri?(u.inprogress||'—'):'—';
+    const win=u.wins?'<span class="win">'+u.wins+'</span>':'—';
+    const blocker=u.blockers?'<span class="blocker">'+u.blockers+'</span>':'—';
+    if(isFri) return '<tr><td><strong>'+name+'</strong><br><span style="font-size:10px;color:#64748b">'+dept+'</span></td><td>'+done+'</td><td>'+next+'</td><td>'+win+'</td><td>'+blocker+'</td></tr>';
+    return '<tr><td><strong>'+name+'</strong><br><span style="font-size:10px;color:#64748b">'+dept+'</span></td><td>'+done+'</td><td>'+blocker+'</td></tr>';
+  }).join('');
+  const teamHeader=isFri
+    ?'<table><tr><th>Name</th><th>Completed</th><th>In Progress</th><th>Win</th><th>Blocker</th></tr>'
+    :'<table><tr><th>Name</th><th>Focus This Week</th><th>Blocker</th></tr>';
+  const teamTable=teamHeader+teamRows+'</table>';
+  const teamRpt='<h2>'+(isFri?'End-of-Week Rollup':'Monday Kickoff')+' \u2014 '+week+'</h2>'
+    +'<p>'+(isFri?'Great work this week team — here is a summary of our progress:':'New week ahead — here is what everyone is focused on:')+' </p>'
+    +teamTable;
 
   // CHAT: concise with bold names
   const chatLines=persons.map(({name,u})=>{let l='*'+name+'*:';if(u.completed)l+=' '+u.completed.split('. ')[0].trim()+'.';if(u.blockers)l+=' \u26a0\ufe0f '+u.blockers+'.';if(u.wins)l+=' \ud83c\udfc6 '+u.wins+'.';return l;}).join('\n');
@@ -1271,20 +1297,36 @@ Build TWO separate tables. If no [CLIENT] lines exist, omit the Client Interacti
 <h2>Blockers</h2>
 <ul>[Each blocker: Name — description — impact]</ul>
 
-CLIENT REPORT (HTML) — formal email, 150 words MAX, NO names, NO internal details:
-<h2>${project} — Weekly Update</h2>
+CLIENT REPORT (HTML) — professional email with table, NO individual names, NO internal jargon:
+<h2>${project} — Weekly Progress Update</h2>
 <p>Dear [Client] Team,</p>
-<p><strong>Status: [Green/Amber/Red]</strong> — [one sentence]</p>
-<h3>Achievements</h3>
-<ul>[3-4 outcome-focused bullets — what was delivered, not who did it]</ul>
-<h3>In Progress</h3>
-<ul>[2-3 active workstreams]</ul>
-<h3>Next Steps</h3>
-<ul>[2-3 actions]</ul>
+<p><strong>Status: [Green/Amber/Red]</strong> — [one sentence reason]</p>
+<h2>This Week's Progress</h2>
+<table><tr><th>Completed This Week</th><th>In Progress</th><th>Highlight</th></tr>
+[2-4 rows — each row = one workstream/theme, NO individual names:]
+<tr><td>[what was delivered — outcome not task]</td><td>[active workstream]</td><td>[key win or milestone]</td></tr>
+</table>
+[If blockers exist:]
+<h2>Items Requiring Attention</h2>
+<ul>[1-2 items — phrased diplomatically, no internal names]</ul>
+<h2>Next Steps</h2>
+<ul>[2-3 planned actions]</ul>
 <p>Please reach out with any questions.</p>
 
-TEAM REPORT (HTML) — friendly, under 120 words:
-${isFri ? '<h2>Week Wrap — [week]</h2><ul>[Each person: <li><strong>Name</strong>: one-line achievement</li>]</ul>' : '<h2>Week Ahead — [week]</h2><ul>[Each person: <li><strong>Name</strong>: focus for the week</li>]</ul>'}
+TEAM REPORT (HTML) — friendly team summary with table:
+${isFri ?
+`<h2>End-of-Week Rollup — [week]</h2>
+<p>Great work this week team!</p>
+<table><tr><th>Name</th><th>Completed</th><th>In Progress</th><th>Win</th><th>Blocker</th></tr>
+[One row per person — use their actual names and specific tasks:]
+<tr><td><strong>[Name]</strong><br><span style="font-size:10px;color:#64748b">[Dept]</span></td><td>[specific item done]</td><td>[what they are working on]</td><td>[win or —]</td><td>[blocker or —]</td></tr>
+</table>` :
+`<h2>Week Ahead — [week]</h2>
+<p>New week, clear focus. Here is what everyone is working on:</p>
+<table><tr><th>Name</th><th>Focus This Week</th><th>Blocker</th></tr>
+[One row per person:]
+<tr><td><strong>[Name]</strong><br><span style="font-size:10px;color:#64748b">[Dept]</span></td><td>[their focus/in-progress items]</td><td>[blocker or —]</td></tr>
+</table>`}
 
 CHAT (plain text):
 *${project} | [week]*
