@@ -575,6 +575,10 @@ textarea::placeholder{color:#334155}
           <label style="background:rgba(167,139,250,.1);border:1px solid rgba(167,139,250,.3);color:#a78bfa;font-family:'Inter',sans-serif;font-size:11px;padding:4px 9px;border-radius:5px;cursor:pointer;font-weight:500">&#128206; Attach<input type="file" id="fileInput" accept=".xlsx,.xls,.csv,.pdf,.txt" multiple style="display:none" onchange="handleFileAttach(event)"/></label>
         </div>
         <div id="attachedFiles" style="display:none;flex-wrap:wrap;gap:5px"></div>
+        <div style="display:flex;align-items:center;gap:6px;margin-top:2px">
+          <span style="font-size:10px;color:#64748b;white-space:nowrap;letter-spacing:.5px">&#128197; LEAVE:</span>
+          <input id="leaveQuick" placeholder="e.g. Anitha — 29 May, Raj — 3 Jun" onblur="saveLeaveQuick()" onkeydown="if(event.key==='Enter')this.blur()" style="flex:1;background:#1e293b;border:1px solid #334155;border-radius:5px;color:#e2e8f0;font-family:'Inter',sans-serif;font-size:11px;padding:4px 8px;outline:none"/>
+        </div>
       </div>
       <textarea id="input" placeholder="Example:&#10;&#10;Anitha (PM): Completed Q3 roadmap. Win: Client approved Phase 2. No blockers.&#10;&#10;Raj (Engineering): Shipped OAuth. Blocker: Need Redis cluster from DevOps."></textarea>
     </div>
@@ -751,6 +755,8 @@ let PROXY = PROXY_DEFAULT;
 
 // ── State ─────────────────────────────────────────────────────
 let mode='friday', tab='mgmt', editOn=true, demoMode=false;
+let _genState={}; // tracks per-project generated state: 'done' | undefined
+let _lastGen={}; // tracks last generated timestamp per project
 let reports={mgmt:null,client:null,team:null,chat:null};
 let _pmName='', _projects=[], _activeProjectId=null;
 let _members=[], _updates={}, _edits={}, _history=[], _blockers=[];
@@ -815,7 +821,29 @@ async function loadAdminConfig() {
 function updateProjectLabel() {
   const p=activeProject();
   const el=document.getElementById('inputLabel');
-  if(el&&p) el.textContent=p.name+' ('+p.client+') Updates';
+  if(!el||!p) return;
+  const last=_lastGen[_activeProjectId];
+  if(last) {
+    el.innerHTML=p.name+' <span style="color:#475569;font-weight:400">('+p.client+')</span>'
+      +' <span style="color:#34d399;font-size:9px;margin-left:6px;font-weight:600">'
+      +'✓ Generated '+last+'</span>';
+  } else {
+    el.innerHTML=p.name+' <span style="color:#475569;font-weight:400">('+p.client+') Updates</span>';
+  }
+}
+
+// ── Leave quick-edit ──────────────────────────────────────────────
+function saveLeaveQuick() {
+  const val=document.getElementById('leaveQuick')?.value||'';
+  const proj=activeProject(); if(!proj) return;
+  proj.leave=val;
+  const idx=_projects.findIndex(p=>p.id===proj.id); if(idx>=0) _projects[idx]=proj;
+  window.fbProjects.save(_projects);
+  if(val) addLog('Leave plan updated: '+val,'ok');
+}
+function loadLeaveQuick() {
+  const el=document.getElementById('leaveQuick'); if(!el) return;
+  el.value=activeProject()?.leave||'';
 }
 
 // ── App init ──────────────────────────────────────────────────
@@ -834,6 +862,7 @@ window.appInit = async user => {
   await Promise.all([loadProjectData(_activeProjectId), loadAdminConfig()]);
   renderProjectTabs();
   updateProjectLabel();
+  loadLeaveQuick();
   renderTab();
   addLog('Ready — '+_projects.length+' project(s)','ok');
 };
@@ -847,7 +876,9 @@ function renderProjectTabs() {
   const el=document.getElementById('projTabs'); if(!el) return;
   el.innerHTML=_projects.map((p,i)=>{
     const c=PROJ_COLORS[i%PROJ_COLORS.length], act=p.id===_activeProjectId;
-    return '<button class="proj-tab'+(act?' active':'')+'" onclick="setActiveProject(\''+p.id+'\')" style="'+(act?'border-color:'+c+';color:'+c+';background:'+c+'22':'')+'"><span style="width:6px;height:6px;border-radius:50%;background:'+c+';display:inline-block;margin-right:4px;flex-shrink:0"></span>'+p.name+'<span onclick="event.stopPropagation();openProjectModal(\''+p.id+'\')" style="margin-left:4px;opacity:.5;font-size:10px;cursor:pointer">&#9881;</span></button>';
+    const done=_genState[p.id]==='done';
+    const sDot='<span title="'+(done?'Generated this session':'Not yet generated')+'" style="width:7px;height:7px;border-radius:50%;background:'+(done?'#34d399':'#f59e0b')+';display:inline-block;margin-right:5px;flex-shrink:0"></span>';
+    return '<button class="proj-tab'+(act?' active':'')+'" onclick="setActiveProject(\''+p.id+'\')" style="'+(act?'border-color:'+c+';color:'+c+';background:'+c+'22':'')+'">'+sDot++p.name+'<span onclick="event.stopPropagation();openProjectModal(\''+p.id+'\')" style="margin-left:4px;opacity:.5;font-size:10px;cursor:pointer">&#9881;</span></button>';
   }).join('')+'<button class="proj-add" onclick="openProjectModal(null)">+ Add Project</button>';
 }
 
@@ -860,6 +891,7 @@ async function setActiveProject(id) {
   await loadProjectData(id);
   renderProjectTabs();
   updateProjectLabel();
+  loadLeaveQuick();
   renderMCards();
   addLog('Switched to: '+(activeProject()?.name||id),'info');
 }
@@ -1042,20 +1074,27 @@ async function loadFromSources() {
               return '';
             }
             let body=extractBody(mData.payload);
-            // Strip email noise
+            // Aggressive email cleaning — extract only work content, strip all noise
             body=body
-              .replace(/^(From|To|Cc|Bcc|Date|Subject|Sent|On .* wrote):.*$/gim,'')
-              .replace(/_{3,}.*$/gms,'')  // strip signature lines
-              .replace(/^>.*$/gm,'')      // strip quoted replies
-              .replace(/https?:\/\/\S+/g,'') // strip URLs
-              .replace(/CONFIDENTIALITY.*$/gims,'') // strip disclaimers
-              .replace(/This email originated.*$/gims,'')
-              .replace(/\*\*.*\*\*/g,'')  // strip bold markers
-              .replace(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g,'') // strip emails
-              .replace(/\+?[0-9][\s\-0-9]{8,}/g,'') // strip phone numbers
-              .replace(/\n{3,}/g,'\n\n') // collapse blank lines
+              .replace(/^On .+wrote:[\s\S]*$/gim,'')
+              .replace(/^>.*$/gm,'')
+              .replace(/^(From|To|Cc|Bcc|Date|Subject|Sent|Reply-To)\s*:.*$/gim,'')
+              .replace(/Registered\s+(Office|Address)[^\n]*\n?[^\n]*/gim,'')
+              .replace(/CIN\s*:\s*[A-Z0-9]+/gi,'')
+              .replace(/<(mailto|cid):[^>]*>/g,'')
+              .replace(/https?:\/\/\S+/g,'')
+              .replace(/[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/g,'')
+              .replace(/\+?[\d][\d\s\-().]{7,}/g,'')
+              .replace(/CONFIDENTIALITY[\s\S]*$/gim,'')
+              .replace(/DISCLAIMER[\s\S]*$/gim,'')
+              .replace(/^(--|Regards,?|Thanks,?|Best,?|Warm regards,?|Sincerely,?)[\s\S]*$/gim,'')
+              .replace(/^\d+\w*\s+(Floor|Tower|Wing|Block|Plot|Sector).*/gim,'')
+              .replace(/^.*(Navi Mumbai|New Delhi|Bengaluru|Chennai|Hyderabad|Kolkata|Pune|Mumbai).*/gim,'')
+              .replace(/^(@\w+\s*)+$/gm,'')
+              .replace(/^[\s\d\-|:.,;]+$/gm,'')
+              .replace(/\n{3,}/g,'\n\n')
               .trim()
-              .slice(0,800); // limit to 800 chars per email
+              .slice(0,500); // 500 chars is enough for real work updates
             if(body.trim().length>20){allMessages.push({source:'gmail',sender,senderDomain,text:body});added++;}
           } catch(e2){}
         }
@@ -1251,6 +1290,9 @@ function useDemoReports(inp,proj) {
   document.getElementById('slidesBtn').disabled=false;
   document.getElementById('slidesBtn').disabled=false;
   renderTab();
+  _genState[_activeProjectId]='done';
+  _lastGen[_activeProjectId]=new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+  renderProjectTabs(); updateProjectLabel();
   addLog('Reports built from member data \u2014 all 4 tabs ready','ok');
   toast('Reports ready! Review and send.','ok');
 }
@@ -1269,7 +1311,14 @@ async function generate() {
   const project=proj.name+' (Client: '+proj.client+')';
   const system = `You are an expert programme manager writing concise weekly status reports for the ${project} project at Datanimbus.
 
-Extract each real team member's actual work. NEVER use "Unknown". Ignore noise: CC lists, signatures, URLs, disclaimers, forwarded email headers.
+Extract each real team member's actual work. NEVER use "Unknown".
+
+STRICT EXTRACTION RULES:
+- IGNORE completely: email signatures, registered office addresses, CIN numbers, phone numbers, legal disclaimers, confidentiality notices, CC/To/From headers, quoted reply chains (lines starting with >), forwarded message blocks, meeting invite footers, and any line containing a physical address (Floor, Tower, Road, Mumbai, Pune etc.)
+- IGNORE any message that is purely coordination noise: "Can you check", "Please respond", "ASAP", "noted", "ok", "please join", "@mentions" with no actual work content
+- EXTRACT only: what was completed, what is in progress, what is blocked, and what was a win or achievement
+- If a message has no extractable work content after filtering noise, skip that person entirely — do not create a row for them
+- Use only the person's first and last name — never their job title, email, company address, or phone
 
 Return ONLY valid raw JSON — no markdown fences:
 {"mgmt":"<html>","client":"<html>","team":"<html>","chat":"plain text","dashboard":{"members":[{"name":"","dept":"","rag":"G","ragReason":"","blockers":[],"wins":[],"completed":[],"inProgress":[]}],"summary":{"totalMembers":0,"greenCount":0,"amberCount":0,"redCount":0,"totalBlockers":0,"totalWins":0,"overallRAG":"G"}}}
@@ -1377,6 +1426,9 @@ CHAT (plain text):
         renderDash();
       }
       renderTab();
+      _genState[_activeProjectId]='done';
+      _lastGen[_activeProjectId]=new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+      renderProjectTabs(); updateProjectLabel();
       addLog('Reports generated for '+proj.name,'ok'); toast('Reports ready!','ok');
       break;
     } catch(e) {
