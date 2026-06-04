@@ -2050,8 +2050,7 @@ Return ONLY valid JSON (no markdown fences):
       const requests = Object.entries(replacements).map(([find,replace])=>({
         replaceAllText:{
           containsText:{text:find,matchCase:true},
-          replaceText:String(replace||'').replace(/	/g,' | ').replace(/
-/g,'')
+          replaceText:String(replace||'').replace(/\t/g,' | ').replace(/\n/g,'')
         }
       }));
 
