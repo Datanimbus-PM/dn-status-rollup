@@ -878,7 +878,7 @@ function renderProjectTabs() {
     const c=PROJ_COLORS[i%PROJ_COLORS.length], act=p.id===_activeProjectId;
     const done=_genState[p.id]==='done';
     const sDot='<span title="'+(done?'Generated this session':'Not yet generated')+'" style="width:7px;height:7px;border-radius:50%;background:'+(done?'#34d399':'#f59e0b')+';display:inline-block;margin-right:5px;flex-shrink:0"></span>';
-    return '<button class="proj-tab'+(act?' active':'')+'" onclick="setActiveProject(\''+p.id+'\')" style="'+(act?'border-color:'+c+';color:'+c+';background:'+c+'22':'')+'">'+sDot++p.name+'<span onclick="event.stopPropagation();openProjectModal(\''+p.id+'\')" style="margin-left:4px;opacity:.5;font-size:10px;cursor:pointer">&#9881;</span></button>';
+    return '<button class="proj-tab'+(act?' active':'')+'" onclick="setActiveProject(\''+p.id+'\')" style="'+(act?'border-color:'+c+';color:'+c+';background:'+c+'22':'')+'">'+sDot+p.name+'<span onclick="event.stopPropagation();openProjectModal(\''+p.id+'\')" style="margin-left:4px;opacity:.5;font-size:10px;cursor:pointer">&#9881;</span></button>';
   }).join('')+'<button class="proj-add" onclick="openProjectModal(null)">+ Add Project</button>';
 }
 
