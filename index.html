@@ -2046,10 +2046,12 @@ Return ONLY valid JSON (no markdown fences):
       ).join('\n');
       replacements['{{TEAM}}'] = teamText;
 
+      // Slides API replaceAllText only accepts plain strings — sanitise all values
       const requests = Object.entries(replacements).map(([find,replace])=>({
         replaceAllText:{
           containsText:{text:find,matchCase:true},
-          replaceText:replace
+          replaceText:String(replace||'').replace(/	/g,' | ').replace(/
+/g,'')
         }
       }));
 
