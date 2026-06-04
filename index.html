@@ -34,7 +34,7 @@ gprov.addScope('https://www.googleapis.com/auth/gmail.send');
 gprov.addScope('https://www.googleapis.com/auth/gmail.readonly');
 gprov.addScope('https://www.googleapis.com/auth/chat.messages.readonly');
 gprov.addScope('https://www.googleapis.com/auth/presentations');
-gprov.addScope('https://www.googleapis.com/auth/drive.file');
+gprov.addScope('https://www.googleapis.com/auth/drive');
 gprov.addScope('https://www.googleapis.com/auth/spreadsheets.readonly');
 
 // ── Firebase helpers ──────────────────────────────────────────
@@ -533,8 +533,11 @@ textarea::placeholder{color:#334155}
       <button class="hbtn" onclick="toggleTeam()">&#10005; Close</button>
     </div>
   </div>
-  <div style="background:rgba(34,211,238,.06);border:1px solid rgba(34,211,238,.15);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#64748b;line-height:1.6">
-    &#128161; Click <strong style="color:#22d3ee">Load from Chat + Gmail</strong> to auto-fill updates from your configured spaces, or fill in each person manually below, then click <strong style="color:#f59e0b">Compile All</strong> to generate reports.
+  <div id="teamHint" style="background:rgba(34,211,238,.06);border:1px solid rgba(34,211,238,.15);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#64748b;line-height:1.6">
+    &#128161; Click <strong style="color:#22d3ee">Load from Chat + Gmail</strong> to auto-fill updates from your configured spaces, or fill in each person manually below, then click <strong style="color:#f59e0b">Compile &amp; Generate</strong> to generate reports.
+  </div>
+  <div id="demoHint" style="display:none;background:rgba(167,139,250,.08);border:1px solid rgba(167,139,250,.3);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#a78bfa;line-height:1.6">
+    &#127916; <strong style="color:#a78bfa">Demo Mode is ON</strong> — Click <strong style="color:#22d3ee">Load from Chat + Gmail</strong> above to load sample team data, review the cards, then click <strong style="color:#f59e0b">Compile &amp; Generate</strong>. No real API calls will be made.
   </div>
   <div class="stitle">Add Member</div>
   <div class="amform">
@@ -786,8 +789,9 @@ function toggleDemoMode() {
     btn.style.borderColor = '#a78bfa';
     btn.style.color = '#a78bfa';
     btn.innerHTML = '&#127916; Demo ON';
-    toast('Demo Mode ON — no API calls will be made', 'info');
-    addLog('Demo Mode enabled — Load and Generate use sample data', 'info');
+    toast('Demo Mode ON — click ☁️ Load to pull sample data, then Generate', 'info');
+    addLog('Demo Mode ON — click Load from Chat + Gmail to load sample team data, then Compile & Generate', 'info');
+    const dh=document.getElementById('demoHint'); if(dh) dh.style.display='block';
   } else {
     btn.style.background = 'rgba(167,139,250,.1)';
     btn.style.borderColor = 'rgba(167,139,250,.3)';
@@ -795,6 +799,7 @@ function toggleDemoMode() {
     btn.innerHTML = '&#127916; Demo OFF';
     toast('Demo Mode OFF — live API calls restored', 'info');
     addLog('Demo Mode disabled', 'info');
+    const dh2=document.getElementById('demoHint'); if(dh2) dh2.style.display='none';
   }
 }
 
