@@ -1193,8 +1193,10 @@ async function loadFromSources() {
         const allTabs=(meta.sheets||[]).map(s=>s.properties?.title||'');
         const fdTab=allTabs.find(t=>t.toLowerCase().includes('freshdesk'))||allTabs[0]||'Sheet1';
         addLog('Sheet: reading tab "'+fdTab+'"','info');
+        // Sheets API requires single quotes around tab names with spaces
+        const fdTabEncoded=encodeURIComponent("'"+fdTab+"'");
         const sheetsRes=await fetch(
-          'https://sheets.googleapis.com/v4/spreadsheets/'+sheetId+'/values/'+encodeURIComponent(fdTab),
+          'https://sheets.googleapis.com/v4/spreadsheets/'+sheetId+'/values/'+fdTabEncoded,
           {headers:{'Authorization':'Bearer '+token}}
         );
         if(!sheetsRes.ok) throw new Error('Sheet read failed: '+sheetsRes.status);
@@ -1215,6 +1217,10 @@ async function loadFromSources() {
             jira:     headers.indexOf('jira status'),
             engid:    headers.indexOf('eng ticket id'),
           };
+          // Validate required columns exist
+          const missingCols=['id','subject','status','company','created'].filter(c=>colIdx[c]===-1);
+          if(missingCols.length){addLog('Sheet: missing columns: '+missingCols.join(', ')+'. Headers found: '+headers.join(', '),'err');}
+          else {
           // Filter by company + created this calendar month
           const now=new Date();
           const monthStart=new Date(now.getFullYear(),now.getMonth(),1).getTime();
@@ -1222,7 +1228,7 @@ async function loadFromSources() {
           const matched=rows.slice(1).filter(row=>{
             const rowCompany=(row[colIdx.company]||'').toLowerCase().trim();
             if(!rowCompany.includes(company)&&!company.includes(rowCompany)) return false;
-            const dateStr=row[colIdx.created]||row[colIdx.updated]||'';
+            const dateStr=row[colIdx.updated]||row[colIdx.created]||''; // updated first — for follow-up tracking
             if(!dateStr) return false;
             const d=new Date(dateStr);
             return !isNaN(d.getTime())&&d.getTime()>=monthStart;
@@ -1239,6 +1245,7 @@ async function loadFromSources() {
                 agent:   row[colIdx.agent]||'Unassigned',
                 jira:    row[colIdx.jira]||'',
                 created: (row[colIdx.created]||'').split('T')[0],
+                updated: (row[colIdx.updated]||'').split('T')[0],
               };
               if(status.includes('open'))    statusGroups.Open.push(entry);
               else if(status.includes('pending'))  statusGroups.Pending.push(entry);
@@ -1257,14 +1264,15 @@ async function loadFromSources() {
             allEntries.forEach(e=>{fdText+='['+e.status+'] #'+e.id+' — '+e.subject+' ('+e.agent+')\n';});
             // HTML table for Chat/Team emails
             let tableHtml='<b>Support Tickets — '+proj.fdCompany+' ('+mth+')</b>\n';
-            tableHtml+='<table border="1" style="border-collapse:collapse;font-size:12px;width:100%"><tr style="background:#1e3a5f;color:#fff"><th>ID</th><th>Subject</th><th>Status</th><th>Priority</th><th>Agent</th><th>Created</th></tr>';
+            tableHtml+='<table border="1" style="border-collapse:collapse;font-size:12px;width:100%"><tr style="background:#1e3a5f;color:#fff"><th>ID</th><th>Subject</th><th>Status</th><th>Priority</th><th>Agent</th><th>Last Updated</th></tr>';
             allEntries.forEach(e=>{
               const bg=e.status.toLowerCase().includes('open')?'#fef3c7':e.status.toLowerCase().includes('resolved')||e.status.toLowerCase().includes('closed')?'#d1fae5':'#fee2e2';
-              tableHtml+='<tr style="background:'+bg+'"><td>#'+e.id+'</td><td>'+e.subject+'</td><td>'+e.status+'</td><td>'+e.priority+'</td><td>'+e.agent+'</td><td>'+e.created+'</td></tr>';
+              tableHtml+='<tr style="background:'+bg+'"><td>#'+e.id+'</td><td>'+e.subject+'</td><td>'+e.status+'</td><td>'+e.priority+'</td><td>'+e.agent+'</td><td>'+(e.updated||e.created)+'</td></tr>';
             });
             tableHtml+='</table>';
             allMessages.push({source:'sheet',sender:'Daily Tracker',text:fdText.trim(),tableHtml});
             addLog('Sheet: '+matched.length+' tickets for '+proj.fdCompany+' in '+mth,'ok');
+          } // end else missingCols
           } else {
             addLog('Sheet: no tickets found for '+proj.fdCompany+' in last 7 days','info');
           }
