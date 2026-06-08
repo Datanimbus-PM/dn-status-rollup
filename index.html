@@ -420,7 +420,9 @@ textarea::placeholder{color:#334155}
         <div class="mf"><label>Freshdesk Domain</label><input id="pmFdDomain" placeholder="yourcompany.freshdesk.com"/></div>
         <div class="mf"><label>API Key</label><input id="pmFdKey" placeholder="Your Freshdesk API key" type="password"/></div>
       </div>
-      <div class="mf full" style="padding:0 0 4px"><div class="hint" style="margin-top:4px">Pulls open, pending, waiting on customer and waiting on third party tickets. Shown in Management report and Chat only. Get your API key from Freshdesk Profile → API Key.</div></div>
+      <div class="mf full"><label>Tracker Sheet URL (optional)</label><input id="pmFdSheet" placeholder="https://docs.google.com/spreadsheets/d/..."/></div>
+      <div class="mf full"><label>Company Name Filter</label><input id="pmFdCompany" placeholder="e.g. IDFC First Bank — filters tickets by this company name"/></div>
+      <div class="mf full" style="padding:0 0 4px"><div class="hint" style="margin-top:4px">Paste the Daily Tracker Sheet URL and your client company name. The tool will pull only that company's tickets from the last 7 days. Shown in Management report and Chat only.</div></div>
       <div class="msec" style="margin-top:10px">Google Slides — WSR Template</div>
       <div style="background:#0f172a;border:1px solid #1e3a5f;border-radius:6px;padding:10px;margin:8px 18px;font-size:10px">
         <div style="color:#f59e0b;font-weight:600;margin-bottom:6px;letter-spacing:.5px">PLACEHOLDERS — add these to your Google Slides deck</div>
@@ -919,6 +921,8 @@ function openProjectModal(id) {
   sv('pmWebhook',p?.webhook||'');
   sv('pmFdDomain',p?.fdDomain||'');
   sv('pmFdKey',p?.fdKey||'');
+  sv('pmFdSheet',p?.fdSheet||'');
+  sv('pmFdCompany',p?.fdCompany||'');
   sv('pmMilestones',p?.milestones||'');
   sv('pmTeam',p?.team||'');
   sv('pmLeave',p?.leave||'');
@@ -950,6 +954,8 @@ async function saveProject() {
       webhook:v('pmWebhook'),
       fdDomain:v('pmFdDomain'),
       fdKey:v('pmFdKey'),
+      fdSheet:v('pmFdSheet'),
+      fdCompany:v('pmFdCompany'),
       milestones:v('pmMilestones'),
       team:v('pmTeam'),
       leave:v('pmLeave'),
@@ -1166,6 +1172,75 @@ async function loadFromSources() {
           addLog('Freshdesk: no active tickets found','info');
         }
       } catch(e){addLog('Freshdesk failed: '+e.message,'err');}
+    }
+
+    // ── Daily Tracker Sheet (filter by company, last 7 days) ─────
+    if(proj.fdSheet && proj.fdCompany) {
+      try {
+        addLog('Reading Daily Tracker sheet for '+proj.fdCompany+'...','info');
+        // Extract sheet ID from URL
+        const sheetMatch=proj.fdSheet.match(/\/d\/([a-zA-Z0-9_-]+)/);
+        if(!sheetMatch) throw new Error('Invalid sheet URL');
+        const sheetId=sheetMatch[1];
+        const token=window._accessToken;
+        const sheetsRes=await fetch(
+          'https://sheets.googleapis.com/v4/spreadsheets/'+sheetId+'/values/Sheet1',
+          {headers:{'Authorization':'Bearer '+token}}
+        );
+        if(!sheetsRes.ok) throw new Error('Sheet read failed: '+sheetsRes.status);
+        const sheetsData=await sheetsRes.json();
+        const rows=sheetsData.values||[];
+        if(rows.length<2){addLog('Sheet: no data rows found','info');}
+        else {
+          const headers=rows[0].map(h=>h.toString().toLowerCase().trim());
+          const colIdx={
+            id:       headers.indexOf('id'),
+            subject:  headers.indexOf('subject'),
+            status:   headers.indexOf('status'),
+            priority: headers.indexOf('priority'),
+            agent:    headers.indexOf('agent'),
+            company:  headers.indexOf('company'),
+            updated:  headers.indexOf('updated at'),
+            created:  headers.indexOf('created at'),
+            jira:     headers.indexOf('jira status'),
+            engid:    headers.indexOf('eng ticket id'),
+          };
+          const cutoff=Date.now()-(7*24*60*60*1000);
+          const company=proj.fdCompany.toLowerCase().trim();
+          const matched=rows.slice(1).filter(row=>{
+            const rowCompany=(row[colIdx.company]||'').toLowerCase().trim();
+            if(!rowCompany.includes(company)&&!company.includes(rowCompany)) return false;
+            const dateStr=row[colIdx.updated]||row[colIdx.created]||'';
+            if(!dateStr) return true; // include if no date
+            const d=new Date(dateStr);
+            return isNaN(d.getTime())||d.getTime()>=cutoff;
+          });
+          if(matched.length){
+            const statusGroups={Open:[],Pending:[],Waiting:[],Resolved:[]};
+            matched.forEach(row=>{
+              const status=(row[colIdx.status]||'').toLowerCase();
+              const entry='#'+(row[colIdx.id]||'?')+' — '+(row[colIdx.subject]||'No subject')
+                +(row[colIdx.agent]?' ['+row[colIdx.agent]+']':'')
+                +(row[colIdx.jira]?' (Jira: '+row[colIdx.jira]+')':'');
+              if(status.includes('open')) statusGroups.Open.push(entry);
+              else if(status.includes('pending')) statusGroups.Pending.push(entry);
+              else if(status.includes('waiting')) statusGroups.Waiting.push(entry);
+              else if(status.includes('resolved')||status.includes('closed')) statusGroups.Resolved.push(entry);
+              else statusGroups.Open.push(entry);
+            });
+            let fdText='SUPPORT TICKETS — '+proj.fdCompany+' (Last 7 days):\n';
+            fdText+='Open: '+statusGroups.Open.length+' | Pending: '+statusGroups.Pending.length+' | Waiting: '+statusGroups.Waiting.length+' | Resolved: '+statusGroups.Resolved.length+'\n\n';
+            if(statusGroups.Open.length)    fdText+='OPEN:\n'+statusGroups.Open.join('\n')+'\n\n';
+            if(statusGroups.Pending.length) fdText+='PENDING:\n'+statusGroups.Pending.join('\n')+'\n\n';
+            if(statusGroups.Waiting.length) fdText+='WAITING:\n'+statusGroups.Waiting.join('\n')+'\n\n';
+            if(statusGroups.Resolved.length)fdText+='RESOLVED THIS WEEK:\n'+statusGroups.Resolved.join('\n');
+            allMessages.push({source:'sheet',sender:'Daily Tracker',text:fdText.trim()});
+            addLog('Sheet: '+matched.length+' tickets for '+proj.fdCompany,'ok');
+          } else {
+            addLog('Sheet: no tickets found for '+proj.fdCompany+' in last 7 days','info');
+          }
+        }
+      } catch(e){addLog('Sheet read failed: '+e.message,'err');}
     }
 
     if(!allMessages.length){toast('No messages found in last 7 days','err');return;}
