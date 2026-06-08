@@ -1052,10 +1052,7 @@ async function loadFromSources() {
               .replace(/^(Hi |Dear |Attendees:|Discussion Points:|Minutes of Meeting|MoM).*/gim,'')
               .replace(/^.*(Please find|Please proceed|Please share|Please add|Kindly).*/gim,'')
               .replace(/^(--|Regards,?|Thanks,?|Best,?|Warm regards,?|Sincerely,?)[\s\S]*$/gim,'')
-              .replace(/
-{3,}/g,'
-
-')
+              .replace(/\n{3,}/g,'\n\n')
               .trim()
               .slice(0,400);
             if(cleanedText.length<10) continue;
