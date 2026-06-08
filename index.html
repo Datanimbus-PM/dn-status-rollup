@@ -414,6 +414,12 @@ textarea::placeholder{color:#334155}
       </div>
       <div class="msec" style="margin-top:10px">Chat Webhook</div>
       <div class="mf full"><label>Webhook URL (optional)</label><input id="pmWebhook" placeholder="https://chat.googleapis.com/v1/spaces/.../messages?key=..."/></div>
+      <div class="msec" style="margin-top:10px">Freshdesk</div>
+      <div class="mrow">
+        <div class="mf"><label>Freshdesk Domain</label><input id="pmFdDomain" placeholder="yourcompany.freshdesk.com"/></div>
+        <div class="mf"><label>API Key</label><input id="pmFdKey" placeholder="Your Freshdesk API key" type="password"/></div>
+      </div>
+      <div class="mf full" style="padding:0 0 4px"><div class="hint" style="margin-top:4px">Pulls open, pending, waiting on customer and waiting on third party tickets. Shown in Management report and Chat only. Get your API key from Freshdesk Profile → API Key.</div></div>
       <div class="msec" style="margin-top:10px">Google Slides — WSR Template</div>
       <div style="background:#0f172a;border:1px solid #1e3a5f;border-radius:6px;padding:10px;margin:8px 18px;font-size:10px">
         <div style="color:#f59e0b;font-weight:600;margin-bottom:6px;letter-spacing:.5px">PLACEHOLDERS — add these to your Google Slides deck</div>
@@ -910,6 +916,8 @@ function openProjectModal(id) {
   sv('pmCliEmail',p?.clientEmail||'');
   sv('pmTeamEmail',p?.teamEmail||'');
   sv('pmWebhook',p?.webhook||'');
+  sv('pmFdDomain',p?.fdDomain||'');
+  sv('pmFdKey',p?.fdKey||'');
   sv('pmMilestones',p?.milestones||'');
   sv('pmTeam',p?.team||'');
   sv('pmLeave',p?.leave||'');
@@ -939,6 +947,8 @@ async function saveProject() {
       lookback:parseInt(v('pmLookback'))||7, mgmtEmail:v('pmMgmtEmail'),
       clientEmail:v('pmCliEmail'),  teamEmail:v('pmTeamEmail'),
       webhook:v('pmWebhook'),
+      fdDomain:v('pmFdDomain'),
+      fdKey:v('pmFdKey'),
       milestones:v('pmMilestones'),
       team:v('pmTeam'),
       leave:v('pmLeave'),
@@ -1094,13 +1104,59 @@ async function loadFromSources() {
               .replace(/^[\s\d\-|:.,;]+$/gm,'')
               .replace(/\n{3,}/g,'\n\n')
               .trim()
-              .slice(0,500); // 500 chars is enough for real work updates
+              .replace(/^.*(Meeting ID|Passcode|Join Zoom|Teams meeting|meet\.google|zoom\.us).*/gim,'')
+              .replace(/^(Hi |Dear |Attendees:|Discussion Points:|Minutes of Meeting|MoM).*/gim,'')
+              .replace(/^.*(Please find|Please proceed|Kindly|Please add|Please include).*/gim,'')
+              .replace(/^.*(Meeting ID|Passcode|Join Zoom|Teams meeting|meet\.google|zoom\.us).*/gim,'')
+              .replace(/^(Hi |Dear |Attendees:|Discussion Points:|Minutes of Meeting|MoM).*/gim,'')
+              .replace(/^.*(Please find|Please proceed|Kindly|Please add|Please include).*/gim,'')
+              .slice(0,300); // 300 chars — forces only relevant content through
             if(body.trim().length>20){allMessages.push({source:'gmail',sender,senderDomain,text:body});added++;}
           } catch(e2){}
         }
         addLog('Gmail: '+added+'/'+ids.length+' emails parsed','ok');
       } catch(e){addLog('Gmail failed: '+e.message,'err');}
     }
+    // ── Freshdesk tickets ──────────────────────────────────────
+    if(proj.fdDomain && proj.fdKey) {
+      try {
+        addLog('Loading Freshdesk tickets...','info');
+        const fdBase='https://'+proj.fdDomain.replace(/\/$/,'')+'/api/v2';
+        const fdAuth='Basic '+btoa(proj.fdKey+':X');
+        // Statuses: 2=Open, 3=Pending, 4=Resolved, 5=Closed, 6=Waiting on Customer, 7=Waiting on Third Party
+        const fdStatuses=[2,3,6,7];
+        let fdTickets=[];
+        for(const status of fdStatuses) {
+          const res=await fetch(fdBase+'/tickets?status='+status+'&per_page=30&page=1',{
+            headers:{'Authorization':fdAuth,'Content-Type':'application/json'}
+          });
+          if(!res.ok){addLog('Freshdesk status '+status+' error: '+res.status,'err');continue;}
+          const data=await res.json();
+          fdTickets=fdTickets.concat(Array.isArray(data)?data:[]);
+        }
+        const statusLabel={2:'Open',3:'Pending',6:'Waiting on Customer',7:'Waiting on Third Party'};
+        if(fdTickets.length) {
+          const grouped={};
+          fdTickets.forEach(t=>{
+            const agent=t.responder_id||'Unassigned';
+            if(!grouped[agent]) grouped[agent]=[];
+            grouped[agent].push(t);
+          });
+          const fdSummary=fdTickets.map(t=>
+            '['+statusLabel[t.status]+'] #'+t.id+' — '+t.subject+(t.priority===3||t.priority===4?' [HIGH PRIORITY]':'')
+          ).join('\n');
+          allMessages.push({
+            source:'freshdesk',
+            sender:'Freshdesk Tickets',
+            text:'FRESHDESK TICKETS ('+fdTickets.length+' active):\n'+fdSummary
+          });
+          addLog('Freshdesk: '+fdTickets.length+' tickets loaded (Open/Pending/Waiting)','ok');
+        } else {
+          addLog('Freshdesk: no active tickets found','info');
+        }
+      } catch(e){addLog('Freshdesk failed: '+e.message,'err');}
+    }
+
     if(!allMessages.length){toast('No messages found in last 7 days','err');return;}
     const byPerson={};
     for(const msg of allMessages) {
@@ -1319,6 +1375,10 @@ STRICT EXTRACTION RULES:
 - EXTRACT only: what was completed, what is in progress, what is blocked, and what was a win or achievement
 - If a message has no extractable work content after filtering noise, skip that person entirely — do not create a row for them
 - Use only the person's first and last name — never their job title, email, company address, or phone
+- Lines starting with FRESHDESK TICKETS: extract ticket counts and statuses. Add a dedicated "Support Tickets" section to the MGMT report and CHAT report ONLY — NOT in the Client or Team reports. Format as: Open: N | Pending: N | Waiting on Customer: N | Waiting on Third Party: N. List any HIGH PRIORITY tickets by subject.
+- IGNORE completely any content that looks like a meeting invite, calendar event, or Teams/Zoom/Meet link — lines containing "Meeting ID", "Passcode", "Join", "Attendees:", "Discussion Points:", "For organizers", "Company Logo" are all noise, skip them
+- IGNORE full email conversation threads — if the content is a back-and-forth conversation (contains "Hi [Name]," multiple times, or "Please find", "Please proceed", "Kindly"), extract ONLY the specific action items or blockers mentioned, not the surrounding conversation
+- A valid work update is specific and brief: "Completed X", "Working on Y", "Blocked by Z". If you cannot find a clear statement like this, mark the person as having no extractable update rather than dumping the email thread
 
 Return ONLY valid raw JSON — no markdown fences:
 {"mgmt":"<html>","client":"<html>","team":"<html>","chat":"plain text","dashboard":{"members":[{"name":"","dept":"","rag":"G","ragReason":"","blockers":[],"wins":[],"completed":[],"inProgress":[]}],"summary":{"totalMembers":0,"greenCount":0,"amberCount":0,"redCount":0,"totalBlockers":0,"totalWins":0,"overallRAG":"G"}}}
