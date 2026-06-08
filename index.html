@@ -1183,8 +1183,18 @@ async function loadFromSources() {
         if(!sheetMatch) throw new Error('Invalid sheet URL');
         const sheetId=sheetMatch[1];
         const token=window._accessToken;
+        // Get sheet metadata to find FreshDesk Data tab, fallback to first tab
+        const metaRes=await fetch(
+          'https://sheets.googleapis.com/v4/spreadsheets/'+sheetId+'?fields=sheets.properties.title',
+          {headers:{'Authorization':'Bearer '+token}}
+        );
+        if(!metaRes.ok) throw new Error('Sheet read failed: '+metaRes.status);
+        const meta=await metaRes.json();
+        const allTabs=(meta.sheets||[]).map(s=>s.properties?.title||'');
+        const fdTab=allTabs.find(t=>t.toLowerCase().includes('freshdesk'))||allTabs[0]||'Sheet1';
+        addLog('Sheet: reading tab "'+fdTab+'"','info');
         const sheetsRes=await fetch(
-          'https://sheets.googleapis.com/v4/spreadsheets/'+sheetId+'/values/Sheet1',
+          'https://sheets.googleapis.com/v4/spreadsheets/'+sheetId+'/values/'+encodeURIComponent(fdTab),
           {headers:{'Authorization':'Bearer '+token}}
         );
         if(!sheetsRes.ok) throw new Error('Sheet read failed: '+sheetsRes.status);
@@ -1205,37 +1215,56 @@ async function loadFromSources() {
             jira:     headers.indexOf('jira status'),
             engid:    headers.indexOf('eng ticket id'),
           };
-          const cutoff=Date.now()-(7*24*60*60*1000);
+          // Filter by company + created this calendar month
+          const now=new Date();
+          const monthStart=new Date(now.getFullYear(),now.getMonth(),1).getTime();
           const company=proj.fdCompany.toLowerCase().trim();
           const matched=rows.slice(1).filter(row=>{
             const rowCompany=(row[colIdx.company]||'').toLowerCase().trim();
             if(!rowCompany.includes(company)&&!company.includes(rowCompany)) return false;
-            const dateStr=row[colIdx.updated]||row[colIdx.created]||'';
-            if(!dateStr) return true; // include if no date
+            const dateStr=row[colIdx.created]||row[colIdx.updated]||'';
+            if(!dateStr) return false;
             const d=new Date(dateStr);
-            return isNaN(d.getTime())||d.getTime()>=cutoff;
+            return !isNaN(d.getTime())&&d.getTime()>=monthStart;
           });
           if(matched.length){
-            const statusGroups={Open:[],Pending:[],Waiting:[],Resolved:[]};
+            const statusGroups={Open:[],Pending:[],Waiting:[],Resolved:[],Closed:[]};
             matched.forEach(row=>{
               const status=(row[colIdx.status]||'').toLowerCase();
-              const entry='#'+(row[colIdx.id]||'?')+' — '+(row[colIdx.subject]||'No subject')
-                +(row[colIdx.agent]?' ['+row[colIdx.agent]+']':'')
-                +(row[colIdx.jira]?' (Jira: '+row[colIdx.jira]+')':'');
-              if(status.includes('open')) statusGroups.Open.push(entry);
-              else if(status.includes('pending')) statusGroups.Pending.push(entry);
-              else if(status.includes('waiting')) statusGroups.Waiting.push(entry);
-              else if(status.includes('resolved')||status.includes('closed')) statusGroups.Resolved.push(entry);
+              const entry={
+                id:    row[colIdx.id]||'?',
+                subject: row[colIdx.subject]||'No subject',
+                status:  row[colIdx.status]||'',
+                priority:row[colIdx.priority]||'',
+                agent:   row[colIdx.agent]||'Unassigned',
+                jira:    row[colIdx.jira]||'',
+                created: (row[colIdx.created]||'').split('T')[0],
+              };
+              if(status.includes('open'))    statusGroups.Open.push(entry);
+              else if(status.includes('pending'))  statusGroups.Pending.push(entry);
+              else if(status.includes('waiting'))  statusGroups.Waiting.push(entry);
+              else if(status.includes('closed'))   statusGroups.Closed.push(entry);
+              else if(status.includes('resolved')) statusGroups.Resolved.push(entry);
               else statusGroups.Open.push(entry);
             });
-            let fdText='SUPPORT TICKETS — '+proj.fdCompany+' (Last 7 days):\n';
-            fdText+='Open: '+statusGroups.Open.length+' | Pending: '+statusGroups.Pending.length+' | Waiting: '+statusGroups.Waiting.length+' | Resolved: '+statusGroups.Resolved.length+'\n\n';
-            if(statusGroups.Open.length)    fdText+='OPEN:\n'+statusGroups.Open.join('\n')+'\n\n';
-            if(statusGroups.Pending.length) fdText+='PENDING:\n'+statusGroups.Pending.join('\n')+'\n\n';
-            if(statusGroups.Waiting.length) fdText+='WAITING:\n'+statusGroups.Waiting.join('\n')+'\n\n';
-            if(statusGroups.Resolved.length)fdText+='RESOLVED THIS WEEK:\n'+statusGroups.Resolved.join('\n');
-            allMessages.push({source:'sheet',sender:'Daily Tracker',text:fdText.trim()});
-            addLog('Sheet: '+matched.length+' tickets for '+proj.fdCompany,'ok');
+            const totalOpen=statusGroups.Open.length+statusGroups.Pending.length+statusGroups.Waiting.length;
+            const mth=now.toLocaleString('default',{month:'long'})+' '+now.getFullYear();
+            // Plain text summary for Management report
+            let fdText='SUPPORT TICKETS — '+proj.fdCompany+' ('+mth+'):\n';
+            fdText+='Open: '+statusGroups.Open.length+' | Pending: '+statusGroups.Pending.length+' | Waiting: '+statusGroups.Waiting.length+' | Resolved: '+statusGroups.Resolved.length+' | Closed: '+statusGroups.Closed.length+'\n';
+            fdText+='Total active: '+totalOpen+'\n\n';
+            const allEntries=[...statusGroups.Open,...statusGroups.Pending,...statusGroups.Waiting,...statusGroups.Resolved,...statusGroups.Closed];
+            allEntries.forEach(e=>{fdText+='['+e.status+'] #'+e.id+' — '+e.subject+' ('+e.agent+')\n';});
+            // HTML table for Chat/Team emails
+            let tableHtml='<b>Support Tickets — '+proj.fdCompany+' ('+mth+')</b>\n';
+            tableHtml+='<table border="1" style="border-collapse:collapse;font-size:12px;width:100%"><tr style="background:#1e3a5f;color:#fff"><th>ID</th><th>Subject</th><th>Status</th><th>Priority</th><th>Agent</th><th>Created</th></tr>';
+            allEntries.forEach(e=>{
+              const bg=e.status.toLowerCase().includes('open')?'#fef3c7':e.status.toLowerCase().includes('resolved')||e.status.toLowerCase().includes('closed')?'#d1fae5':'#fee2e2';
+              tableHtml+='<tr style="background:'+bg+'"><td>#'+e.id+'</td><td>'+e.subject+'</td><td>'+e.status+'</td><td>'+e.priority+'</td><td>'+e.agent+'</td><td>'+e.created+'</td></tr>';
+            });
+            tableHtml+='</table>';
+            allMessages.push({source:'sheet',sender:'Daily Tracker',text:fdText.trim(),tableHtml});
+            addLog('Sheet: '+matched.length+' tickets for '+proj.fdCompany+' in '+mth,'ok');
           } else {
             addLog('Sheet: no tickets found for '+proj.fdCompany+' in last 7 days','info');
           }
@@ -1469,6 +1498,7 @@ STRICT EXTRACTION RULES:
 - EXTRACT only: what was completed, what is in progress, what is blocked, and what was a win or achievement
 - If a message has no extractable work content after filtering noise, skip that person entirely — do not create a row for them
 - Use only the person's first and last name — never their job title, email, company address, or phone
+- Lines starting with "SUPPORT TICKETS": include a ticket summary table in the CHAT and TEAM reports only — NOT in Client report. For Management, include as a text summary with counts. Format: Open | Pending | Waiting | Resolved | Closed counts, then list active tickets with ID, subject, agent and status.
 - Lines starting with "--- From attachment:" contain structured data from uploaded files (CSV/Excel). Parse them carefully — look for column headers in the first row, then extract ticket IDs, agent names, status, and subject from each row. Map ticket data to the agent name found in the "Agent" column — add their tickets as completed or in-progress items in the DataNimbus Team Updates table. List open/pending tickets as blockers with the ticket ID and subject.
 - Lines starting with FRESHDESK TICKETS: extract ticket counts and statuses. Add a dedicated "Support Tickets" section to the MGMT report and CHAT report ONLY — NOT in the Client or Team reports. Format as: Open: N | Pending: N | Waiting on Customer: N | Waiting on Third Party: N. List any HIGH PRIORITY tickets by subject.
 - IGNORE completely any content that looks like a meeting invite, calendar event, or Teams/Zoom/Meet link — lines containing "Meeting ID", "Passcode", "Join", "Attendees:", "Discussion Points:", "For organizers", "Company Logo" are all noise, skip them
