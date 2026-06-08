@@ -7,6 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 <script>if(typeof pdfjsLib!=='undefined')pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
 
 <script type="module">
@@ -578,7 +579,7 @@ textarea::placeholder{color:#334155}
         </div>
         <div class="src-btns">
           <button id="lcBtnMain" onclick="loadFromSources()" style="background:rgba(34,211,238,.1);border:1px solid rgba(34,211,238,.3);color:#22d3ee;font-family:'Inter',sans-serif;font-size:11px;padding:4px 9px;border-radius:5px;cursor:pointer;font-weight:500">&#128229; Chat + Gmail</button>
-          <label style="background:rgba(167,139,250,.1);border:1px solid rgba(167,139,250,.3);color:#a78bfa;font-family:'Inter',sans-serif;font-size:11px;padding:4px 9px;border-radius:5px;cursor:pointer;font-weight:500">&#128206; Attach<input type="file" id="fileInput" accept=".xlsx,.xls,.csv,.pdf,.txt" multiple style="display:none" onchange="handleFileAttach(event)"/></label>
+          <label style="background:rgba(167,139,250,.1);border:1px solid rgba(167,139,250,.3);color:#a78bfa;font-family:'Inter',sans-serif;font-size:11px;padding:4px 9px;border-radius:5px;cursor:pointer;font-weight:500">&#128206; Attach<input type="file" id="fileInput" accept=".xlsx,.xls,.csv,.pdf,.txt,.docx,.doc" multiple style="display:none" onchange="handleFileAttach(event)"/></label>
         </div>
         <div id="attachedFiles" style="display:none;flex-wrap:wrap;gap:5px"></div>
         <div style="display:flex;align-items:center;gap:6px;margin-top:2px">
@@ -1042,7 +1043,23 @@ async function loadFromSources() {
             if((m.createTime||'')<sinceStr) continue;
             const text=(m.text||'').trim();
             if(text.length<10) continue;
-            allMessages.push({source:'chat',sender:m.sender?.displayName||'Unknown',text});
+            // Clean Chat messages too — people often paste email threads into Chat
+            const cleanedText=text
+              .replace(/^On .+wrote:[\s\S]*$/gim,'')
+              .replace(/^>.*$/gm,'')
+              .replace(/https?:\/\/\S+/g,'')
+              .replace(/^.*(Meeting ID|Passcode|Join Zoom|Teams meeting|meet\.google|zoom\.us).*/gim,'')
+              .replace(/^(Hi |Dear |Attendees:|Discussion Points:|Minutes of Meeting|MoM).*/gim,'')
+              .replace(/^.*(Please find|Please proceed|Please share|Please add|Kindly).*/gim,'')
+              .replace(/^(--|Regards,?|Thanks,?|Best,?|Warm regards,?|Sincerely,?)[\s\S]*$/gim,'')
+              .replace(/
+{3,}/g,'
+
+')
+              .trim()
+              .slice(0,400);
+            if(cleanedText.length<10) continue;
+            allMessages.push({source:'chat',sender:m.sender?.displayName||'Unknown',text:cleanedText});
           }
           pt=data.nextPageToken||null;
         } while(pt);
@@ -1106,10 +1123,7 @@ async function loadFromSources() {
               .trim()
               .replace(/^.*(Meeting ID|Passcode|Join Zoom|Teams meeting|meet\.google|zoom\.us).*/gim,'')
               .replace(/^(Hi |Dear |Attendees:|Discussion Points:|Minutes of Meeting|MoM).*/gim,'')
-              .replace(/^.*(Please find|Please proceed|Kindly|Please add|Please include).*/gim,'')
-              .replace(/^.*(Meeting ID|Passcode|Join Zoom|Teams meeting|meet\.google|zoom\.us).*/gim,'')
-              .replace(/^(Hi |Dear |Attendees:|Discussion Points:|Minutes of Meeting|MoM).*/gim,'')
-              .replace(/^.*(Please find|Please proceed|Kindly|Please add|Please include).*/gim,'')
+              .replace(/^.*(Please find|Please proceed|Kindly|Please add|Please include|Please share).*/gim,'')
               .slice(0,300); // 300 chars — forces only relevant content through
             if(body.trim().length>20){allMessages.push({source:'gmail',sender,senderDomain,text:body});added++;}
           } catch(e2){}
@@ -1191,14 +1205,22 @@ async function loadFromSources() {
       document.getElementById('teamBtn').classList.add('on');
     }
 
-    // Tag each block as [INTERNAL] (DataNimbus team) or [CLIENT] (bank/client contacts)
-    // Gmail messages from non-datanimbus domains are tagged CLIENT; Chat and datanimbus emails are INTERNAL
-    const internalDepts=['engineering','qa','delivery','programme management','project management','devops','design','support','general'];
-    const gmailSenders=new Set(allMessages.filter(m=>m.source==='gmail'&&m.senderDomain&&m.senderDomain!=='datanimbus.com').map(m=>m.sender.toLowerCase()));
+    // Tag by email domain: @datanimbus.com = [INTERNAL], all other domains = [CLIENT]
+    // Build a map of sender name -> domain from Gmail messages
+    const senderDomainMap={};
+    allMessages.filter(m=>m.source==='gmail'&&m.senderDomain).forEach(m=>{
+      // Store by full name AND by each word (first/last name) for fuzzy matching
+      const sname=m.sender.toLowerCase().trim();
+      senderDomainMap[sname]=m.senderDomain;
+      sname.split(/\s+/).forEach(word=>{ if(word.length>2) senderDomainMap[word]=m.senderDomain; });
+    });
     const lines=parsed.map(p=>{
       if(!p.completed&&!p.inprogress&&!p.blockers&&!p.wins) return null;
-      const isClientContact=gmailSenders.has(p.name.toLowerCase())||
-        (p.dept&&!internalDepts.some(d=>p.dept.toLowerCase().includes(d))&&p.dept.toLowerCase()!=='general');
+      // Match by full name or any word in name against senderDomainMap
+      const pname=p.name.toLowerCase().trim();
+      const domain=senderDomainMap[pname]||
+        pname.split(/\s+/).map(w=>senderDomainMap[w]).find(d=>d)||'';
+      const isClientContact=domain&&domain!=='datanimbus.com';
       const tag=isClientContact?'[CLIENT]':'[INTERNAL]';
       let t=tag+' '+p.name+' ('+p.dept+'):';
       if(p.completed)  t+='\nCompleted: '+p.completed;
@@ -1375,6 +1397,7 @@ STRICT EXTRACTION RULES:
 - EXTRACT only: what was completed, what is in progress, what is blocked, and what was a win or achievement
 - If a message has no extractable work content after filtering noise, skip that person entirely — do not create a row for them
 - Use only the person's first and last name — never their job title, email, company address, or phone
+- Lines starting with "--- From attachment:" contain structured data from uploaded files (CSV/Excel). Parse them carefully — look for column headers in the first row, then extract ticket IDs, agent names, status, and subject from each row. Map ticket data to the agent name found in the "Agent" column — add their tickets as completed or in-progress items in the DataNimbus Team Updates table. List open/pending tickets as blockers with the ticket ID and subject.
 - Lines starting with FRESHDESK TICKETS: extract ticket counts and statuses. Add a dedicated "Support Tickets" section to the MGMT report and CHAT report ONLY — NOT in the Client or Team reports. Format as: Open: N | Pending: N | Waiting on Customer: N | Waiting on Third Party: N. List any HIGH PRIORITY tickets by subject.
 - IGNORE completely any content that looks like a meeting invite, calendar event, or Teams/Zoom/Meet link — lines containing "Meeting ID", "Passcode", "Join", "Attendees:", "Discussion Points:", "For organizers", "Company Logo" are all noise, skip them
 - IGNORE full email conversation threads — if the content is a back-and-forth conversation (contains "Hi [Name]," multiple times, or "Please find", "Please proceed", "Kindly"), extract ONLY the specific action items or blockers mentioned, not the surrounding conversation
@@ -2301,6 +2324,7 @@ async function handleFileAttach(event){
       let text='';const ext=file.name.split('.').pop().toLowerCase();
       if(ext==='pdf')text=await extractPDF(file);
       else if(['xlsx','xls'].includes(ext))text=await extractExcel(file);
+      else if(['docx','doc'].includes(ext))text=await extractWord(file);
       else text=await file.text();
       if(text.trim().length>20){_attachedTexts.push({name:file.name,text:text.slice(0,3000)});tag.textContent='';tag.appendChild(document.createTextNode('&#128206; '+file.name));const x=document.createElement('span');x.textContent=' x';x.style.cssText='cursor:pointer;opacity:.6;margin-left:4px';x.onclick=()=>removeAttach(file.name,tag);tag.appendChild(x);mergeAttachmentsToInput();addLog('Attached: '+file.name,'ok');}
       else{tag.textContent='No text: '+file.name;tag.style.color='#f87171';}
@@ -2311,6 +2335,12 @@ async function handleFileAttach(event){
 function removeAttach(name,tagEl){_attachedTexts=_attachedTexts.filter(a=>a.name!==name);tagEl?.remove();if(!_attachedTexts.length)document.getElementById('attachedFiles').style.display='none';mergeAttachmentsToInput();}
 function mergeAttachmentsToInput(){const cur=document.getElementById('input').value;const manual=cur.split('\n\n').filter(l=>!l.startsWith('--- From attachment:')).join('\n\n').trim();const parts=_attachedTexts.map(a=>'--- From attachment: '+a.name+' ---\n'+a.text);const merged=[manual,...parts].filter(Boolean).join('\n\n');document.getElementById('input').value=merged;document.getElementById('chars').textContent=merged.length.toLocaleString()+' chars';}
 async function extractPDF(file){if(typeof pdfjsLib==='undefined')throw new Error('PDF.js not loaded');const ab=await file.arrayBuffer();const pdf=await pdfjsLib.getDocument({data:ab}).promise;let text='';for(let i=1;i<=Math.min(pdf.numPages,10);i++){const page=await pdf.getPage(i);const c=await page.getTextContent();text+=c.items.map(s=>s.str).join(' ')+'\n';}return text.trim();}
+async function extractWord(file){
+  if(typeof mammoth==='undefined') throw new Error('Mammoth not loaded');
+  const ab=await file.arrayBuffer();
+  const result=await mammoth.extractRawText({arrayBuffer:ab});
+  return (result.value||'').trim();
+}
 async function extractExcel(file){if(typeof XLSX==='undefined')throw new Error('SheetJS not loaded');const ab=await file.arrayBuffer();const wb=XLSX.read(ab,{type:'array'});let text='';for(const sn of wb.SheetNames){const ws=wb.Sheets[sn];const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});text+='Sheet: '+sn+'\n'+rows.map(r=>r.filter(c=>c!=='').join('\t')).filter(r=>r.trim()).join('\n')+'\n\n';}return text.trim();}
 document.getElementById('input').addEventListener('input',function(){document.getElementById('chars').textContent=this.value.length.toLocaleString()+' chars';checkManualSendable();});
 
