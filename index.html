@@ -1182,6 +1182,8 @@ async function loadFromSources() {
         const sheetMatch=proj.fdSheet.match(/\/d\/([a-zA-Z0-9_-]+)/);
         if(!sheetMatch) throw new Error('Invalid sheet URL');
         const sheetId=sheetMatch[1];
+        // Force token refresh to ensure spreadsheets.readonly scope is included
+        try { await gprov.requestAccessToken({prompt:'none'}); } catch(e){}
         const token=window._accessToken;
         // Get sheet metadata to find FreshDesk Data tab, fallback to first tab
         const metaRes=await fetch(
