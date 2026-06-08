@@ -1193,10 +1193,10 @@ async function loadFromSources() {
         const allTabs=(meta.sheets||[]).map(s=>s.properties?.title||'');
         const fdTab=allTabs.find(t=>t.toLowerCase().includes('freshdesk'))||allTabs[0]||'Sheet1';
         addLog('Sheet: reading tab "'+fdTab+'"','info');
-        // Sheets API requires single quotes around tab names with spaces
-        const fdTabEncoded=encodeURIComponent("'"+fdTab+"'");
+        // Sheets API: use !A:Z range notation with tab name, spaces encoded as %20 only
+        const fdRange=encodeURIComponent(fdTab)+'!A:Z';
         const sheetsRes=await fetch(
-          'https://sheets.googleapis.com/v4/spreadsheets/'+sheetId+'/values/'+fdTabEncoded,
+          'https://sheets.googleapis.com/v4/spreadsheets/'+sheetId+'/values/'+fdRange,
           {headers:{'Authorization':'Bearer '+token}}
         );
         if(!sheetsRes.ok) throw new Error('Sheet read failed: '+sheetsRes.status);
