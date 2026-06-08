@@ -1592,14 +1592,8 @@ ${isFri ?
 
 CHAT (plain text):
 ${isFri ?
-`*${project} | End of Week — [week]*
-[Per person — ONE line]: *Name*: ✅ [completed] | 🔄 [carrying forward] [⚠️ blocker if exists]
-*Next Week Priority: [top 1-2 items]*
-*Status: [🟢/🟡/🔴] [reason]*` :
-`*${project} | Week Ahead — [week]*
-[Per person — ONE line]: *Name*: 🔄 [pending item] | 📌 [action this week] [⚠️ blocker if exists]
-*This Week Focus: [top 1-2 priorities]*
-*Status: [🟢/🟡/🔴] [reason]*`}`;
+'*'+project+' | End of Week — [week]*\n[Per person — ONE line]: *Name*: ✅ [completed] | 🔄 [carrying forward] [⚠️ blocker if exists]\n*Next Week Priority: [top 1-2 items]*\n*Status: [🟢/🟡/🔴] [reason]*' :
+'*'+project+' | Week Ahead — [week]*\n[Per person — ONE line]: *Name*: 🔄 [pending item] | 📌 [action this week] [⚠️ blocker if exists]\n*This Week Focus: [top 1-2 priorities]*\n*Status: [🟢/🟡/🔴] [reason]*'}`;
   let tries=0;
   while(tries<3) {
     try {
