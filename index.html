@@ -1193,13 +1193,17 @@ async function loadFromSources() {
         const allTabs=(meta.sheets||[]).map(s=>s.properties?.title||'');
         const fdTab=allTabs.find(t=>t.toLowerCase().includes('freshdesk'))||allTabs[0]||'Sheet1';
         addLog('Sheet: reading tab "'+fdTab+'"','info');
-        // Sheets API: use !A:Z range notation with tab name, spaces encoded as %20 only
-        const fdRange=encodeURIComponent(fdTab)+'!A:Z';
+        // Sheets API: encode full range including tab name and !A:Z together
+        const sheetRange=fdTab+'!A:Z';
         const sheetsRes=await fetch(
-          'https://sheets.googleapis.com/v4/spreadsheets/'+sheetId+'/values/'+fdRange,
+          'https://sheets.googleapis.com/v4/spreadsheets/'+sheetId+'/values/'+encodeURIComponent(sheetRange),
           {headers:{'Authorization':'Bearer '+token}}
         );
-        if(!sheetsRes.ok) throw new Error('Sheet read failed: '+sheetsRes.status);
+        if(!sheetsRes.ok){
+          const errBody=await sheetsRes.text().catch(()=>'');
+          addLog('Sheet API error body: '+errBody.slice(0,300),'err');
+          throw new Error('Sheet read failed: '+sheetsRes.status);
+        }
         const sheetsData=await sheetsRes.json();
         const rows=sheetsData.values||[];
         if(rows.length<2){addLog('Sheet: no data rows found','info');}
@@ -1506,7 +1510,12 @@ STRICT EXTRACTION RULES:
 - EXTRACT only: what was completed, what is in progress, what is blocked, and what was a win or achievement
 - If a message has no extractable work content after filtering noise, skip that person entirely — do not create a row for them
 - Use only the person's first and last name — never their job title, email, company address, or phone
-- Lines starting with "SUPPORT TICKETS": include a ticket summary table in the CHAT and TEAM reports only — NOT in Client report. For Management, include as a text summary with counts. Format: Open | Pending | Waiting | Resolved | Closed counts, then list active tickets with ID, subject, agent and status.
+- Lines starting with "SUPPORT TICKETS": this is structured ticket data from the Daily Tracker sheet. Process as follows:
+  MANAGEMENT report: include a "Support Tickets" section with a count summary (Open: N | Pending: N | Waiting: N | Resolved: N | Closed: N) followed by a bullet list of Open and Pending tickets with ticket ID, subject and assigned agent. Flag any high priority tickets explicitly.
+  TEAM report: include an HTML table with columns: Ticket ID, Subject, Status, Priority, Agent, Last Updated. Color code rows — Open=amber background, Pending/Waiting=light red, Resolved/Closed=light green.
+  CHAT report: include a concise ticket status block with emoji — 🔴 Open: N | 🟡 Pending: N | ⏳ Waiting: N | ✅ Resolved: N. List only Open and Pending ticket IDs and subjects below.
+  CLIENT report: do NOT include any ticket information.
+  NEVER invent ticket data — only use what is explicitly provided in the SUPPORT TICKETS block.
 - Lines starting with "--- From attachment:" contain structured data from uploaded files (CSV/Excel). Parse them carefully — look for column headers in the first row, then extract ticket IDs, agent names, status, and subject from each row. Map ticket data to the agent name found in the "Agent" column — add their tickets as completed or in-progress items in the DataNimbus Team Updates table. List open/pending tickets as blockers with the ticket ID and subject.
 - Lines starting with FRESHDESK TICKETS: extract ticket counts and statuses. Add a dedicated "Support Tickets" section to the MGMT report and CHAT report ONLY — NOT in the Client or Team reports. Format as: Open: N | Pending: N | Waiting on Customer: N | Waiting on Third Party: N. List any HIGH PRIORITY tickets by subject.
 - IGNORE completely any content that looks like a meeting invite, calendar event, or Teams/Zoom/Meet link — lines containing "Meeting ID", "Passcode", "Join", "Attendees:", "Discussion Points:", "For organizers", "Company Logo" are all noise, skip them
