@@ -1574,22 +1574,32 @@ CLIENT REPORT (HTML) — professional email with table, NO individual names, NO 
 TEAM REPORT (HTML) — friendly team summary with table:
 ${isFri ?
 `<h2>End-of-Week Rollup — [week]</h2>
-<p>Great work this week team!</p>
-<table><tr><th>Name</th><th>Completed</th><th>In Progress</th><th>Win</th><th>Blocker</th></tr>
+<p>Great work this week team! Here is what we accomplished and what carries forward:</p>
+<table><tr><th>Name</th><th>Completed This Week</th><th>Carrying Forward</th><th>Win</th><th>Blocker</th></tr>
 [One row per person — use their actual names and specific tasks:]
-<tr><td><strong>[Name]</strong><br><span style="font-size:10px;color:#64748b">[Dept]</span></td><td>[specific item done]</td><td>[what they are working on]</td><td>[win or —]</td><td>[blocker or —]</td></tr>
-</table>` :
+<tr><td><strong>[Name]</strong><br><span style="font-size:10px;color:#64748b">[Dept]</span></td><td>[what they finished this week — specific deliverables]</td><td>[what is still in progress and moves to next week — be specific]</td><td>[win or achievement or —]</td><td>[blocker that needs resolution or —]</td></tr>
+</table>
+<h3>Priority for Next Week</h3>
+<ul>[2-3 most important items the team needs to focus on next week based on what is carrying forward and any blockers]</ul>` :
 `<h2>Week Ahead — [week]</h2>
-<p>New week, clear focus. Here is what everyone is working on:</p>
-<table><tr><th>Name</th><th>Focus This Week</th><th>Blocker</th></tr>
-[One row per person:]
-<tr><td><strong>[Name]</strong><br><span style="font-size:10px;color:#64748b">[Dept]</span></td><td>[their focus/in-progress items]</td><td>[blocker or —]</td></tr>
-</table>`}
+<p>New week. Here is what is pending and what needs to happen this week:</p>
+<table><tr><th>Name</th><th>Pending from Last Week</th><th>Action This Week</th><th>Blocker</th></tr>
+[One row per person — focus on what is NOT done yet and what action is needed:]
+<tr><td><strong>[Name]</strong><br><span style="font-size:10px;color:#64748b">[Dept]</span></td><td>[items that were in progress last week and are still pending — not completed ones]</td><td>[specific action they need to take THIS week to move things forward]</td><td>[blocker or —]</td></tr>
+</table>
+<h3>This Week's Priorities</h3>
+<ul>[2-3 most critical items the team must complete this week — based on pending items and blockers]</ul>`}
 
 CHAT (plain text):
-*${project} | [week]*
-[Per person — ONE line]: *Name*: ✅ [done] | 🔄 [progress] [⚠️ blocker if exists]
-*Status: [🟢/🟡/🔴] [reason]*`;
+${isFri ?
+`*${project} | End of Week — [week]*
+[Per person — ONE line]: *Name*: ✅ [completed] | 🔄 [carrying forward] [⚠️ blocker if exists]
+*Next Week Priority: [top 1-2 items]*
+*Status: [🟢/🟡/🔴] [reason]*` :
+`*${project} | Week Ahead — [week]*
+[Per person — ONE line]: *Name*: 🔄 [pending item] | 📌 [action this week] [⚠️ blocker if exists]
+*This Week Focus: [top 1-2 priorities]*
+*Status: [🟢/🟡/🔴] [reason]*`}`;
   let tries=0;
   while(tries<3) {
     try {
