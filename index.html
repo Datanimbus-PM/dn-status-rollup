@@ -1058,10 +1058,17 @@ async function loadFromSources() {
               .replace(/^(Hi |Dear |Attendees:|Discussion Points:|Minutes of Meeting|MoM).*/gim,'')
               .replace(/^.*(Please find|Please proceed|Please share|Please add|Kindly).*/gim,'')
               .replace(/^(--|Regards,?|Thanks,?|Best,?|Warm regards,?|Sincerely,?)[\s\S]*$/gim,'')
+              // Strip messages that are purely @mentions or coordination openers
+              .replace(/^(@\w+[,.]?\s*)+$/gm,'')
+              .replace(/^(As discussed|Please note|Please be|FYI|Just to|Looping|Adding|Sharing|Noted|Acknowledged|Sure|Ok|Okay|Will do|Thanks for).*/gim,'')
+              .replace(/^(Can you|Could you|Would you|Please check|Please review|Please confirm|Please share|Please provide).*/gim,'')
               .replace(/\n{3,}/g,'\n\n')
               .trim()
-              .slice(0,400);
-            if(cleanedText.length<10) continue;
+              .slice(0,300);
+            // Skip if after cleaning it's just noise
+            if(cleanedText.length<15) continue;
+            // Skip if it's still just an @mention line
+            if(/^(@\w+\s*)+$/.test(cleanedText.trim())) continue;
             allMessages.push({source:'chat',sender:m.sender?.displayName||'Unknown',text:cleanedText});
           }
           pt=data.nextPageToken||null;
