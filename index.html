@@ -1330,19 +1330,28 @@ async function loadFromSources() {
     // Tag by email domain: @datanimbus.com = [INTERNAL], all other domains = [CLIENT]
     // Build a map of sender name -> domain from Gmail messages
     const senderDomainMap={};
+    // Also build a set of client sender names (non-datanimbus domains)
+    const clientSenderNames=new Set();
     allMessages.filter(m=>m.source==='gmail'&&m.senderDomain).forEach(m=>{
-      // Store by full name AND by each word (first/last name) for fuzzy matching
       const sname=m.sender.toLowerCase().trim();
       senderDomainMap[sname]=m.senderDomain;
       sname.split(/\s+/).forEach(word=>{ if(word.length>2) senderDomainMap[word]=m.senderDomain; });
+      // If this sender is from the client domain, remember their name
+      if(m.senderDomain!=='datanimbus.com'){
+        clientSenderNames.add(sname);
+        sname.split(/\s+/).forEach(word=>{ if(word.length>2) clientSenderNames.add(word); });
+      }
     });
     const lines=parsed.map(p=>{
       if(!p.completed&&!p.inprogress&&!p.blockers&&!p.wins) return null;
-      // Match by full name or any word in name against senderDomainMap
       const pname=p.name.toLowerCase().trim();
+      // Check domain map first (works for Gmail senders)
       const domain=senderDomainMap[pname]||
         pname.split(/\s+/).map(w=>senderDomainMap[w]).find(d=>d)||'';
-      const isClientContact=domain&&domain!=='datanimbus.com';
+      // Also check if name was seen as a client sender in Gmail (catches Chat mentions of client names)
+      const isKnownClient=clientSenderNames.has(pname)||
+        pname.split(/\s+/).some(w=>w.length>2&&clientSenderNames.has(w));
+      const isClientContact=(domain&&domain!=='datanimbus.com')||isKnownClient;
       const tag=isClientContact?'[CLIENT]':'[INTERNAL]';
       let t=tag+' '+p.name+' ('+p.dept+'):';
       if(p.completed)  t+='\nCompleted: '+p.completed;
@@ -1369,21 +1378,29 @@ function splitChatBlocks(text,defaultSender) {
 function extractChatFields(text) {
   const lines=text.split('\n').map(l=>l.trim()).filter(l=>l.length>3);
   const completed=[],inprogress=[],blockers=[],wins=[];
+  // Noise patterns — lines matching these are SKIPPED entirely, never added to any field
+  const noise=/^(@\w+[,.]?\s*){1,}$|^(as discussed|please|kindly|fyi|just to|looping|adding|sharing|noted|acknowledged|sure|ok|okay|will do|thanks for|hi |dear |good morning|good afternoon|can you|could you|would you|let me know|reaching out|following up|reminder|heads up|attached|please find|please review|please check|see below|see attached|refer to|for your|as per|as agreed|for information|no blocker|no update|no issue|pfa|please note|this is to|i wanted to|we wanted to|i am|we are reaching)/i;
   const lr={
-    completed:/^(completed?|done|finished?|shipped|delivered|deployed|resolved|closed|sent)\s*[:\-]/i,
-    inprogress:/^(in[- ]?progress|working on|ongoing|wip|currently)\s*[:\-]/i,
-    blockers:/^(blocker?s?|blocked|issue|dependency|need|waiting|risk)\s*[:\-]/i,
-    wins:/^(win|wins|achievement|highlight|success)\s*[:\-]/i,
+    completed:/^(completed?|done|finished?|shipped|delivered|deployed|resolved|closed|sent|fixed|merged|launched|released)\s*[:\-]/i,
+    inprogress:/^(in[- ]?progress|working on|ongoing|wip|currently|continuing|started|underway)\s*[:\-]/i,
+    blockers:/^(blocker?s?|blocked|issue|dependency|need|waiting|risk|pending|escalat)\s*[:\-]/i,
+    wins:/^(win|wins|achievement|highlight|success|milestone)\s*[:\-]/i,
   };
   const kw={
-    blockers:/\b(blocker|blocked|need|waiting|dependency|stuck|delayed|requires?|approval needed|cannot proceed)\b/i,
-    wins:/\b(win|won|approved|success|milestone|client (loved|confirmed|approved)|praised|record)\b/i,
-    inprogress:/\b(in progress|ongoing|working on|continuing|currently|building|reviewing|investigating|underway|started)\b/i,
-    completed:/\b(completed?|done|finished?|shipped|delivered|deployed|resolved|merged|launched|released)\b/i,
+    blockers:/\b(blocker|blocked|cannot proceed|approval (needed|pending)|waiting (for|on)|dependency|stuck|delayed|escalated|on hold|requires action)\b/i,
+    wins:/\b(win|won|approved|success|milestone|client (loved|confirmed|approved)|praised|ahead of schedule|record)\b/i,
+    inprogress:/\b(in progress|ongoing|working on|continuing|currently|building|reviewing|investigating|underway|started|proceeding)\b/i,
+    completed:/\b(completed?|done|finished?|shipped|delivered|deployed|resolved|merged|launched|released|fixed|closed)\b/i,
   };
   const clean=(l,re)=>l.replace(re,'').replace(/^[:\-\s]+/,'').trim();
   for(let line of lines) {
     line=line.replace(/^[-*]\s*/,'').trim(); if(!line) continue;
+    // Skip noise lines — do NOT dump into completed
+    if(noise.test(line)) continue;
+    // Skip lines that are just @mentions
+    if(/^(@\w+[\s,]*)+$/.test(line)) continue;
+    // Skip very short lines with no work content
+    if(line.length<10) continue;
     if(lr.completed.test(line)){completed.push(clean(line,lr.completed));continue;}
     else if(lr.inprogress.test(line)){inprogress.push(clean(line,lr.inprogress));continue;}
     else if(lr.blockers.test(line)){blockers.push(clean(line,lr.blockers));continue;}
@@ -1391,7 +1408,8 @@ function extractChatFields(text) {
     else if(kw.blockers.test(line)) blockers.push(line);
     else if(kw.wins.test(line)) wins.push(line);
     else if(kw.inprogress.test(line)) inprogress.push(line);
-    else completed.push(line);
+    else if(kw.completed.test(line)) completed.push(line);
+    // Lines with NO work keyword at all are dropped — not dumped into completed
   }
   return{completed:completed.join('. '),inprogress:inprogress.join('. '),blockers:blockers.join('. '),wins:wins.join('. ')};
 }
