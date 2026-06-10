@@ -542,8 +542,9 @@ textarea::placeholder{color:#334155}
       <button class="hbtn" onclick="toggleTeam()">&#10005; Close</button>
     </div>
   </div>
-  <div id="teamHint" style="background:rgba(34,211,238,.06);border:1px solid rgba(34,211,238,.15);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#64748b;line-height:1.6">
-    &#128161; Click <strong style="color:#22d3ee">Load from Chat + Gmail</strong> to auto-fill updates from your configured spaces, or fill in each person manually below, then click <strong style="color:#f59e0b">Compile &amp; Generate</strong> to generate reports.
+  <div id="teamHint" style="background:rgba(34,211,238,.06);border:1px solid rgba(34,211,238,.15);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#64748b;line-height:1.8">
+    &#128161; Click <strong style="color:#22d3ee">Load from Chat + Gmail</strong> to auto-fill updates from your configured spaces, or fill in manually below.<br/>
+    <strong style="color:#f59e0b">&#9888; Review every card before generating.</strong> Remove noise, add context, fix anything that looks wrong. <strong style="color:#e2e8f0">Good cards = good reports.</strong>
   </div>
   <div id="demoHint" style="display:none;background:rgba(167,139,250,.08);border:1px solid rgba(167,139,250,.3);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#a78bfa;line-height:1.6">
     &#127916; <strong style="color:#a78bfa">Demo Mode is ON</strong> — Click <strong style="color:#22d3ee">Load from Chat + Gmail</strong> above to load sample team data, review the cards, then click <strong style="color:#f59e0b">Compile &amp; Generate</strong>. No real API calls will be made.
@@ -558,7 +559,7 @@ textarea::placeholder{color:#334155}
   <div class="mcards" id="mCards"></div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px">
     <button class="bcompile" onclick="compileAndGenerate()" style="background:#f59e0b;color:#000;flex:1">
-      &#9889; Compile &amp; Generate
+      &#9989; Cards reviewed &mdash; Compile &amp; Generate
     </button>
   </div>
   <button onclick="clearUpdates()" style="background:transparent;border:1px solid #334155;color:#64748b;padding:7px;border-radius:5px;font-size:12px;cursor:pointer;width:100%;margin-top:7px;font-family:'Inter',sans-serif">Clear Updates</button>
@@ -1296,10 +1297,18 @@ async function loadFromSources() {
     if(!allMessages.length){toast('No messages found in last 7 days','err');return;}
     const byPerson={};
     for(const msg of allMessages) {
-      for(const b of splitChatBlocks(msg.text,msg.sender)) {
-        const key=b.name.toLowerCase().trim();
-        if(!byPerson[key]) byPerson[key]={name:b.name,dept:b.dept,texts:[]};
-        byPerson[key].texts.push(b.text);
+      if(msg.source==='gmail'||msg.source==='sheet') {
+        // Gmail and sheet messages: sender is known, treat as single block
+        const key=msg.sender.toLowerCase().trim();
+        if(!byPerson[key]) byPerson[key]={name:msg.sender,dept:'General',texts:[]};
+        byPerson[key].texts.push(msg.text);
+      } else {
+        // Chat messages: parse multiple Name (Dept): blocks
+        for(const b of splitChatBlocks(msg.text,msg.sender)) {
+          const key=b.name.toLowerCase().trim();
+          if(!byPerson[key]) byPerson[key]={name:b.name,dept:b.dept,texts:[]};
+          byPerson[key].texts.push(b.text);
+        }
       }
     }
     const parsed=Object.values(byPerson).map(p=>{const c=p.texts.join('\n');return{name:p.name,dept:p.dept||'General',...extractChatFields(c)};});
@@ -1813,7 +1822,7 @@ function renderMCards(){
     hdr.appendChild(av); hdr.appendChild(ni); hdr.appendChild(del);
     card.appendChild(hdr);
     // Fields
-    [{label:'\u2705 Completed',key:'completed',ph:'What did '+fn+' finish this week?',val:u.completed||''},
+    [{label:'\u2705 Completed',key:'completed',ph:(u.completed?'What did '+fn+' finish this week?':'No updates found — fill in manually'),val:u.completed||''},
      {label:'\u{1F504} In Progress',key:'inprogress',ph:'What is '+fn+' currently working on?',val:u.inprogress||''},
      {label:'\u{1F6A8} Blockers',key:'blockers',ph:'Any blockers for '+fn+'?',val:u.blockers||''},
      {label:'\u{1F3C6} Wins',key:'wins',ph:'Any wins or highlights this week?',val:u.wins||''},
