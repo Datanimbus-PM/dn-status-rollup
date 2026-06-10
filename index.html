@@ -1297,18 +1297,10 @@ async function loadFromSources() {
     if(!allMessages.length){toast('No messages found in last 7 days','err');return;}
     const byPerson={};
     for(const msg of allMessages) {
-      if(msg.source==='gmail'||msg.source==='sheet') {
-        // Gmail and sheet messages: sender is known, treat as single block
-        const key=msg.sender.toLowerCase().trim();
-        if(!byPerson[key]) byPerson[key]={name:msg.sender,dept:'General',texts:[]};
-        byPerson[key].texts.push(msg.text);
-      } else {
-        // Chat messages: parse multiple Name (Dept): blocks
-        for(const b of splitChatBlocks(msg.text,msg.sender)) {
-          const key=b.name.toLowerCase().trim();
-          if(!byPerson[key]) byPerson[key]={name:b.name,dept:b.dept,texts:[]};
-          byPerson[key].texts.push(b.text);
-        }
+      for(const b of splitChatBlocks(msg.text,msg.sender)) {
+        const key=b.name.toLowerCase().trim();
+        if(!byPerson[key]) byPerson[key]={name:b.name,dept:b.dept,texts:[]};
+        byPerson[key].texts.push(b.text);
       }
     }
     const parsed=Object.values(byPerson).map(p=>{const c=p.texts.join('\n');return{name:p.name,dept:p.dept||'General',...extractChatFields(c)};});
