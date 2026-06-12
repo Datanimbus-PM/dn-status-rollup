@@ -181,6 +181,23 @@ textarea::placeholder{color:#334155}
 .output::-webkit-scrollbar{width:8px}
 .output::-webkit-scrollbar-track{background:#0f172a;border-left:1px solid #1e293b}
 .output::-webkit-scrollbar-thumb{background:#64748b;border-radius:4px;border:1px solid #334155}
+/* ── Status Bot ─────────────────────────────────────────────────── */
+#botBtn{position:fixed;bottom:80px;right:16px;width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#f59e0b,#d97706);border:none;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(245,158,11,.4);z-index:900;transition:transform .2s}
+#botBtn:hover{transform:scale(1.1)}
+#botPanel{position:fixed;bottom:130px;right:16px;width:340px;max-height:480px;background:#1e293b;border:1px solid #334155;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.4);z-index:900;display:none;flex-direction:column;overflow:hidden}
+#botPanel.open{display:flex}
+#botHead{padding:12px 14px;background:#0f172a;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #334155;flex-shrink:0}
+.btitle{font-size:13px;font-weight:600;color:#f59e0b}
+.bsub{font-size:10px;color:#64748b;margin-top:2px}
+#botMessages{flex:1;overflow-y:auto;padding:10px;display:flex;flex-direction:column;gap:8px}
+.bmsg{padding:8px 10px;border-radius:8px;font-size:12px;line-height:1.6;max-width:92%}
+.bmsg.user{background:#334155;color:#e2e8f0;align-self:flex-end;border-bottom-right-radius:2px}
+.bmsg.bot{background:#0f172a;color:#cbd5e1;align-self:flex-start;border-bottom-left-radius:2px;border:1px solid #334155}
+.bmsg.thinking{color:#64748b;font-style:italic}
+#botInputRow{display:flex;gap:6px;padding:10px;border-top:1px solid #334155;flex-shrink:0}
+#botQ{flex:1;background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;font-family:'Inter',sans-serif;font-size:12px;padding:7px 10px;outline:none}
+#botQ:focus{border-color:#f59e0b}
+#botSend{background:#f59e0b;border:none;border-radius:6px;color:#000;font-weight:700;font-size:12px;padding:7px 12px;cursor:pointer}
 .output::-webkit-scrollbar-thumb:hover{background:#94a3b8}
 .iwrap textarea::-webkit-scrollbar{width:8px}
 .iwrap textarea::-webkit-scrollbar-track{background:#0f172a;border-left:1px solid #1e293b}
@@ -635,6 +652,25 @@ textarea::placeholder{color:#334155}
   <div class="loge" id="logE"></div>
 </div>
 
+<!-- STATUS BOT -->
+<button id="botBtn" onclick="toggleBot()" title="Ask about project status">&#129302;</button>
+<div id="botPanel">
+  <div id="botHead">
+    <div>
+      <div class="btitle">&#129302; DN Status Bot</div>
+      <div class="bsub">Ask about any project status, blockers, or updates</div>
+    </div>
+    <button onclick="toggleBot()" style="background:none;border:none;color:#64748b;cursor:pointer;font-size:16px">&#10005;</button>
+  </div>
+  <div id="botMessages">
+    <div class="bmsg bot">Hi! Ask me anything about your projects — current status, blockers, what was completed, or any update across all your history.</div>
+  </div>
+  <div id="botInputRow">
+    <input id="botQ" placeholder="e.g. What are the blockers for UPP-IBL?" onkeydown="if(event.key==='Enter')botAsk()"/>
+    <button id="botSend" onclick="botAsk()">Ask</button>
+  </div>
+</div>
+
 <!-- SEND ALL MODAL -->
 <div id="saModal" class="moverlay">
   <div class="mbox">
@@ -840,6 +876,107 @@ function updateProjectLabel() {
   } else {
     el.innerHTML=p.name+' <span style="color:#475569;font-weight:400">('+p.client+') Updates</span>';
   }
+}
+
+// ── Status Bot ────────────────────────────────────────────────────
+function toggleBot(){
+  const panel=document.getElementById('botPanel');
+  panel.classList.toggle('open');
+  if(panel.classList.contains('open')){
+    document.getElementById('botQ').focus();
+  }
+}
+
+async function botAsk(){
+  const input=document.getElementById('botQ');
+  const q=input.value.trim();
+  if(!q) return;
+  input.value='';
+
+  // Add user message
+  botAddMsg(q,'user');
+  const thinking=botAddMsg('Searching reports...','bot thinking');
+
+  try {
+    // Load all history from Firebase
+    const allHistory=[];
+    const hist=await window.fbHist.list();
+    if(hist&&Array.isArray(hist)){
+      hist.forEach(h=>{
+        allHistory.push({
+          project:h.projectName||'Unknown',
+          client:h.clientName||'',
+          week:h.week||'',
+          date:h.savedAt||'',
+          mgmt:h.reports?.mgmt||'',
+          chat:h.reports?.chat||''
+        });
+      });
+    }
+
+    if(!allHistory.length){
+      thinking.textContent='No report history found. Generate and save some reports first.';
+      thinking.classList.remove('thinking');
+      return;
+    }
+
+    // Build context — use mgmt and chat reports (most informative)
+    const ctx=allHistory
+      .sort((a,b)=>b.date-a.date)
+      .slice(0,20) // last 20 reports across all projects
+      .map(h=>`PROJECT: ${h.project} (${h.client}) | WEEK: ${h.week}
+${h.chat||h.mgmt||''}`)
+      .join('
+
+---
+
+');
+
+    // Ask Claude
+    const res=await fetch(PROXY,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        apiKey:window._adminConfig?.anthropicKey,
+        payload:{
+          model:'claude-sonnet-4-6',
+          max_tokens:500,
+          messages:[{
+            role:'user',
+            content:`You are a helpful assistant with access to weekly status reports for Datanimbus projects.
+
+Answer the following question based ONLY on the report data provided. Be concise (3-5 sentences max). If the answer is not in the data, say so clearly.
+
+QUESTION: ${q}
+
+REPORT DATA:
+${ctx}`
+          }]
+        }
+      })
+    });
+    const data=await res.json();
+    const answer=data.content?.[0]?.text||'Sorry, I could not get an answer.';
+    thinking.textContent=answer;
+    thinking.classList.remove('thinking');
+  } catch(e){
+    thinking.textContent='Error: '+e.message;
+    thinking.classList.remove('thinking');
+  }
+
+  // Scroll to bottom
+  const msgs=document.getElementById('botMessages');
+  msgs.scrollTop=msgs.scrollHeight;
+}
+
+function botAddMsg(text,cls){
+  const msgs=document.getElementById('botMessages');
+  const div=document.createElement('div');
+  div.className='bmsg '+cls;
+  div.textContent=text;
+  msgs.appendChild(div);
+  msgs.scrollTop=msgs.scrollHeight;
+  return div;
 }
 
 // ── Leave quick-edit ──────────────────────────────────────────────
@@ -1100,6 +1237,7 @@ async function loadFromSources() {
             const sender=from.replace(/<[^>]*>/,'').replace(/"/g,'').trim()||from;
             const senderEmailMatch=from.match(/[a-zA-Z0-9._%+\-]+@([\w.-]+)/);
             const senderDomain=senderEmailMatch?senderEmailMatch[1].toLowerCase():'';
+            const subject=hdrs.find(h=>h.name==='Subject')?.value||'';
             const dec=d=>atob(d.replace(/-/g,'+').replace(/_/g,'/'));
             function extractBody(pl){
               if(!pl) return '';
@@ -1132,11 +1270,14 @@ async function loadFromSources() {
               .replace(/^[\s\d\-|:.,;]+$/gm,'')
               .replace(/\n{3,}/g,'\n\n')
               .trim()
-              .replace(/^.*(Meeting ID|Passcode|Join Zoom|Teams meeting|meet\.google|zoom\.us).*/gim,'')
-              .replace(/^(Hi |Dear |Attendees:|Discussion Points:|Minutes of Meeting|MoM).*/gim,'')
-              .replace(/^.*(Please find|Please proceed|Kindly|Please add|Please include|Please share).*/gim,'')
-              .slice(0,300); // 300 chars — forces only relevant content through
-            if(body.trim().length>20){allMessages.push({source:'gmail',sender,senderDomain,text:body});added++;}
+              .replace(/^.*(Meeting ID|Passcode|Join Zoom|Teams meeting|meet\.google|zoom\.us|Calendar invite).*/gim,'')
+              .replace(/^(Attendees:|Discussion Points:|Minutes of Meeting|MoM\s*:).*/gim,'')
+              .replace(/^(Hi\s+\w+,?\s*$|Dear\s+\w+,?\s*$)/gim,'')
+              .replace(/\n{3,}/g,'\n\n')
+              .slice(0,500); // 500 chars — enough to capture real work content
+            // Prepend subject to body — subject is always the most useful part of a client email
+            const fullText=(subject?'Re: '+subject+'\n':'')+body;
+            if(fullText.trim().length>10){allMessages.push({source:'gmail',sender,senderDomain,text:fullText.trim()});added++;}
           } catch(e2){}
         }
         addLog('Gmail: '+added+'/'+ids.length+' emails parsed','ok');
