@@ -1446,44 +1446,47 @@ async function loadFromSources() {
     }
     const parsed=Object.values(byPerson).map(p=>{const c=p.texts.join('\n');return{name:p.name,dept:p.dept||'General',...extractChatFields(c)};});
     if(!parsed.length){toast('Could not parse member updates','err');return;}
+
+    // Build client name map FIRST before rendering cards
+    const senderDomainMap={};
+    const clientSenderNames=new Set();
+    allMessages.filter(m=>m.source==='gmail'&&m.senderDomain).forEach(m=>{
+      const sname=m.sender.toLowerCase().trim();
+      senderDomainMap[sname]=m.senderDomain;
+      sname.split(/\s+/).forEach(word=>{ if(word.length>2) senderDomainMap[word]=m.senderDomain; });
+      if(m.senderDomain!=='datanimbus.com'){
+        clientSenderNames.add(sname);
+        sname.split(/\s+/).forEach(word=>{ if(word.length>2) clientSenderNames.add(word); });
+      }
+    });
+
+    // Filter out CLIENT contacts — only DataNimbus team members get cards
+    const internalParsed=parsed.filter(p=>{
+      const pname=p.name.toLowerCase().trim();
+      const domain=senderDomainMap[pname]||pname.split(/\s+/).map(w=>senderDomainMap[w]).find(d=>d)||'';
+      const isKnownClient=clientSenderNames.has(pname)||pname.split(/\s+/).some(w=>w.length>2&&clientSenderNames.has(w));
+      return !(domain&&domain!=='datanimbus.com')&&!isKnownClient;
+    });
+
     _members=[]; _updates={};
-    for(const p of parsed){
+    for(const p of internalParsed){
       _members.push({name:p.name,dept:p.dept});
       const id=p.name.replace(/\s+/g,'_');
       _updates[id]={completed:p.completed,inprogress:p.inprogress,blockers:p.blockers,wins:p.wins};
     }
-    // Sort members by department then name
     _members.sort((a,b)=>(a.dept||'').localeCompare(b.dept||'')||a.name.localeCompare(b.name));
     await window.fbMemP(_activeProjectId).save(_members);
     await window.fbUpdP(_activeProjectId).save(_updates);
 
-    // Render the member cards immediately so PM can review and edit
+    // Render cards after client filtering
     renderMCards();
 
-    // If called from Team view button, stay on Team view so PM can edit cards
-    // If called from main view, also open Team view for review
     const teamView = document.getElementById('teamView');
     if (!teamView.classList.contains('open')) {
       closeAll();
       teamView.classList.add('open');
       document.getElementById('teamBtn').classList.add('on');
     }
-
-    // Tag by email domain: @datanimbus.com = [INTERNAL], all other domains = [CLIENT]
-    // Build a map of sender name -> domain from Gmail messages
-    const senderDomainMap={};
-    // Also build a set of client sender names (non-datanimbus domains)
-    const clientSenderNames=new Set();
-    allMessages.filter(m=>m.source==='gmail'&&m.senderDomain).forEach(m=>{
-      const sname=m.sender.toLowerCase().trim();
-      senderDomainMap[sname]=m.senderDomain;
-      sname.split(/\s+/).forEach(word=>{ if(word.length>2) senderDomainMap[word]=m.senderDomain; });
-      // If this sender is from the client domain, remember their name
-      if(m.senderDomain!=='datanimbus.com'){
-        clientSenderNames.add(sname);
-        sname.split(/\s+/).forEach(word=>{ if(word.length>2) clientSenderNames.add(word); });
-      }
-    });
     const lines=parsed.map(p=>{
       if(!p.completed&&!p.inprogress&&!p.blockers&&!p.wins) return null;
       const pname=p.name.toLowerCase().trim();
