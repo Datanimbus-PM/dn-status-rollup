@@ -653,17 +653,17 @@ textarea::placeholder{color:#334155}
 </div>
 
 <!-- STATUS BOT -->
-<button id="botBtn" onclick="toggleBot()" title="Ask about project status">&#129302;</button>
+<button id="botBtn" onclick="toggleBot()" title="Ask Arlo about project status">&#129302;</button>
 <div id="botPanel">
   <div id="botHead">
     <div>
-      <div class="btitle">&#129302; DN Status Bot</div>
+      <div class="btitle">&#129302; Arlo</div>
       <div class="bsub">Ask about any project status, blockers, or updates</div>
     </div>
-    <button onclick="toggleBot()" style="background:none;border:none;color:#64748b;cursor:pointer;font-size:16px">&#10005;</button>
+    <div style="display:flex;gap:8px;align-items:center"><button onclick="_arloChatHistory=[];document.getElementById('botMessages').innerHTML='<div class=\"bmsg bot\">Hi, I'm Arlo! Ask me anything about your projects.</div>'" style="background:none;border:1px solid #334155;color:#64748b;cursor:pointer;font-size:10px;padding:3px 7px;border-radius:4px">Clear</button><button onclick="toggleBot()" style="background:none;border:none;color:#64748b;cursor:pointer;font-size:16px">&#10005;</button></div>
   </div>
   <div id="botMessages">
-    <div class="bmsg bot">Hi! Ask me anything about your projects — current status, blockers, what was completed, or any update across all your history.</div>
+    <div class="bmsg bot">Hi! Hi, I'm Arlo! Ask me anything about your projects — status, blockers, completions, or any update across all history.</div>
   </div>
   <div id="botInputRow">
     <input id="botQ" placeholder="e.g. What are the blockers for UPP-IBL?" onkeydown="if(event.key==='Enter')botAsk()"/>
@@ -887,88 +887,77 @@ function toggleBot(){
   }
 }
 
+// Arlo conversation history — maintains multi-turn context
+let _arloChatHistory=[];
+
 async function botAsk(){
   const input=document.getElementById('botQ');
   const q=input.value.trim();
   if(!q) return;
   input.value='';
-
-  // Add user message
   botAddMsg(q,'user');
-  const thinking=botAddMsg('Searching reports...','bot thinking');
-
+  const thinking=botAddMsg('Searching...','bot thinking');
   try {
-    // Load all history from Firebase
+    // 1. Load report history from Firebase
     const allHistory=[];
     const hist=await window.fbHist.list();
     if(hist&&Array.isArray(hist)){
       hist.forEach(h=>{
-        allHistory.push({
-          project:h.projectName||'Unknown',
-          client:h.clientName||'',
-          week:h.week||'',
-          date:h.savedAt||'',
-          mgmt:h.reports?.mgmt||'',
-          chat:h.reports?.chat||''
-        });
+        allHistory.push({project:h.projectName||'Unknown',client:h.clientName||'',week:h.week||'',date:h.savedAt||'',mgmt:h.reports?.mgmt||'',chat:h.reports?.chat||''});
       });
     }
-
-    if(!allHistory.length){
-      thinking.textContent='No report history found. Generate and save some reports first.';
-      thinking.classList.remove('thinking');
-      return;
-    }
-
-    // Build context — use mgmt and chat reports (most informative)
-    const ctx=allHistory
-      .sort((a,b)=>b.date-a.date)
-      .slice(0,20) // last 20 reports across all projects
-      .map(h=>`PROJECT: ${h.project} (${h.client}) | WEEK: ${h.week}
-${h.chat||h.mgmt||''}`)
-      .join('
-
----
-
-');
-
-    // Ask Claude
-    const res=await fetch(PROXY,{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        apiKey:window._adminConfig?.anthropicKey,
-        payload:{
-          model:'claude-sonnet-4-6',
-          max_tokens:500,
-          messages:[{
-            role:'user',
-            content:`You are a helpful assistant with access to weekly status reports for Datanimbus projects.
-
-Answer the following question based ONLY on the report data provided. Be concise (3-5 sentences max). If the answer is not in the data, say so clearly.
-
-QUESTION: ${q}
-
-REPORT DATA:
-${ctx}`
-          }]
+    // 2. Search Drive for project docs and slides
+    let driveCtx='';
+    if(window._accessToken&&_projects.length){
+      try {
+        thinking.textContent='Searching documents and slides...';
+        for(const proj of _projects.slice(0,5)){
+          const qStr=encodeURIComponent('name contains "'+proj.name+'" and trashed=false');
+          const drRes=await fetch('https://www.googleapis.com/drive/v3/files?q='+qStr+'&fields=files(id,name,mimeType,webViewLink)&pageSize=5',{headers:{Authorization:'Bearer '+window._accessToken}});
+          if(drRes.ok){
+            const drData=await drRes.json();
+            const files=(drData.files||[]).filter(f=>f.mimeType==='application/vnd.google-apps.presentation'||f.mimeType==='application/vnd.google-apps.document'||f.mimeType==='application/vnd.google-apps.spreadsheet');
+            if(files.length){
+              driveCtx+='\nPROJECT '+proj.name+' DOCUMENTS:\n';
+              files.forEach(f=>{driveCtx+=f.name+' ('+f.mimeType.split('.').pop()+') — '+f.webViewLink+'\n';});
+            }
+          }
         }
-      })
-    });
+      } catch(e2){}
+    }
+    // 3. Build report context
+    const reportCtx=allHistory.length
+      ? allHistory.sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,25).map(h=>'PROJECT: '+h.project+' ('+h.client+') | WEEK: '+h.week+'\n'+(h.chat||h.mgmt||'')).join('\n\n---\n\n')
+      : 'No report history available yet.';
+    // 4. Build system prompt using string concatenation (no template literals)
+    const systemPrompt='You are Arlo, a smart project status assistant for Datanimbus.'
+      +' You have access to weekly status reports and project documents.\n\n'
+      +'RULES:\n'
+      +'- Answer using ONLY the data provided — never guess or invent\n'
+      +'- Be specific: name projects, people, dates, ticket numbers\n'
+      +'- For status questions, state RAG (Red/Amber/Green) if available\n'
+      +'- For blocker questions, list each blocker clearly\n'
+      +'- If a question is ambiguous, ask ONE clarifying question before answering\n'
+      +'- If data is not available, say so clearly\n'
+      +'- Format answers with line breaks for readability\n\n'
+      +'REPORT DATA (most recent first):\n'+reportCtx
+      +(driveCtx ? '\n\nPROJECT DOCUMENTS:\n'+driveCtx : '');
+    // 5. Add to history and call Claude
+    _arloChatHistory.push({role:'user',content:q});
+    const res=await fetch(PROXY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({apiKey:window._adminConfig?.anthropicKey,payload:{model:'claude-sonnet-4-6',max_tokens:1000,system:systemPrompt,messages:_arloChatHistory}})});
     const data=await res.json();
     const answer=data.content?.[0]?.text||'Sorry, I could not get an answer.';
+    _arloChatHistory.push({role:'assistant',content:answer});
+    if(_arloChatHistory.length>20) _arloChatHistory=_arloChatHistory.slice(-20);
     thinking.textContent=answer;
     thinking.classList.remove('thinking');
   } catch(e){
     thinking.textContent='Error: '+e.message;
     thinking.classList.remove('thinking');
   }
-
-  // Scroll to bottom
   const msgs=document.getElementById('botMessages');
   msgs.scrollTop=msgs.scrollHeight;
 }
-
 function botAddMsg(text,cls){
   const msgs=document.getElementById('botMessages');
   const div=document.createElement('div');
