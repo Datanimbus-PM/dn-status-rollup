@@ -951,6 +951,11 @@ async function botAsk(){
     _arloChatHistory.push({role:'user',content:q});
     const res=await fetch(PROXY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({apiKey:window._adminConfig?.anthropicKey,payload:{model:'claude-sonnet-4-6',max_tokens:1000,system:systemPrompt,messages:_arloChatHistory}})});
     const data=await res.json();
+    // Log error details if API failed
+    if(data.error||data.type==='error'){
+      const errMsg=data.error?.message||data.message||JSON.stringify(data).slice(0,100);
+      throw new Error('API error: '+errMsg);
+    }
     const answer=data.content?.[0]?.text||'Sorry, I could not get an answer.';
     _arloChatHistory.push({role:'assistant',content:answer});
     if(_arloChatHistory.length>20) _arloChatHistory=_arloChatHistory.slice(-20);
@@ -1232,7 +1237,7 @@ async function loadFromSources() {
           const cleaned=cleanMsg(text);
           if(cleaned.length<15) continue;
           if(/^(@\w+\s*)+$/.test(cleaned.trim())) continue;
-          allMessages.push({source:'chat',sender:m.sender?.displayName||'Unknown',text:cleaned});
+          const senderName=m.sender?.displayName||m.sender?.name?.split('/')?.pop()||'Unknown'; allMessages.push({source:'chat',sender:senderName,text:cleaned});
           spaceCount++;
         }
         addLog('Chat '+spaceId+': '+spaceCount+' messages (incl. thread replies)','ok');
@@ -1603,7 +1608,7 @@ function extractChatFields(text) {
     else {
       // Line has no clear keyword — but if it has work-like content, keep as in-progress
       // Work-like: mentions UAT, production, testing, deployment, ticket, feature, fix, issue, module, screen, server, API, config, build, release, sprint, meeting, review, approval, signoff, CAB
-      const worklike=/(uat|production|prod|testing|test|deploy|deployment|ticket|feature|fix|issue|bug|module|screen|server|api|config|build|release|sprint|meeting|review|approval|signoff|cab|milestone|scope|phase|integration|migration|env|environment|database|report|dashboard|portal|login|access|permission|setup|install|configure|update|upgrade|patch|error|exception|log|monitor|alert|notification|schedule|plan|estimate|sow|fsd|brd|requirement|document|doc|slide|sheet|tracker|status|progress|pending|done|closed|open|waiting|escalat|client|bank|vendor|team|member|user|admin|pm|dev|qa|manager|lead)/i;
+      const worklike=/(uat|production|prod|testing|test|deploy|deployment|ticket|feature|fix|issue|bug|module|screen|server|api|config|build|release|sprint|meeting|review|approval|signoff|cab|milestone|scope|phase|integration|migration|env|environment|database|report|dashboard|portal|login|access|permission|setup|install|configure|update|upgrade|patch|error|exception|log|monitor|alert|notification|schedule|plan|estimate|sow|fsd|brd|requirement|document|doc|slide|sheet|tracker|status|progress|pending|done|closed|open|waiting|escalat|client|bank|vendor|team|member|user|admin|pm|dev|qa|manager|lead)/i;
       if(worklike.test(line) && line.length>15) inprogress.push(line);
     }
   }
