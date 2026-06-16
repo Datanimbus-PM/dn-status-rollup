@@ -661,10 +661,10 @@ textarea::placeholder{color:#334155}
       <div class="btitle">&#129302; Arlo</div>
       <div class="bsub">Ask about any project status, blockers, or updates</div>
     </div>
-    <div style="display:flex;gap:8px;align-items:center"><button onclick="_arloChatHistory=[];document.getElementById('botMessages').innerHTML='<div class=\"bmsg bot\">Hi, I'm Arlo! Ask me anything about your projects.</div>'" style="background:none;border:1px solid #334155;color:#64748b;cursor:pointer;font-size:10px;padding:3px 7px;border-radius:4px">Clear</button><button onclick="toggleBot()" style="background:none;border:none;color:#64748b;cursor:pointer;font-size:16px">&#10005;</button></div>
+    <div style="display:flex;gap:8px;align-items:center"><button onclick="clearArlo()" style="background:none;border:1px solid #334155;color:#64748b;cursor:pointer;font-size:10px;padding:3px 7px;border-radius:4px">Clear</button><button onclick="toggleBot()" style="background:none;border:none;color:#64748b;cursor:pointer;font-size:16px">&#10005;</button></div>
   </div>
   <div id="botMessages">
-    <div class="bmsg bot">Hi! Hi, I'm Arlo! Ask me anything about your projects — status, blockers, completions, or any update across all history.</div>
+    <div class="bmsg bot">Hi, I'm Arlo! Ask anything about your projects — status, blockers, updates or history.</div>
   </div>
   <div id="botInputRow">
     <input id="botQ" placeholder="Ask Arlo anything..." onkeydown="if(event.key==='Enter')botAsk()"/>
@@ -880,6 +880,10 @@ function updateProjectLabel() {
 }
 
 // ── Status Bot ────────────────────────────────────────────────────
+function clearArlo(){
+  _arloChatHistory=[];
+  document.getElementById('botMessages').innerHTML='<div class="bmsg bot">Hi, I\'m Arlo! Ask anything about your projects.</div>';
+}
 function toggleBot(){
   const panel=document.getElementById('botPanel');
   panel.classList.toggle('open');
@@ -1157,7 +1161,10 @@ async function loadFromSources() {
       const spaceBtn=document.getElementById('loadChatBtn');
       if(spaceBtn) spaceBtn.innerHTML='⏳ '+spaceId.slice(-6)+'...';
       try {
-        let pt=null; let spaceCount=0;
+        // ── Step 1: Fetch ALL messages from this space within lookback period ──
+        const allSpaceMsgs=[];
+        const allThreadNames=new Set();
+        let pt=null;
         do {
           let url='https://chat.googleapis.com/v1/spaces/'+spaceId+'/messages?pageSize=100';
           if(pt) url+='&pageToken='+encodeURIComponent(pt);
@@ -1165,46 +1172,74 @@ async function loadFromSources() {
           const data=await res.json();
           if(data.error){
             const code=data.error.code||data.error.status;
-            if(code===401||code===403||data.error.message?.includes('credential')||data.error.message?.includes('token')){
+            if(code===401||code===403||data.error.message?.includes('credential')){
               addLog('Space '+spaceId+': auth failed — sign out and back in','err');
               toast('Chat access expired — sign out and sign back in','err');
             } else {
-              addLog('Space '+spaceId+': '+data.error.message+' — skipping','err');
+              addLog('Space '+spaceId+': '+(data.error.message||'unknown error')+' — skipping','err');
             }
-            break; // skip this space, continue to next
+            break;
           }
           for(const m of(data.messages||[])){
-            if((m.createTime||'')<sinceStr) continue;
-            const text=(m.text||'').trim();
-            if(text.length<10) continue;
-            // Clean Chat messages too — people often paste email threads into Chat
-            const cleanedText=text
-              .replace(/^On .+wrote:[\s\S]*$/gim,'')
-              .replace(/^>.*$/gm,'')
-              .replace(/https?:\/\/\S+/g,'')
-              .replace(/^.*(Meeting ID|Passcode|Join Zoom|Teams meeting|meet\.google|zoom\.us).*/gim,'')
-              .replace(/^(Hi |Dear |Attendees:|Discussion Points:|Minutes of Meeting|MoM).*/gim,'')
-              .replace(/^.*(Please find|Please proceed|Please share|Please add|Kindly).*/gim,'')
-              .replace(/^(--|Regards,?|Thanks,?|Best,?|Warm regards,?|Sincerely,?)[\s\S]*$/gim,'')
-              // Strip messages that are purely @mentions or coordination openers
-              .replace(/^(@\w+[,.]?\s*)+$/gm,'')
-              .replace(/^(As discussed|Please note|Please be|FYI|Just to|Looping|Adding|Sharing|Noted|Acknowledged|Sure|Ok|Okay|Will do|Thanks for).*/gim,'')
-              .replace(/^(Can you|Could you|Would you|Please check|Please review|Please confirm|Please share|Please provide).*/gim,'')
-              .replace(/\n{3,}/g,'\n\n')
-              .trim()
-              .slice(0,300);
-            // Skip if after cleaning it's just noise
-            if(cleanedText.length<15) continue;
-            // Skip if it's still just an @mention line
-            if(/^(@\w+\s*)+$/.test(cleanedText.trim())) continue;
-            allMessages.push({source:'chat',sender:m.sender?.displayName||'Unknown',text:cleanedText});
+            if((m.createTime||'')<sinceStr) continue; // outside lookback window
+            allSpaceMsgs.push(m);
+            if(m.thread?.name) allThreadNames.add(m.thread.name);
           }
           pt=data.nextPageToken||null;
         } while(pt);
-        addLog('Chat '+spaceId+': '+allMessages.filter(m=>m.source==='chat').length+' messages so far','ok');
+
+        // ── Step 2: Fetch ALL thread replies within lookback period ──
+        // Thread replies are where most real work updates live
+        const seenMsgNames=new Set(allSpaceMsgs.map(m=>m.name));
+        for(const threadName of Array.from(allThreadNames)){
+          try {
+            let tpt=null;
+            do {
+              let turl='https://chat.googleapis.com/v1/'+threadName+'/messages?pageSize=100';
+              if(tpt) turl+='&pageToken='+encodeURIComponent(tpt);
+              const tRes=await fetch(turl,{headers:{Authorization:'Bearer '+token}});
+              if(!tRes.ok) break;
+              const tData=await tRes.json();
+              for(const tm of(tData.messages||[])){
+                if((tm.createTime||'')<sinceStr) continue;
+                if(seenMsgNames.has(tm.name)) continue; // already have this message
+                seenMsgNames.add(tm.name);
+                allSpaceMsgs.push(tm);
+              }
+              tpt=tData.nextPageToken||null;
+            } while(tpt);
+          } catch(te){ /* thread fetch failure is non-fatal */ }
+        }
+
+        // ── Step 3: Clean and push all collected messages ──
+        const cleanMsg=(text)=>text
+          .replace(/^On .+wrote:[\s\S]*$/gim,'')
+          .replace(/^>.*$/gm,'')
+          .replace(/https?:\/\/\S+/g,'')
+          .replace(/^.*(Meeting ID|Passcode|Join Zoom|Teams meeting|meet\.google|zoom\.us).*/gim,'')
+          .replace(/^(Hi |Dear |Attendees:|Discussion Points:|Minutes of Meeting|MoM).*/gim,'')
+          .replace(/^(--|Regards,?|Thanks,?|Best,?|Warm regards,?|Sincerely,?)[\s\S]*$/gim,'')
+          .replace(/^(@\w+[,.]?\s*)+$/gm,'')
+          .replace(/^(As discussed|Please note|FYI|Just to|Looping|Can you|Could you|Would you).*/gim,'')
+          .replace(/\n{3,}/g,'\n\n')
+          .trim()
+          .slice(0,300);
+
+        let spaceCount=0;
+        for(const m of allSpaceMsgs){
+          const text=(m.text||'').trim();
+          if(text.length<10) continue;
+          const cleaned=cleanMsg(text);
+          if(cleaned.length<15) continue;
+          if(/^(@\w+\s*)+$/.test(cleaned.trim())) continue;
+          allMessages.push({source:'chat',sender:m.sender?.displayName||'Unknown',text:cleaned});
+          spaceCount++;
+        }
+        addLog('Chat '+spaceId+': '+spaceCount+' messages (incl. thread replies)','ok');
       } catch(e){addLog('Chat error: '+e.message,'err');}
     }
-    if(proj.emailQuery) {
+
+        if(proj.emailQuery) {
       try {
         const raw=proj.emailQuery.trim();
         const builtQ=raw.includes('@')||raw.includes(':')
@@ -1565,7 +1600,12 @@ function extractChatFields(text) {
     else if(kw.wins.test(line)) wins.push(line);
     else if(kw.inprogress.test(line)) inprogress.push(line);
     else if(kw.completed.test(line)) completed.push(line);
-    // Lines with NO work keyword at all are dropped — not dumped into completed
+    else {
+      // Line has no clear keyword — but if it has work-like content, keep as in-progress
+      // Work-like: mentions UAT, production, testing, deployment, ticket, feature, fix, issue, module, screen, server, API, config, build, release, sprint, meeting, review, approval, signoff, CAB
+      const worklike=/(uat|production|prod|testing|test|deploy|deployment|ticket|feature|fix|issue|bug|module|screen|server|api|config|build|release|sprint|meeting|review|approval|signoff|cab|milestone|scope|phase|integration|migration|env|environment|database|report|dashboard|portal|login|access|permission|setup|install|configure|update|upgrade|patch|error|exception|log|monitor|alert|notification|schedule|plan|estimate|sow|fsd|brd|requirement|document|doc|slide|sheet|tracker|status|progress|pending|done|closed|open|waiting|escalat|client|bank|vendor|team|member|user|admin|pm|dev|qa|manager|lead)/i;
+      if(worklike.test(line) && line.length>15) inprogress.push(line);
+    }
   }
   return{completed:completed.join('. '),inprogress:inprogress.join('. '),blockers:blockers.join('. '),wins:wins.join('. ')};
 }
