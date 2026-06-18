@@ -949,7 +949,7 @@ async function botAsk(){
       +(driveCtx ? '\n\nPROJECT DOCUMENTS:\n'+driveCtx : '');
     // 5. Add to history and call Claude
     _arloChatHistory.push({role:'user',content:q});
-    const res=await fetch(PROXY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({apiKey:window._adminConfig?.anthropicKey,payload:{model:'claude-sonnet-4-6',max_tokens:1000,system:systemPrompt,messages:_arloChatHistory}})});
+    const res=await fetch(PROXY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({apiKey:window._anthropicKey,payload:{model:'claude-sonnet-4-6',max_tokens:1000,system:systemPrompt,messages:_arloChatHistory}})});
     const data=await res.json();
     // Log error details if API failed
     if(data.error||data.type==='error'){
@@ -1225,7 +1225,7 @@ async function loadFromSources() {
           .replace(/^(Hi |Dear |Attendees:|Discussion Points:|Minutes of Meeting|MoM).*/gim,'')
           .replace(/^(--|Regards,?|Thanks,?|Best,?|Warm regards,?|Sincerely,?)[\s\S]*$/gim,'')
           .replace(/^(@\w+[,.]?\s*)+$/gm,'')
-          .replace(/^(As discussed|Please note|FYI|Just to|Looping|Can you|Could you|Would you).*/gim,'')
+          .replace(/^(As discussed|Please note|FYI|Just to|Looping|Can you|Could you|Would you|Can i get|Can I get|Please update|Please check|Please confirm|Please share|Please provide|Can someone|Could someone|Any update|Any updates|Kindly update|Do we have|Have you|Has anyone|Is there|When will|What is the).*/gim,'')
           .replace(/\n{3,}/g,'\n\n')
           .trim()
           .slice(0,300);
@@ -1237,7 +1237,8 @@ async function loadFromSources() {
           const cleaned=cleanMsg(text);
           if(cleaned.length<15) continue;
           if(/^(@\w+\s*)+$/.test(cleaned.trim())) continue;
-          const senderName=m.sender?.displayName||m.sender?.name?.split('/')?.pop()||'Unknown'; allMessages.push({source:'chat',sender:senderName,text:cleaned});
+          const senderName=m.sender?.displayName||''; if(!senderName||/^\d+$/.test(senderName)) continue; // skip bot/system messages with no real name
+          allMessages.push({source:'chat',sender:senderName,text:cleaned});
           spaceCount++;
         }
         addLog('Chat '+spaceId+': '+spaceCount+' messages (incl. thread replies)','ok');
@@ -1748,9 +1749,10 @@ STRICT EXTRACTION RULES:
 - Lines starting with FRESHDESK TICKETS: extract ticket counts and statuses. Add a dedicated "Support Tickets" section to the MGMT report and CHAT report ONLY — NOT in the Client or Team reports. Format as: Open: N | Pending: N | Waiting on Customer: N | Waiting on Third Party: N. List any HIGH PRIORITY tickets by subject.
 - IGNORE completely: meeting invites, Teams/Zoom links, "Meeting ID", "Passcode", "Join", "Attendees:", "Discussion Points:", "For organizers", "Company Logo", registered office addresses, CIN numbers, email signatures, legal disclaimers
 - IGNORE full email threads — any message containing "Please find", "Please proceed", "Kindly", "As discussed", "For organizers", "Org help", "Privacy and security", "Indusind Bank Limited", or a company address is an email thread. Extract ONLY the specific work item buried in it, not the surrounding text
-- A valid work update must be ONE of: task completed, task in progress, blocker, or win. It must name a specific deliverable — "SOW confirmation pending" or "UAT fix in testing" is valid. "As discussed" or "Please fine MOM" is NOT valid and must be ignored entirely
-- If an email contains both a work item AND surrounding email noise, extract ONLY the work item in 10 words or less. Discard everything else
-- If you cannot extract a clear specific work item, skip that person entirely — do NOT include them
+- A valid work update must be ONE of: task completed, task in progress, blocker, or win. It must name a specific deliverable — "SOW confirmation pending" or "UAT fix in testing" is valid. "As discussed", "Can I get an update", "Please check" are NOT valid and must be ignored entirely
+- SUMMARISE — never copy raw text verbatim into table cells. Rewrite in 10 words or less per cell. "This is a configurable feature based on the PDF reader. IBL have many formats..." becomes "PDF reader config issue — kept open by IBL"
+- If a person only has coordination/request messages with no actual work update, skip them entirely — do NOT include them
+- NEVER use numeric IDs as names — if you see a number like 10295881039941372586, skip that row entirely
 
 Return ONLY valid raw JSON — no markdown fences:
 {"mgmt":"<html>","client":"<html>","team":"<html>","chat":"plain text","dashboard":{"members":[{"name":"","dept":"","rag":"G","ragReason":"","blockers":[],"wins":[],"completed":[],"inProgress":[]}],"summary":{"totalMembers":0,"greenCount":0,"amberCount":0,"redCount":0,"totalBlockers":0,"totalWins":0,"overallRAG":"G"}}}
