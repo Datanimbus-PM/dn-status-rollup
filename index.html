@@ -1491,9 +1491,7 @@ async function loadFromSources() {
     }
 
     if(!allMessages.length){toast('No messages found in last 7 days','err');return;}
-    const byPerson={};
-    // ── NEW APPROACH: Send raw messages to Claude for card generation ──
-    // Group messages by sender — no keyword extraction, no regex matching
+    // ── Group messages by sender — Claude summarises, no keyword extraction ──
     const byPerson={};
     for(const msg of allMessages){
       if(msg.source==='sheet') continue; // tickets handled separately
