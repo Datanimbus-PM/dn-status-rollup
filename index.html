@@ -1500,20 +1500,28 @@ async function loadFromSources() {
       byPerson[sender].msgs.push(msg.text);
     }
 
-    // Build client/internal tag using senderDomainMap
+    // Build client/internal tag, populate _members/_updates for card review
     const lines=[];
+    _members=[]; _updates={};
     for(const [name,data] of Object.entries(byPerson)){
       const pname=name.toLowerCase().trim();
       const domain=senderDomainMap[pname]||pname.split(/\s+/).map(w=>senderDomainMap[w]).find(d=>d)||'';
       const isKnownClient=clientSenderNames.has(pname)||pname.split(/\s+/).some(w=>w.length>2&&clientSenderNames.has(w));
       const isClient=(domain&&domain!=='datanimbus.com')||isKnownClient;
       const tag=isClient?'[CLIENT]':'[INTERNAL]';
-      // Combine all messages for this person
       const combined=data.msgs.join('\n---\n');
-      if(combined.trim().length>10){
-        lines.push(tag+' '+name+':\n'+combined);
+      if(combined.trim().length<10) continue;
+      lines.push(tag+' '+name+':\n'+combined);
+      if(!isClient){
+        _members.push({name,dept:'General'});
+        const mid=name.replace(/\s+/g,'_');
+        _updates[mid]={completed:'',inprogress:combined.slice(0,400),blockers:'',wins:''};
       }
     }
+    _members.sort((a,b)=>a.name.localeCompare(b.name));
+    await window.fbMemP(_activeProjectId).save(_members);
+    await window.fbUpdP(_activeProjectId).save(_updates);
+    renderMCards();
 
 
     // Build input — member updates + ticket data as separate block
