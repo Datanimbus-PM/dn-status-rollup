@@ -1503,6 +1503,19 @@ async function loadFromSources() {
       byPerson[sender].msgs.push(msg.text);
     }
 
+    // Build senderDomainMap and clientSenderNames from Gmail messages
+    const senderDomainMap={};
+    const clientSenderNames=new Set();
+    allMessages.filter(m=>m.source==='gmail'&&m.senderDomain).forEach(m=>{
+      const sname=m.sender.toLowerCase().trim();
+      senderDomainMap[sname]=m.senderDomain;
+      sname.split(/\s+/).forEach(word=>{if(word.length>2) senderDomainMap[word]=m.senderDomain;});
+      if(m.senderDomain!=='datanimbus.com'){
+        clientSenderNames.add(sname);
+        sname.split(/\s+/).forEach(word=>{if(word.length>2) clientSenderNames.add(word);});
+      }
+    });
+
     // Build client/internal tag, populate _members/_updates for card review
     const lines=[];
     _members=[]; _updates={};
