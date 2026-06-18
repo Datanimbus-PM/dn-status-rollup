@@ -931,21 +931,40 @@ async function botAsk(){
       } catch(e2){}
     }
     // 3. Build report context
-    const reportCtx=allHistory.length
-      ? allHistory.sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,25).map(h=>'PROJECT: '+h.project+' ('+h.client+') | WEEK: '+h.week+'\n'+(h.chat||h.mgmt||'')).join('\n\n---\n\n')
-      : 'No report history available yet.';
+    const reportCtx=filteredHistory.length
+      ? filteredHistory.sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,30).map(h=>'PROJECT: '+h.project+' ('+h.client+') | WEEK: '+h.week+'\n'+(h.mgmt&&h.chat ? h.mgmt+'\n'+h.chat : h.chat||h.mgmt||'')).join('\n\n---\n\n')
+      : allHistory.length ? 'No reports within the lookback period. Showing latest available:\n'+allHistory.sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,5).map(h=>'PROJECT: '+h.project+' | WEEK: '+h.week+'\n'+(h.chat||h.mgmt||'')).join('\n\n---\n\n') : 'No report history found. Generate and save some reports first.';
     // 4. Build system prompt using string concatenation (no template literals)
+    // Detect if question is about a specific person
+    const personMatch=q.match(/\b(souradeep|ganesh|tamilvanan|eldho|anitha|charles|raisa|ananth|sandil|aryan|taslim|vaishnavi|chetan|parmeshwar|mathew|roshan)\b/i)
+      || q.match(/what.*(?:has|did|is|was)\s+(\w+\s+\w+)\s+(?:work|done|complet|update|said|posted|mention)/i)
+      || q.match(/(?:summaris|summariz|tell me about|updates? (?:from|by|for))\s+([\w\s]+?)(?:\?|$)/i);
+    const personFocus = personMatch ? (personMatch[1]||personMatch[2]||'').trim().toLowerCase() : '';
+
+    // Build lookback period from active project settings
+    const activeProjData = _projects.find(pr=>pr.id===_activeProjectId);
+    const lookbackDays = parseInt(activeProjData?.lookbackDays||7);
+    const cutoffDate = new Date(Date.now() - lookbackDays*24*60*60*1000).toISOString();
+
+    // Filter history by lookback period
+    const filteredHistory = allHistory.filter(h=>{
+      const d = h.date ? new Date(h.date) : null;
+      return !d || d.toISOString() >= cutoffDate;
+    });
+
     const systemPrompt='You are Arlo, a smart project status assistant for Datanimbus.'
-      +' You have access to weekly status reports and project documents.\n\n'
+      +' You have access to weekly status reports across all projects.\n\n'
       +'RULES:\n'
       +'- Answer using ONLY the data provided — never guess or invent\n'
       +'- Be specific: name projects, people, dates, ticket numbers\n'
       +'- For status questions, state RAG (Red/Amber/Green) if available\n'
       +'- For blocker questions, list each blocker clearly\n'
+      +'- If a question is about a SPECIFIC PERSON: search all report data for their name, then give a structured summary with three sections: (1) What they completed recently, (2) What they are currently working on, (3) What is expected next. If they have blockers, call them out explicitly\n'
       +'- If a question is ambiguous, ask ONE clarifying question before answering\n'
       +'- If data is not available, say so clearly\n'
-      +'- Format answers with line breaks for readability\n\n'
-      +'REPORT DATA (most recent first):\n'+reportCtx
+      +'- Format answers with clear line breaks and bullet points\n\n'
+      +(personFocus ? 'FOCUS ON PERSON: '+personFocus+' — extract all mentions of this person across all reports\n\n' : '')
+      +'REPORT DATA (most recent first, last '+lookbackDays+' days):\n'+reportCtx
       +(driveCtx ? '\n\nPROJECT DOCUMENTS:\n'+driveCtx : '');
     // 5. Add to history and call Claude
     _arloChatHistory.push({role:'user',content:q});
@@ -1248,18 +1267,20 @@ async function loadFromSources() {
         if(proj.emailQuery) {
       try {
         const raw=proj.emailQuery.trim();
+        // Use lookbackDays from project settings (not hardcoded 7d)
+        const gmailLookback=activeProject()?.lookback||7;
         const builtQ=raw.includes('@')||raw.includes(':')
-          ? raw.split(',').map(e=>e.trim()).filter(Boolean).map(e=>e.includes(':')?e:'from:'+e).join(' OR ')+' newer_than:7d'
-          : raw+' newer_than:7d';
+          ? raw.split(',').map(e=>e.trim()).filter(Boolean).map(e=>e.includes(':')?e:'from:'+e).join(' OR ')+' newer_than:'+gmailLookback+'d'
+          : raw+' newer_than:'+gmailLookback+'d';
         const q=encodeURIComponent(builtQ);
-        addLog('Gmail query: '+decodeURIComponent(q).slice(0,60),'info');
-        const lRes=await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=25&q='+q,{headers:{Authorization:'Bearer '+token}});
+        addLog('Gmail query (last '+gmailLookback+' days): '+decodeURIComponent(q).slice(0,60),'info');
+        const lRes=await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=50&q='+q,{headers:{Authorization:'Bearer '+token}});
         const lData=await lRes.json();
         if(lData.error) throw new Error(lData.error.message);
         const ids=(lData.messages||[]).map(m=>m.id);
         addLog('Gmail: '+ids.length+' emails matched','info');
         let added=0;
-        for(const id of ids.slice(0,8)) {
+        for(const id of ids.slice(0,20)) {
           try {
             const mRes=await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/'+id+'?format=full',{headers:{Authorization:'Bearer '+token}});
             const mData=await mRes.json();
@@ -1468,99 +1489,45 @@ async function loadFromSources() {
 
     if(!allMessages.length){toast('No messages found in last 7 days','err');return;}
     const byPerson={};
-    for(const msg of allMessages) {
-      if(msg.source==='chat' && msg.sender && msg.sender!=='Unknown'){
-        // Chat: try structured Name (Dept): format first
-        const blocks=splitChatBlocks(msg.text,msg.sender);
-        // If splitChatBlocks only found defaultSender (no structured format), use sender directly
-        const hasStructure=blocks.some(b=>b.name!==msg.sender);
-        if(hasStructure){
-          // Structured format found — use parsed blocks
-          for(const b of blocks){
-            const key=b.name.toLowerCase().trim();
-            if(!byPerson[key]) byPerson[key]={name:b.name,dept:b.dept,texts:[]};
-            byPerson[key].texts.push(b.text);
-          }
-        } else {
-          // No structure — use sender name directly
-          const key=msg.sender.toLowerCase().trim();
-          if(!byPerson[key]) byPerson[key]={name:msg.sender,dept:'General',texts:[]};
-          byPerson[key].texts.push(msg.text);
-        }
-      } else {
-        // Gmail/sheet: use splitChatBlocks as before
-        for(const b of splitChatBlocks(msg.text,msg.sender)) {
-          const key=b.name.toLowerCase().trim();
-          if(!byPerson[key]) byPerson[key]={name:b.name,dept:b.dept,texts:[]};
-          byPerson[key].texts.push(b.text);
-        }
-      }
+    // ── NEW APPROACH: Send raw messages to Claude for card generation ──
+    // Group messages by sender — no keyword extraction, no regex matching
+    const byPerson={};
+    for(const msg of allMessages){
+      if(msg.source==='sheet') continue; // tickets handled separately
+      const sender=msg.sender||'Unknown';
+      if(!sender||sender==='Unknown'||/^\d+$/.test(sender)) continue;
+      if(!byPerson[sender]) byPerson[sender]={name:sender,msgs:[]};
+      byPerson[sender].msgs.push(msg.text);
     }
-    const parsed=Object.values(byPerson).map(p=>{const c=p.texts.join('\n');return{name:p.name,dept:p.dept||'General',...extractChatFields(c)};});
-    if(!parsed.length){toast('Could not parse member updates','err');return;}
 
-    // Build client name map FIRST before rendering cards
-    const senderDomainMap={};
-    const clientSenderNames=new Set();
-    allMessages.filter(m=>m.source==='gmail'&&m.senderDomain).forEach(m=>{
-      const sname=m.sender.toLowerCase().trim();
-      senderDomainMap[sname]=m.senderDomain;
-      sname.split(/\s+/).forEach(word=>{ if(word.length>2) senderDomainMap[word]=m.senderDomain; });
-      if(m.senderDomain!=='datanimbus.com'){
-        clientSenderNames.add(sname);
-        sname.split(/\s+/).forEach(word=>{ if(word.length>2) clientSenderNames.add(word); });
-      }
-    });
-
-    // Filter out CLIENT contacts — only DataNimbus team members get cards
-    const internalParsed=parsed.filter(p=>{
-      const pname=p.name.toLowerCase().trim();
+    // Build client/internal tag using senderDomainMap
+    const lines=[];
+    for(const [name,data] of Object.entries(byPerson)){
+      const pname=name.toLowerCase().trim();
       const domain=senderDomainMap[pname]||pname.split(/\s+/).map(w=>senderDomainMap[w]).find(d=>d)||'';
       const isKnownClient=clientSenderNames.has(pname)||pname.split(/\s+/).some(w=>w.length>2&&clientSenderNames.has(w));
-      return !(domain&&domain!=='datanimbus.com')&&!isKnownClient;
-    });
-
-    _members=[]; _updates={};
-    for(const p of internalParsed){
-      _members.push({name:p.name,dept:p.dept});
-      const id=p.name.replace(/\s+/g,'_');
-      _updates[id]={completed:p.completed,inprogress:p.inprogress,blockers:p.blockers,wins:p.wins};
+      const isClient=(domain&&domain!=='datanimbus.com')||isKnownClient;
+      const tag=isClient?'[CLIENT]':'[INTERNAL]';
+      // Combine all messages for this person
+      const combined=data.msgs.join('\n---\n');
+      if(combined.trim().length>10){
+        lines.push(tag+' '+name+':\n'+combined);
+      }
     }
-    _members.sort((a,b)=>(a.dept||'').localeCompare(b.dept||'')||a.name.localeCompare(b.name));
-    await window.fbMemP(_activeProjectId).save(_members);
-    await window.fbUpdP(_activeProjectId).save(_updates);
 
-    // Render cards after client filtering
-    renderMCards();
 
-    const teamView = document.getElementById('teamView');
-    if (!teamView.classList.contains('open')) {
-      closeAll();
-      teamView.classList.add('open');
-      document.getElementById('teamBtn').classList.add('on');
+    // Build input — member updates + ticket data as separate block
+    // Get ticket data from allMessages directly
+    const ticketMsgs=allMessages.filter(m=>m.source==='sheet');
+    const ticketBlock=ticketMsgs.length ? '\n\n--- SUPPORT TICKETS ---\n'+ticketMsgs.map(m=>m.text).join('\n') : '';
+    if(lines.length||ticketBlock){
+      const c=(lines.join('\n\n')+ticketBlock).trim();
+      sv('input',c);
+      document.getElementById('chars').textContent=c.length.toLocaleString()+' chars';
     }
-    const lines=parsed.map(p=>{
-      if(!p.completed&&!p.inprogress&&!p.blockers&&!p.wins) return null;
-      const pname=p.name.toLowerCase().trim();
-      // Check domain map first (works for Gmail senders)
-      const domain=senderDomainMap[pname]||
-        pname.split(/\s+/).map(w=>senderDomainMap[w]).find(d=>d)||'';
-      // Also check if name was seen as a client sender in Gmail (catches Chat mentions of client names)
-      const isKnownClient=clientSenderNames.has(pname)||
-        pname.split(/\s+/).some(w=>w.length>2&&clientSenderNames.has(w));
-      const isClientContact=(domain&&domain!=='datanimbus.com')||isKnownClient;
-      const tag=isClientContact?'[CLIENT]':'[INTERNAL]';
-      let t=tag+' '+p.name+' ('+p.dept+'):';
-      if(p.completed)  t+='\nCompleted: '+p.completed;
-      if(p.inprogress) t+='\nIn Progress: '+p.inprogress;
-      if(p.blockers)   t+='\nBlocker: '+p.blockers;
-      if(p.wins)       t+='\nWin: '+p.wins;
-      return t;
-    }).filter(Boolean);
-    if(lines.length){const c=lines.join('\n\n');sv('input',c);document.getElementById('chars').textContent=c.length.toLocaleString()+' chars';}
     const cc=allMessages.filter(m=>m.source==='chat').length, ec=allMessages.filter(m=>m.source==='gmail').length;
-    addLog('Loaded '+parsed.length+' members ('+cc+' chat, '+ec+' email)','ok');
-    toast(parsed.length+' members loaded — click Generate!','ok');
+    addLog('Loaded '+Object.keys(byPerson).length+' people ('+cc+' chat, '+ec+' email)','ok');
+    toast(Object.keys(byPerson).length+' people loaded — review cards and generate!','ok');
   } catch(e){addLog('Load failed: '+e.message,'err');toast('Load failed: '+e.message,'err');}
   finally{btns.forEach(b=>{b.innerHTML=b.id==='loadChatBtn'?'Load Now':'&#128229; Chat + Gmail';b.disabled=false;});}
 }
@@ -1749,10 +1716,17 @@ STRICT EXTRACTION RULES:
 - Lines starting with FRESHDESK TICKETS: extract ticket counts and statuses. Add a dedicated "Support Tickets" section to the MGMT report and CHAT report ONLY — NOT in the Client or Team reports. Format as: Open: N | Pending: N | Waiting on Customer: N | Waiting on Third Party: N. List any HIGH PRIORITY tickets by subject.
 - IGNORE completely: meeting invites, Teams/Zoom links, "Meeting ID", "Passcode", "Join", "Attendees:", "Discussion Points:", "For organizers", "Company Logo", registered office addresses, CIN numbers, email signatures, legal disclaimers
 - IGNORE full email threads — any message containing "Please find", "Please proceed", "Kindly", "As discussed", "For organizers", "Org help", "Privacy and security", "Indusind Bank Limited", or a company address is an email thread. Extract ONLY the specific work item buried in it, not the surrounding text
-- A valid work update must be ONE of: task completed, task in progress, blocker, or win. It must name a specific deliverable — "SOW confirmation pending" or "UAT fix in testing" is valid. "As discussed", "Can I get an update", "Please check" are NOT valid and must be ignored entirely
-- SUMMARISE — never copy raw text verbatim into table cells. Rewrite in 10 words or less per cell. "This is a configurable feature based on the PDF reader. IBL have many formats..." becomes "PDF reader config issue — kept open by IBL"
-- If a person only has coordination/request messages with no actual work update, skip them entirely — do NOT include them
-- NEVER use numeric IDs as names — if you see a number like 10295881039941372586, skip that row entirely
+- The input contains raw Chat messages and emails grouped by person as [INTERNAL] or [CLIENT] Name: followed by their messages separated by ---
+- For each person: READ ALL their messages, then SUMMARISE what they completed, what is in progress, and any blockers. Write in clear concise language — not raw copied text
+- Each cell in the table must be a clean summary, 10-15 words maximum per item. Multiple items go on separate lines
+- Ignore coordination noise: questions, @mentions, meeting invites, "as discussed", "please check" — only extract actual work status
+- A valid work item names a specific deliverable, ticket, or action — not a question or request
+- SUMMARISE every cell — rewrite in 10 words or less. Never copy raw text verbatim
+- Each item in a cell is separated by a newline bullet (\n-). Treat each bullet as a SEPARATE work item
+- For the TEAM table: one row per person. If a person has multiple completed items, list each on a new line within that cell
+- For ticket data under "SUPPORT TICKETS": each ticket ID is a separate row in the ticket table with columns: Ticket ID | Subject | Status | Agent
+- Skip any person whose name is a numeric ID
+- If a person only has coordination messages (requests, questions) with no actual work item, skip them
 
 Return ONLY valid raw JSON — no markdown fences:
 {"mgmt":"<html>","client":"<html>","team":"<html>","chat":"plain text","dashboard":{"members":[{"name":"","dept":"","rag":"G","ragReason":"","blockers":[],"wins":[],"completed":[],"inProgress":[]}],"summary":{"totalMembers":0,"greenCount":0,"amberCount":0,"redCount":0,"totalBlockers":0,"totalWins":0,"overallRAG":"G"}}}
