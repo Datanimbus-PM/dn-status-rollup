@@ -934,9 +934,18 @@ async function botAsk(){
       } catch(e2){}
     }
     // 3. Build report context
+    // Build lookback period from active project settings
+    const activeProjData=_projects.find(pr=>pr.id===_activeProjectId);
+    const lookbackDays=parseInt(activeProjData?.lookbackDays||activeProjData?.lookback||7);
+    const cutoffDate=new Date(Date.now()-lookbackDays*24*60*60*1000).toISOString();
+    const filteredHistory=allHistory.filter(h=>{
+      const d=h.date?new Date(h.date):null;
+      return !d||d.toISOString()>=cutoffDate;
+    });
+
     const reportCtx=filteredHistory.length
-      ? filteredHistory.sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,30).map(h=>'PROJECT: '+h.project+' ('+h.client+') | WEEK: '+h.week+'\n'+(h.mgmt&&h.chat ? h.mgmt+'\n'+h.chat : h.chat||h.mgmt||'')).join('\n\n---\n\n')
-      : allHistory.length ? 'No reports within the lookback period. Showing latest available:\n'+allHistory.sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,5).map(h=>'PROJECT: '+h.project+' | WEEK: '+h.week+'\n'+(h.chat||h.mgmt||'')).join('\n\n---\n\n') : 'No report history found. Generate and save some reports first.';
+      ? filteredHistory.sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,30).map(h=>'PROJECT: '+h.project+' ('+h.client+') | WEEK: '+h.week+'\n'+(h.mgmt&&h.chat?h.mgmt+'\n'+h.chat:h.chat||h.mgmt||'')).join('\n\n---\n\n')
+      : allHistory.length?'No reports within the lookback period. Showing latest available:\n'+allHistory.sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,5).map(h=>'PROJECT: '+h.project+' | WEEK: '+h.week+'\n'+(h.chat||h.mgmt||'')).join('\n\n---\n\n'):'No report history found. Generate and save some reports first.';
     // 4. Build system prompt using string concatenation (no template literals)
     // Detect if question is about a specific person
     const personMatch=q.match(/\b(souradeep|ganesh|tamilvanan|eldho|anitha|charles|raisa|ananth|sandil|aryan|taslim|vaishnavi|chetan|parmeshwar|mathew|roshan)\b/i)
@@ -944,16 +953,7 @@ async function botAsk(){
       || q.match(/(?:summaris|summariz|tell me about|updates? (?:from|by|for))\s+([\w\s]+?)(?:\?|$)/i);
     const personFocus = personMatch ? (personMatch[1]||personMatch[2]||'').trim().toLowerCase() : '';
 
-    // Build lookback period from active project settings
-    const activeProjData = _projects.find(pr=>pr.id===_activeProjectId);
-    const lookbackDays = parseInt(activeProjData?.lookbackDays||7);
-    const cutoffDate = new Date(Date.now() - lookbackDays*24*60*60*1000).toISOString();
-
-    // Filter history by lookback period
-    const filteredHistory = allHistory.filter(h=>{
-      const d = h.date ? new Date(h.date) : null;
-      return !d || d.toISOString() >= cutoffDate;
-    });
+    // lookbackDays and filteredHistory already declared above
 
     const systemPrompt='You are Arlo, a smart project status assistant for Datanimbus.'
       +' You have access to weekly status reports across all projects.\n\n'
