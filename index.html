@@ -170,6 +170,52 @@ body.light-theme #histView,body.light-theme #teamView,body.light-theme #dashView
 body.light-theme .hist-item{background:#f8fafc;border-color:#e2e8f0}
 body.light-theme .hist-item:hover{background:#f1f5f9}
 body.light-theme #themeToggle{border-color:#e2e8f0;color:#475569}
+/* ── Remaining light theme overrides ── */
+body.light-theme .tabs{background:#ffffff;border-bottom:1px solid #e2e8f0}
+body.light-theme .tab-btn{color:#64748b;border-bottom:2px solid transparent}
+body.light-theme .tab-btn:hover{color:#0f172a}
+body.light-theme .tab-btn.active{color:#d97706;border-bottom-color:#d97706}
+body.light-theme #botHead{background:#ffffff;border-bottom:1px solid #e2e8f0}
+body.light-theme #botHead span{color:#0f172a}
+body.light-theme #botHead small{color:#94a3b8}
+body.light-theme #botQ{background:#f8fafc;border-color:#e2e8f0;color:#0f172a}
+body.light-theme .bmsg.bot{background:#f1f5f9;color:#0f172a;border:1px solid #e2e8f0}
+body.light-theme .report th{background:#f1f5f9;color:#d97706;border-bottom:2px solid #e2e8f0}
+body.light-theme .report td{border-bottom:1px solid #f1f5f9;color:#0f172a}
+body.light-theme .report .section-person{background:#fff7ed;border-left:3px solid #d97706;color:#0f172a}
+body.light-theme .report tr:hover td{background:#fafafa}
+body.light-theme .fv{background:#f8fafc}
+body.light-theme .sc{background:#ffffff;border-color:#e2e8f0;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+body.light-theme .rc{background:#ffffff;border-radius:8px;padding:11px 13px}
+body.light-theme .brow{background:#ffffff;border-color:#e2e8f0}
+body.light-theme .htbl tr:hover td{background:#f8fafc}
+body.light-theme .tbg{background:#e2e8f0}
+body.light-theme .amform{background:#f8fafc;border-color:#e2e8f0}
+body.light-theme .uf textarea{background:#ffffff;border-color:#e2e8f0;color:#0f172a}
+body.light-theme .stitle::after{background:#e2e8f0}
+body.light-theme #uMenu{background:#ffffff;border:1px solid #e2e8f0;box-shadow:0 8px 24px rgba(0,0,0,.1)}
+body.light-theme #uMenu button{color:#0f172a}
+body.light-theme #uMenu button:hover{background:#f8fafc}
+body.light-theme .output::-webkit-scrollbar-track{background:#f8fafc}
+body.light-theme .output::-webkit-scrollbar-thumb{background:#e2e8f0}
+body.light-theme .iwrap textarea::-webkit-scrollbar-track{background:#f8fafc}
+body.light-theme .upill{background:rgba(217,119,6,.1);color:#d97706}
+body.light-theme .lb{background:#ffffff;border-color:#e2e8f0;box-shadow:0 8px 32px rgba(0,0,0,.1)}
+body.light-theme .lb-title{color:#0f172a}
+body.light-theme .hint-text{color:#475569}
+body.light-theme .mcard-field-label{color:#94a3b8}
+body.light-theme .mcard textarea{background:#f8fafc;border-color:#e2e8f0;color:#0f172a}
+body.light-theme .mcard-hd{border-bottom:1px solid #f1f5f9}
+body.light-theme .proj-dot{border-color:#ffffff}
+body.light-theme #actLog{background:#f8fafc;border-top:1px solid #e2e8f0}
+body.light-theme #log{background:#f8fafc;border-top:1px solid #e2e8f0}
+body.light-theme #leaveQ{background:#ffffff !important;border-color:#e2e8f0 !important;color:#0f172a !important}
+body.light-theme #leaveRow,body.light-theme [id*="leave"]{background:#ffffff;border-color:#e2e8f0}
+body.light-theme .act-log-entry{color:#475569}
+body.light-theme #sendBar{background:#f8fafc;border-top:1px solid #e2e8f0}
+body.light-theme .send-btn{background:#f1f5f9;border-color:#e2e8f0;color:#475569}
+body.light-theme .send-btn:hover{background:#e2e8f0}
+body.light-theme #genBtn{box-shadow:0 2px 8px rgba(217,119,6,.3)}
 body{background:var(--bg-base);color:var(--text-primary);font-family:'Inter',sans-serif;font-size:13px}
 #loginScreen{position:fixed;inset:0;background:var(--bg-base);display:flex;align-items:center;justify-content:center;z-index:999;padding:20px}
 .lb{background:#1e293b;border:1px solid #334155;border-radius:16px;padding:36px;width:100%;max-width:380px;text-align:center}
@@ -450,7 +496,7 @@ textarea::placeholder{color:#334155}
   </div>
   <div class="hright">
     <span class="badge fri" id="modeBadge">FRIDAY</span>
-    <button onclick="toggleTheme()" id="themeToggle" title="Toggle light/dark theme" style="background:none;border:1px solid #334155;border-radius:6px;color:var(--text-muted);cursor:pointer;font-size:11px;padding:4px 8px;margin-right:4px">🌙 Dark</button><button id="demoToggle" onclick="toggleDemoMode()"
+    <button onclick="toggleTheme()" id="themeToggle" title="Toggle light/dark theme" style="background:none;border:1px solid #334155;border-radius:20px;color:#94a3b8;cursor:pointer;font-size:11px;font-weight:600;padding:4px 12px;margin-right:4px;font-family:Inter,sans-serif;transition:.2s;letter-spacing:.3px">🌙 Dark</button><button id="demoToggle" onclick="toggleDemoMode()"
       style="background:rgba(167,139,250,.1);border:1px solid rgba(167,139,250,.3);color:#a78bfa;padding:5px 11px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;white-space:nowrap">
       &#127916; Demo OFF
     </button>
@@ -672,7 +718,7 @@ textarea::placeholder{color:#334155}
         <div id="attachedFiles" style="display:none;flex-wrap:wrap;gap:5px"></div>
         <div style="display:flex;align-items:center;gap:6px;margin-top:2px">
           <span style="font-size:10px;color:#64748b;white-space:nowrap;letter-spacing:.5px">&#128197; LEAVE:</span>
-          <input id="leaveQuick" placeholder="e.g. Anitha — 29 May, Raj — 3 Jun" onblur="saveLeaveQuick()" onkeydown="if(event.key==='Enter')this.blur()" style="flex:1;background:#1e293b;border:1px solid #334155;border-radius:5px;color:#e2e8f0;font-family:'Inter',sans-serif;font-size:11px;padding:4px 8px;outline:none"/>
+          <input id="leaveQuick" placeholder="e.g. Anitha — 29 May, Raj — 3 Jun" onblur="saveLeaveQuick()" onkeydown="if(event.key==='Enter')this.blur()" id="leaveQ" style="flex:1;background:#1e293b;border:1px solid #334155;border-radius:5px;color:#e2e8f0;font-family:'Inter',sans-serif;font-size:11px;padding:4px 8px;outline:none"/>
         </div>
       </div>
       <textarea id="input" placeholder="Example:&#10;&#10;Anitha (PM): Completed Q3 roadmap. Win: Client approved Phase 2. No blockers.&#10;&#10;Raj (Engineering): Shipped OAuth. Blocker: Need Redis cluster from DevOps."></textarea>
