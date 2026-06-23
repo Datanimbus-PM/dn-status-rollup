@@ -149,6 +149,22 @@ main{background:#080d1a}
 .report tr:hover td{background:rgba(245,158,11,.04)}
 .report .section-person{background:rgba(245,158,11,.08);border-left:4px solid #f59e0b;color:#f8fafc;font-weight:700}
 #output h2{color:#f59e0b;font-size:18px;font-weight:800;letter-spacing:-.3px}
+#output h3{color:#60a5fa;font-size:15px;font-weight:700;margin:16px 0 8px}
+#output h1{color:#f59e0b;font-size:22px;font-weight:800}
+#output table,#output .report{width:100%;border-collapse:collapse;margin:12px 0;font-size:13px}
+#output table th,#output .report th{background:linear-gradient(135deg,#1a1033,#0d1a33);color:#f59e0b;font-size:12px;font-weight:700;letter-spacing:.4px;padding:10px 12px;text-align:left;border-bottom:2px solid #f59e0b}
+#output table td,#output .report td{color:#d1d5db;font-size:13px;padding:9px 12px;border-bottom:1px solid #1e2a3a;vertical-align:top}
+#output table tr:hover td{background:rgba(245,158,11,.04)}
+#output ul{padding-left:20px;margin:8px 0}
+#output ul li{color:#d1d5db;font-size:13px;margin:4px 0;line-height:1.6}
+#output p{color:#d1d5db;font-size:13px;line-height:1.7;margin:6px 0}
+#output strong{color:#a78bfa;font-weight:700}
+#output hr{border:none;border-top:1px solid #1e2a3a;margin:16px 0}
+#output .win{background:rgba(52,211,153,.15);color:#34d399;border:1px solid rgba(52,211,153,.3);padding:2px 7px;border-radius:4px;font-size:11px;font-weight:700}
+#output .blocker{background:rgba(248,113,113,.15);color:#f87171;border:1px solid rgba(248,113,113,.3);padding:2px 7px;border-radius:4px;font-size:11px;font-weight:700}
+#output .status-green{color:#34d399;font-weight:700}
+#output .status-amber{color:#fbbf24;font-weight:700}
+#output .status-red{color:#f87171;font-weight:700}
 #output h3{color:#60a5fa;font-size:15px;font-weight:700}
 #output strong{color:#a78bfa}
 .hint-bar{background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.25);color:#fbbf24;font-weight:600}
@@ -306,6 +322,21 @@ body.light-theme .report td{color:#0d0d2b;font-size:13px;border-bottom:1px solid
 body.light-theme .report tr:hover td{background:#f0f4ff}
 body.light-theme .report .section-person{background:linear-gradient(135deg,rgba(233,30,140,.08),rgba(106,27,154,.08));border-left:4px solid #e91e8c;color:#0d0d2b;font-weight:700;font-size:13px}
 body.light-theme #output h2{color:#1565c0;font-size:18px;font-weight:800;letter-spacing:-.3px}
+body.light-theme #output h3{color:#e91e8c;font-size:15px;font-weight:700;margin:16px 0 8px}
+body.light-theme #output h1{color:#1565c0;font-size:22px;font-weight:800}
+body.light-theme #output table,body.light-theme #output .report{width:100%;border-collapse:collapse;margin:12px 0}
+body.light-theme #output table th,body.light-theme #output .report th{background:linear-gradient(135deg,#1565c0,#6a1b9a);color:#ffffff;font-size:12px;font-weight:700;letter-spacing:.4px;padding:10px 12px;text-align:left;border-bottom:none}
+body.light-theme #output table td,body.light-theme #output .report td{color:#0d0d2b;font-size:13px;padding:9px 12px;border-bottom:1px solid #e8eeff;vertical-align:top}
+body.light-theme #output table tr:hover td{background:#f0f4ff}
+body.light-theme #output ul li{color:#374151;font-size:13px;margin:4px 0}
+body.light-theme #output p{color:#374151;font-size:13px;line-height:1.7;margin:6px 0}
+body.light-theme #output strong{color:#6a1b9a;font-weight:700}
+body.light-theme #output hr{border:none;border-top:1px solid #e0e7ff;margin:16px 0}
+body.light-theme #output .win{background:rgba(5,150,105,.1);color:#059669;border:1px solid rgba(5,150,105,.3);padding:2px 7px;border-radius:4px;font-size:11px;font-weight:700}
+body.light-theme #output .blocker{background:rgba(233,30,140,.1);color:#e91e8c;border:1px solid rgba(233,30,140,.3);padding:2px 7px;border-radius:4px;font-size:11px;font-weight:700}
+body.light-theme #output .status-green{color:#059669;font-weight:700}
+body.light-theme #output .status-amber{color:#d97706;font-weight:700}
+body.light-theme #output .status-red{color:#e91e8c;font-weight:700}
 body.light-theme #output h3{color:#e91e8c;font-size:15px;font-weight:700}
 body.light-theme #output strong{color:#6a1b9a}
 body.light-theme .mcard-name{color:#0d0d2b;font-size:14px;font-weight:700}
@@ -1982,7 +2013,7 @@ RULE: Lines tagged [INTERNAL] = DataNimbus team members. Lines tagged [CLIENT] =
 Build TWO separate tables. If no [CLIENT] lines exist, omit the Client Interactions table.
 
 <h2>DataNimbus Team Updates</h2>
-<table><tr><th>Name</th><th>Department</th><th>Completed</th><th>In Progress</th><th>Blocker</th></tr>
+<table class='report'><tr><th>Name</th><th>Department</th><th>Completed</th><th>In Progress</th><th>Blocker</th></tr>
 [One row per [INTERNAL] person — use exact task names, not generic phrases:]
 <tr><td><strong>[Name]</strong></td><td><span style="font-size:10px;color:#64748b">[Dept]</span></td>
 <td>[2-3 specific items]</td><td>[1-2 items]</td><td>[blocker or —]</td></tr>
