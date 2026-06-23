@@ -113,9 +113,10 @@ window.doSignOut=()=>{ try{sessionStorage.removeItem('dn_gtoken');}catch(e){} wi
   --dn-blue:#2563eb;--dn-purple:#7c3aed;--dn-pink:#ec4899;--dn-accent:#6366f1;
 }
 body.light-theme{
-  --bg-base:#f5f7ff;--bg-card:#ffffff;--bg-input:#ffffff;--bg-hover:#eef2ff;
-  --border:#e0e7ff;--text-primary:#0f172a;--text-muted:#4b5563;--text-dim:#9ca3af;
-  --abar-bg:#ffffff;--sbar-bg:#f5f7ff;--tab-active:#6366f1;
+  --bg-base:#f0f4ff;--bg-card:#ffffff;--bg-input:#ffffff;--bg-hover:#e8eeff;
+  --border:#c7d2fe;--text-primary:#0d0d2b;--text-muted:#3730a3;--text-dim:#6366f1;
+  --abar-bg:#ffffff;--sbar-bg:#f0f4ff;--tab-active:#e91e8c;
+  --dn-pink:#e91e8c;--dn-blue:#1565c0;--dn-purple:#6a1b9a;--dn-cyan:#0097a7;
 }
 /* ── Light theme overrides — all elements ── */
 body.light-theme header{background:#ffffff;border-bottom:1px solid #e0e7ff;box-shadow:0 1px 8px rgba(99,102,241,.06)}
@@ -210,13 +211,62 @@ body.light-theme .mcard-hd{border-bottom:1px solid #f1f5f9}
 body.light-theme .proj-dot{border-color:#ffffff}
 body.light-theme #actLog{background:#f8fafc;border-top:1px solid #e2e8f0}
 body.light-theme #log{background:#f5f7ff;border-top:1px solid #e0e7ff}
-body.light-theme #leaveQ{background:#ffffff !important;border-color:#e0e7ff !important;color:#0f172a !important}
-body.light-theme #leaveRow,body.light-theme [id*="leave"]{background:#ffffff;border-color:#e0e7ff}
+body.light-theme #leaveQuick{background:#ffffff !important;border:1px solid #e0e7ff !important;color:#0f172a !important}
+body.light-theme #leaveRow,body.light-theme [id*="leave"]{background:#f5f7ff;border-color:#e0e7ff}
+body.light-theme .iwrap{background:#f5f7ff}
+body.light-theme .ilabel{color:#9ca3af}
+body.light-theme .ilabel-top span{color:#6b7280}
+body.light-theme #leaveRow{background:#f5f7ff !important}
+body.light-theme #leaveQuick{background:#ffffff !important;border-color:#e0e7ff !important;color:#0f172a !important}
+body.light-theme .sbar{background:#f5f7ff !important;border-color:#e0e7ff !important}
+body.light-theme .src-btns button,body.light-theme .src-btns label{filter:brightness(0.85)}
 body.light-theme .act-log-entry{color:#475569}
 body.light-theme #sendBar{background:#f8fafc;border-top:1px solid #e2e8f0}
 body.light-theme .send-btn{background:#f1f5f9;border-color:#e2e8f0;color:#475569}
 body.light-theme .send-btn:hover{background:#e2e8f0}
-body.light-theme #genBtn{background:linear-gradient(135deg,#6366f1,#8b5cf6) !important;box-shadow:0 4px 16px rgba(99,102,241,.35)}
+body.light-theme #genBtn{background:linear-gradient(135deg,#e91e8c,#6a1b9a) !important;box-shadow:0 4px 20px rgba(233,30,140,.4) !important}
+
+/* ── DN Brand vivid color overrides ── */
+body.light-theme{font-size:14px}
+body.light-theme .logo-title{color:#0d0d2b;font-size:15px;font-weight:800;letter-spacing:-.3px}
+body.light-theme .logo-sub{color:#e91e8c;font-weight:700;font-size:11px;letter-spacing:1px}
+body.light-theme header{background:#ffffff;border-bottom:2px solid #e91e8c;box-shadow:0 2px 12px rgba(233,30,140,.1)}
+body.light-theme .proj-tab{border-color:#c7d2fe;color:#3730a3;font-size:12px;font-weight:600}
+body.light-theme .proj-tab:hover{border-color:#e91e8c;color:#e91e8c;background:rgba(233,30,140,.05)}
+body.light-theme .proj-tab.active{background:linear-gradient(135deg,rgba(233,30,140,.1),rgba(106,27,154,.1));border-color:#e91e8c;color:#e91e8c}
+body.light-theme .tab-btn{color:#3730a3;font-size:13px;font-weight:600;letter-spacing:.2px}
+body.light-theme .tab-btn:hover{color:#e91e8c}
+body.light-theme .tab-btn.active{color:#e91e8c;border-bottom-color:#e91e8c;font-weight:700}
+body.light-theme .report th{background:linear-gradient(135deg,#1565c0,#6a1b9a);color:#ffffff;font-size:13px;font-weight:700;letter-spacing:.3px;border:none}
+body.light-theme .report td{color:#0d0d2b;font-size:13px;border-bottom:1px solid #e8eeff}
+body.light-theme .report tr:hover td{background:#f0f4ff}
+body.light-theme .report .section-person{background:linear-gradient(135deg,rgba(233,30,140,.08),rgba(106,27,154,.08));border-left:4px solid #e91e8c;color:#0d0d2b;font-weight:700;font-size:13px}
+body.light-theme #output h2{color:#1565c0;font-size:18px;font-weight:800;letter-spacing:-.3px}
+body.light-theme #output h3{color:#e91e8c;font-size:15px;font-weight:700}
+body.light-theme #output strong{color:#6a1b9a}
+body.light-theme .mcard-name{color:#0d0d2b;font-size:14px;font-weight:700}
+body.light-theme .mcard-dept{color:#e91e8c;font-size:11px;font-weight:600;letter-spacing:.5px;text-transform:uppercase}
+body.light-theme .mcard-section{color:#1565c0;font-size:11px;font-weight:700;letter-spacing:.5px}
+body.light-theme .mcard{border-top:3px solid #e91e8c;box-shadow:0 2px 12px rgba(233,30,140,.08)}
+body.light-theme #botPanel{border:2px solid #e91e8c;box-shadow:0 8px 40px rgba(233,30,140,.2)}
+body.light-theme #botHead span{color:#0d0d2b;font-size:15px;font-weight:800}
+body.light-theme #botHead small{color:#e91e8c;font-weight:600}
+body.light-theme .bmsg.user{background:linear-gradient(135deg,#e91e8c,#6a1b9a);color:#ffffff;font-size:13px}
+body.light-theme .bmsg.bot{background:#f0f4ff;color:#0d0d2b;border:1px solid #c7d2fe;font-size:13px}
+body.light-theme #botSend{background:linear-gradient(135deg,#e91e8c,#6a1b9a);border:none;color:#ffffff;font-weight:700}
+body.light-theme .abar-btn,.light-theme .nav-btn{font-size:12px;font-weight:600}
+body.light-theme .hint-bar{background:linear-gradient(135deg,rgba(233,30,140,.06),rgba(106,27,154,.04));border-color:#e91e8c;color:#6a1b9a;font-weight:600}
+body.light-theme #input{font-size:13px;color:#0d0d2b;border:1.5px solid #c7d2fe}
+body.light-theme #input:focus{border-color:#e91e8c;box-shadow:0 0 0 3px rgba(233,30,140,.1)}
+body.light-theme .loge.ok{color:#0097a7;font-weight:600}
+body.light-theme .loge.err{color:#e91e8c;font-weight:600}
+body.light-theme .loge.info{color:#1565c0;font-weight:600}
+body.light-theme #leaveQuick{background:#ffffff !important;border:1.5px solid #c7d2fe !important;color:#0d0d2b !important;font-size:13px !important}
+body.light-theme .sbar span,.light-theme .sbar label{color:#3730a3;font-size:12px;font-weight:600}
+body.light-theme .dash-val{color:#0d0d2b;font-size:22px;font-weight:800}
+body.light-theme .dash-label{color:#e91e8c;font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase}
+body.light-theme .hist-item{border-left:3px solid #e91e8c}
+body.light-theme #themeToggle{border-color:#e91e8c;color:#e91e8c;background:rgba(233,30,140,.06);font-weight:700}
 body{background:var(--bg-base);color:var(--text-primary);font-family:'Inter',sans-serif;font-size:13px}
 #loginScreen{position:fixed;inset:0;background:var(--bg-base);display:flex;align-items:center;justify-content:center;z-index:999;padding:20px}
 .lb{background:#1e293b;border:1px solid #334155;border-radius:16px;padding:36px;width:100%;max-width:380px;text-align:center}
@@ -717,9 +767,9 @@ textarea::placeholder{color:#334155}
           <label style="background:rgba(167,139,250,.1);border:1px solid rgba(167,139,250,.3);color:#a78bfa;font-family:'Inter',sans-serif;font-size:11px;padding:4px 9px;border-radius:5px;cursor:pointer;font-weight:500">&#128206; Attach<input type="file" id="fileInput" accept=".xlsx,.xls,.csv,.pdf,.txt,.docx,.doc" multiple style="display:none" onchange="handleFileAttach(event)"/></label>
         </div>
         <div id="attachedFiles" style="display:none;flex-wrap:wrap;gap:5px"></div>
-        <div style="display:flex;align-items:center;gap:6px;margin-top:2px">
+        <div id="leaveRow" style="display:flex;align-items:center;gap:6px;margin-top:2px">
           <span style="font-size:10px;color:#64748b;white-space:nowrap;letter-spacing:.5px">&#128197; LEAVE:</span>
-          <input id="leaveQuick" placeholder="e.g. Anitha — 29 May, Raj — 3 Jun" onblur="saveLeaveQuick()" onkeydown="if(event.key==='Enter')this.blur()" id="leaveQ" style="flex:1;background:#1e293b;border:1px solid #334155;border-radius:5px;color:#e2e8f0;font-family:'Inter',sans-serif;font-size:11px;padding:4px 8px;outline:none"/>
+          <input id="leaveQuick" placeholder="e.g. Anitha — 29 May, Raj — 3 Jun" onblur="saveLeaveQuick()" onkeydown="if(event.key==='Enter')this.blur()" style="flex:1;background:#1e293b;border:1px solid #334155;border-radius:5px;color:#e2e8f0;font-family:'Inter',sans-serif;font-size:11px;padding:4px 8px;outline:none;transition:background .2s,border-color .2s,color .2s"/>
         </div>
       </div>
       <textarea id="input" placeholder="Example:&#10;&#10;Anitha (PM): Completed Q3 roadmap. Win: Client approved Phase 2. No blockers.&#10;&#10;Raj (Engineering): Shipped OAuth. Blocker: Need Redis cluster from DevOps."></textarea>
